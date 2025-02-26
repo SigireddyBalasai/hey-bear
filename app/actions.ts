@@ -40,6 +40,8 @@ export const signUpAction = async (formData: FormData) => {
 };
 
 export const signInAction = async (formData: FormData) => {
+  console.log("sign in action");
+  console.log(formData);
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const supabase = await createClient();
