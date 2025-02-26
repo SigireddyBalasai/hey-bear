@@ -37,7 +37,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 type Assistant = {
   name: string;
-  assistantName?: string; // Support both name formats from API
+  assistantName?: string;
   metadata: {
     owner: string;
     createdAt?: string;
@@ -201,7 +201,7 @@ export default function AssistantsPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    router.push('/login');
+    router.push('/sign-in');
   };
 
   // Filter assistants based on search query and selected tab
@@ -263,10 +263,10 @@ export default function AssistantsPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Button asChild size="lg" className="w-full">
-              <Link href="/login">Login</Link>
+              <Link href="/sign-in">Login</Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="w-full">
-              <Link href="/signup">Create Account</Link>
+              <Link href="/sign-up">Create Account</Link>
             </Button>
           </CardContent>
         </Card>

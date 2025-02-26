@@ -336,7 +336,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     }
     await supabase.auth.signOut();
     setUser(null);
-    router.push('/login');
+    router.push('/sign-in');
   };
 
   // Handle keyboard shortcuts
