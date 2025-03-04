@@ -380,7 +380,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
             <CardDescription>Please log in to continue using this assistant</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => router.push('/login')}>
+            <Button className="w-full" onClick={() => router.push('/sign-in')}>
               Go to Login
             </Button>
           </CardContent>

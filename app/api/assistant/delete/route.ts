@@ -3,14 +3,72 @@ import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
 
 export async function POST(req: NextRequest) {
-  const { assistantName } : { assistantName: string } = await req.json();
-  const supabase = await createClient();
+  try {
+    // Validate request body
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
+    }
+    
+    const { assistantName } = body;
+    
+    // Validate required fields
+    if (!assistantName) {
+      return NextResponse.json({ error: 'Assistant name is required' }, { status: 400 });
+    }
+    
+    const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Check user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const pinecone = getPineconeClient();
-  await pinecone.deleteAssistant(assistantName);
+    try {
+      // Delete from Pinecone
+      const pinecone = getPineconeClient();
+      if (!pinecone) {
+        return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
+      }
+      
+      await pinecone.deleteAssistant(assistantName);
+      
+      // Delete from Supabase (adding record cleanup)
+      const { error: deleteError } = await supabase
+        .from('assistants')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('assistant_id', assistantName);
+        
+      if (deleteError) {
+        console.error('Error deleting assistant from database:', deleteError);
+        // We continue since the assistant was deleted from Pinecone already
+      }
 
-  return NextResponse.json({ message: `Assistant ${assistantName} deleted` });
+      // Clean up chat history
+      const { error: chatDeleteError } = await supabase
+        .from('chat_history')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('assistant_id', assistantName);
+        
+      if (chatDeleteError) {
+        console.error('Error cleaning up chat history:', chatDeleteError);
+      }
+
+      return NextResponse.json({ message: `Assistant ${assistantName} deleted` });
+    } catch (apiError) {
+      console.error('Error deleting assistant:', apiError);
+      return NextResponse.json(
+        { error: 'Failed to delete assistant' }, 
+        { status: 500 }
+      );
+    }
+  } catch (e) {
+    console.error('Unexpected error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

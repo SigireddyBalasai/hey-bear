@@ -1,49 +1,20 @@
 "use client";
+import { AssistantCard } from './AssistantCard';
+import { AssistantList } from './AssistantList';
+import { CreateAssistantDialog } from './CreateAssistantDialog';
+import { EmptyState } from './EmptyState';
+import { Header } from './Header';
+import { Loading } from './Loading';
+import { Login } from './Login';
+import { SearchAndControls } from './SearchAndControl';
+import { TabsNavigation } from './TabsNavigation';
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/utils/supabase/client';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { 
-  Bot, 
-  Search, 
-  Plus, 
-  Trash2, 
-  Loader2, 
-  ArrowRight, 
-  UserCircle, 
-  LogOut,
-  LayoutGrid,
-  LayoutList,
-  ChevronRight,
-  Settings,
-  Info
-} from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-
-type Assistant = {
-  name: string;
-  assistantName?: string;
-  metadata: {
-    owner: string;
-    createdAt?: string;
-    description?: string;
-  };
-};
+import { Assistant, toFrontendAssistant } from '@/lib/types-adapter';
+import { Database } from '@/lib/database.types';
 
 export default function AssistantsPage() {
   const [user, setUser] = useState<any>(null);
@@ -69,31 +40,28 @@ export default function AssistantsPage() {
         setUser(user);
         
         if (user) {
-          const res = await fetch('/api/assistant/list');
-          const data = await res.json();
+          // Fetch assistants directly from Supabase
+          const { data, error } = await supabase
+            .from('assistants')
+            .select('*')
+            .eq('user_id', user.id);
           
-          if (res.ok) {
-            // Normalize the data structure
-            const normalizedAssistants = (data.assistants || []).map((assistant: any) => ({
-              name: assistant.assistantName || assistant.name,
-              metadata: {
-                ...assistant.metadata,
-                createdAt: assistant.metadata?.createdAt || new Date().toISOString(),
-                description: assistant.metadata?.description || 'No description provided'
-              }
-            }));
+          if (error) {
+            throw error;
+          }
+          
+          if (data) {
+            // Convert database assistants to frontend format
+            const frontendAssistants = data.map(toFrontendAssistant);
             
             // Sort by creation date (newest first)
-            normalizedAssistants.sort((a: Assistant, b: Assistant) => {
-              return new Date(b.metadata.createdAt || '').getTime() - 
-                     new Date(a.metadata.createdAt || '').getTime();
+            frontendAssistants.sort((a: Assistant, b: Assistant) => {
+              const dateA = a.started_at || a.createdAt || '';
+              const dateB = b.started_at || b.createdAt || '';
+              return new Date(dateB).getTime() - new Date(dateA).getTime();
             });
             
-            setAssistants(normalizedAssistants);
-          } else {
-            toast("Failed to load assistants",{
-              description: data.error || "Could not retrieve your assistants",
-            });
+            setAssistants(frontendAssistants);
           }
         }
       } catch (error) {
@@ -121,30 +89,33 @@ export default function AssistantsPage() {
     try {
       setIsCreating(true);
       
-      const res = await fetch('/api/assistant/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          assistantName: newAssistantName,
+      // Generate a unique assistant ID
+      const assistantId = `assist_${Math.random().toString(36).substring(2, 15)}`;
+      
+      // Create the assistant in Supabase
+      const { data, error } = await supabase
+        .from('assistants')
+        .insert({
+          assistant_id: assistantId,
+          user_id: user.id,
+          started_at: new Date().toISOString(),
           metadata: {
-            description: newAssistantDescription
+            name: newAssistantName,
+            assistantName: newAssistantName,
+            description: newAssistantDescription || 'No description provided',
+            is_active: true,
+            createdAt: new Date().toISOString()
           }
-        }),
-      });
+        })
+        .select();
       
-      const data = await res.json();
+      if (error) {
+        throw error;
+      }
       
-      if (res.ok) {
+      if (data && data.length > 0) {
         // Add the new assistant to the list
-        const newAssistant = {
-          name: newAssistantName,
-          metadata: {
-            owner: user.id,
-            createdAt: new Date().toISOString(),
-            description: newAssistantDescription || 'No description provided'
-          }
-        };
-        
+        const newAssistant = toFrontendAssistant(data[0]);
         setAssistants([newAssistant, ...assistants]);
         setNewAssistantName('');
         setNewAssistantDescription('');
@@ -153,15 +124,11 @@ export default function AssistantsPage() {
         toast("Assistant created",{
           description: `${newAssistantName} has been created successfully`,
         });
-      } else {
-        toast("Failed to create assistant",{
-          description: data.error || "Could not create the assistant",
-        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating assistant:', error);
       toast("Error",{
-        description: "Something went wrong while creating the assistant",
+        description: error.message || "Something went wrong while creating the assistant",
       });
     } finally {
       setIsCreating(false);
@@ -169,31 +136,39 @@ export default function AssistantsPage() {
   };
 
   // Handle deleting an assistant
-  const handleDeleteAssistant = async (assistantName: string) => {
+  const handleDeleteAssistant = async (assistantId: string) => {
     try {
-      const res = await fetch('/api/assistant/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assistantName }),
-      });
+      // Find the assistant to delete
+      const assistantToDelete = assistants.find(a => a.id === assistantId || a.assistant_id === assistantId);
       
-      const data = await res.json();
-      
-      if (res.ok) {
-        setAssistants(assistants.filter((a) => a.name !== assistantName));
-        toast("Assistant deleted",{
-          description: `${assistantName} has been removed`,
+      if (!assistantToDelete) {
+        toast("Error",{
+          description: "Assistant not found",
         });
-      } else {
-        toast("Deletion failed",{
-          description: data.error || "Could not delete the assistant",
-        });
+        return;
       }
-    } catch (error) {
+      
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('assistants')
+        .delete()
+        .eq('id', assistantToDelete.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update local state
+      setAssistants(assistants.filter(a => a.id !== assistantId && a.assistant_id !== assistantId));
+      
+      toast("Assistant deleted",{
+        description: `${assistantToDelete.name || assistantToDelete.assistantName} has been removed`,
+      });
+    } catch (error: any) {
       console.error('Error deleting assistant:', error);
       toast("Error",{
-          description: "Something went wrong while deleting the assistant",
-        });
+        description: error.message || "Something went wrong while deleting the assistant",
+      });
     }
   };
 
@@ -206,8 +181,8 @@ export default function AssistantsPage() {
 
   // Filter assistants based on search query and selected tab
   const filteredAssistants = assistants.filter(assistant => {
-    const matchesSearch = assistant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         assistant.metadata.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (assistant.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         assistant.description?.toLowerCase().includes(searchQuery.toLowerCase()));
     
     // Filter based on selected tab (for future implementation)
     if (selectedTab === 'all') {
@@ -242,199 +217,51 @@ export default function AssistantsPage() {
   
   // Display loading state
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-lg">Loading your assistants...</p>
-        </div>
-      </div>
-    );
+    return <Loading />;
   }
 
   // Display login page if not authenticated
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-[350px]">
-          <CardHeader>
-            <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>Please log in to access your assistants</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <Button asChild size="lg" className="w-full">
-              <Link href="/sign-in">Login</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="w-full">
-              <Link href="/sign-up">Create Account</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <Login />;
   }
 
+  // The rest of the component remains largely the same
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       {/* Header section */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Your Assistants</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage and create AI assistants tailored to your needs
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Avatar>
-                  <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuItem disabled>{user.email}</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      <Header user={user} handleSignOut={handleSignOut} />
 
       {/* Search and controls bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6">
-        <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search assistants..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="border rounded-md p-1 flex">
-                  <Button 
-                    variant={viewMode === 'grid' ? 'default' : 'ghost'} 
-                    size="icon" 
-                    className="h-9 w-9"
-                    onClick={() => setViewMode('grid')}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant={viewMode === 'list' ? 'default' : 'ghost'} 
-                    size="icon"
-                    className="h-9 w-9"
-                    onClick={() => setViewMode('list')}
-                  >
-                    <LayoutList className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Change view</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span>New Assistant</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Assistant</DialogTitle>
-                <DialogDescription>
-                  Give your assistant a name and description
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">
-                    Name
-                  </label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Research Assistant"
-                    value={newAssistantName}
-                    onChange={(e) => setNewAssistantName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="description" className="text-sm font-medium">
-                    Description
-                  </label>
-                  <Textarea
-                    id="description"
-                    placeholder="What can this assistant help with?"
-                    value={newAssistantDescription}
-                    onChange={(e) => setNewAssistantDescription(e.target.value)}
-                    className="min-h-[100px]"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateAssistant} disabled={isCreating}>
-                  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+      <SearchAndControls
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        createDialogOpen={createDialogOpen}
+        setCreateDialogOpen={setCreateDialogOpen}
+      />
 
       {/* Tab navigation for filtering (can be extended in future) */}
-      <Tabs defaultValue="all" className="mb-6" onValueChange={setSelectedTab}>
-        <TabsList>
-          <TabsTrigger value="all">All Assistants</TabsTrigger>
-          <TabsTrigger value="favorites" disabled>Favorites</TabsTrigger>
-          <TabsTrigger value="shared" disabled>Shared</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <TabsNavigation selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
+
+      <CreateAssistantDialog
+        open={createDialogOpen}
+        setOpen={setCreateDialogOpen}
+        newAssistantName={newAssistantName}
+        setNewAssistantName={setNewAssistantName}
+        newAssistantDescription={newAssistantDescription}
+        setNewAssistantDescription={setNewAssistantDescription}
+        handleCreateAssistant={handleCreateAssistant}
+        isCreating={isCreating}
+      />
 
       {/* No results state */}
       {filteredAssistants.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="bg-muted rounded-full p-4 mb-4">
-            <Bot className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-xl font-semibold mb-2">No assistants found</h3>
-          <p className="text-muted-foreground max-w-md mb-6">
-            {searchQuery ? 
-              `No assistants match your search for "${searchQuery}"` : 
-              "You don't have any assistants yet. Create your first one to get started."}
-          </p>
-          {searchQuery ? (
-            <Button variant="outline" onClick={() => setSearchQuery('')}>
-              Clear search
-            </Button>
-          ) : (
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Assistant
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          setCreateDialogOpen={setCreateDialogOpen}
+        />
       )}
 
       {/* Assistants grid/list view */}
@@ -451,46 +278,17 @@ export default function AssistantsPage() {
             >
               {filteredAssistants.map((assistant) => (
                 <motion.div
-                  key={assistant.name}
+                  key={assistant.id || assistant.assistant_id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Card className="h-full overflow-hidden hover:border-primary/50 transition-all">
-                    <Link href={`/assistants/${assistant.name}`} className="h-full flex flex-col">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <Avatar className={cn("h-12 w-12", getAvatarColor(assistant.name))}>
-                            <AvatarFallback>{getInitials(assistant.name)}</AvatarFallback>
-                          </Avatar>
-                          <Badge variant="outline" className="text-xs">
-                            {format(new Date(assistant.metadata.createdAt || ''), 'MMM d')}
-                          </Badge>
-                        </div>
-                        <CardTitle className="mt-2 text-xl tracking-normal">{assistant.name}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <p className="text-muted-foreground text-sm line-clamp-2">
-                          {assistant.metadata.description}
-                        </p>
-                      </CardContent>
-                      <CardFooter className="flex items-center justify-between pt-1">
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDeleteAssistant(assistant.name);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="gap-1">
-                          <span>Chat</span>
-                          <ArrowRight className="h-3 w-3" />
-                        </Button>
-                      </CardFooter>
-                    </Link>
-                  </Card>
+                  <AssistantCard
+                    assistant={assistant}
+                    getInitials={getInitials}
+                    getAvatarColor={getAvatarColor}
+                    handleDeleteAssistant={handleDeleteAssistant}
+                  />
                 </motion.div>
               ))}
             </motion.div>
@@ -505,40 +303,17 @@ export default function AssistantsPage() {
             >
               {filteredAssistants.map((assistant, index) => (
                 <motion.div
-                  key={assistant.name}
+                  key={assistant.id || assistant.assistant_id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: index * 0.05 }}
                 >
-                  <Card className="hover:bg-accent/30 transition-all">
-                    <Link href={`/assistants/${assistant.name}`} className="flex items-center p-3">
-                      <Avatar className={cn("h-10 w-10 mr-4", getAvatarColor(assistant.name))}>
-                        <AvatarFallback>{getInitials(assistant.name)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-grow min-w-0">
-                        <p className="font-medium">{assistant.name}</p>
-                        <p className="text-muted-foreground text-sm truncate">
-                          {assistant.metadata.description}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
-                          {format(new Date(assistant.metadata.createdAt || ''), 'MMM d, yyyy')}
-                        </Badge>
-                        <Button variant="ghost" size="icon"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDeleteAssistant(assistant.name);
-                          }}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </Link>
-                  </Card>
+                  <AssistantList
+                    assistant={assistant}
+                    getInitials={getInitials}
+                    getAvatarColor={getAvatarColor}
+                    handleDeleteAssistant={handleDeleteAssistant}
+                  />
                 </motion.div>
               ))}
             </motion.div>
