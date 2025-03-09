@@ -1,4 +1,3 @@
-import { Assistant } from '@/lib/types-adapter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, MessageSquare, Trash2 } from 'lucide-react';
@@ -11,6 +10,9 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
 import Link from 'next/link';
+
+import { Tables } from '@/lib/db.types';
+type Assistant = Tables<"assistants">
 
 interface AssistantCardProps {
   assistant: Assistant;
@@ -26,13 +28,13 @@ export function AssistantCard({
   handleDeleteAssistant 
 }: AssistantCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  const assistantName = assistant.name || assistant.assistantName || 'Unnamed Assistant';
-  const createdAt = assistant.createdAt || assistant.started_at || new Date().toISOString();
+  const assistantName = assistant.name || 'Unnamed Assistant';
+  const createdAt = assistant.created_at || new Date().toISOString();
   
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await handleDeleteAssistant(assistant.id || assistant.assistant_id);
+      await handleDeleteAssistant(assistant.id);
     } finally {
       setIsDeleting(false);
     }
@@ -72,19 +74,8 @@ export function AssistantCard({
         </div>
       </CardHeader>
       
-      <CardContent className="pb-2">
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {assistant.description || 'No description provided.'}
-        </p>
-      </CardContent>
-      
       <CardFooter className="pt-1 flex justify-between items-center">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MessageSquare className="h-3 w-3" />
-          <span>{assistant.message_count || 0} messages</span>
-        </div>
-        
-        <Link href={`/chat/${assistant.id || assistant.assistant_id}`} passHref>
+        <Link href={`/chat/${assistant.id || assistant.id}`} passHref>
           <Button size="sm">Chat</Button>
         </Link>
       </CardFooter>

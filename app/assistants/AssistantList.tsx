@@ -7,13 +7,15 @@ import { Trash2, ChevronRight, MessageSquare, MoreHorizontal } from 'lucide-reac
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Assistant } from '@/lib/types-adapter';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { Tables } from '@/lib/db.types';
+
+type Assistant = Tables<"assistants">
 
 interface AssistantListProps {
   assistant: Assistant;
@@ -29,13 +31,13 @@ export function AssistantList({
   handleDeleteAssistant 
 }: AssistantListProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  const assistantName = assistant.name || assistant.assistantName || 'Unnamed Assistant';
-  const createdAt = assistant.createdAt || assistant.started_at || new Date().toISOString();
+  const assistantName = assistant.name || 'Unnamed Assistant';
+  const createdAt = assistant.created_at || new Date().toISOString();
   
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await handleDeleteAssistant(assistant.id || assistant.assistant_id);
+      await handleDeleteAssistant(assistant.id);
     } finally {
       setIsDeleting(false);
     }
@@ -59,12 +61,8 @@ export function AssistantList({
       </div>
       
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MessageSquare className="h-3 w-3" />
-          <span>{assistant.message_count || 0} messages</span>
-        </div>
         
-        <Link href={`/chat/${assistant.id || assistant.assistant_id}`} passHref>
+        <Link href={`/chat/${assistant.id}`} passHref>
           <Button size="sm" variant="outline">Chat</Button>
         </Link>
         

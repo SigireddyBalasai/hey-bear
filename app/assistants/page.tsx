@@ -13,8 +13,10 @@ import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Assistant, toFrontendAssistant } from '@/lib/types-adapter';
-import { Database } from '@/lib/database.types';
+import { Tables } from '@/lib/db.types';
+
+
+type Assistant = Tables<'assistants'>
 
 export default function AssistantsPage() {
   const [user, setUser] = useState<any>(null);
@@ -52,12 +54,12 @@ export default function AssistantsPage() {
           
           if (data) {
             // Convert database assistants to frontend format
-            const frontendAssistants = data.map(toFrontendAssistant);
+            const frontendAssistants = data.map((assistant: Assistant) => assistant);
             
             // Sort by creation date (newest first)
             frontendAssistants.sort((a: Assistant, b: Assistant) => {
-              const dateA = a.started_at || a.createdAt || '';
-              const dateB = b.started_at || b.createdAt || '';
+              const dateA = a.created_at || '';
+              const dateB = b.created_at || '';
               return new Date(dateB).getTime() - new Date(dateA).getTime();
             });
             
@@ -93,18 +95,17 @@ export default function AssistantsPage() {
       const assistantId = `assist_${Math.random().toString(36).substring(2, 15)}`;
       
       // Create the assistant in Supabase
-      const { data, error } = await supabase
+      const { data , error } = await supabase
         .from('assistants')
         .insert({
-          assistant_id: assistantId,
+          id: assistantId,
           user_id: user.id,
-          started_at: new Date().toISOString(),
-          metadata: {
-            name: newAssistantName,
-            assistantName: newAssistantName,
-            description: newAssistantDescription || 'No description provided',
-            is_active: true,
-            createdAt: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          name: newAssistantName,
+          params: {
+        description: newAssistantDescription || 'No description provided',
+        is_active: true,
+        createdAt: new Date().toISOString()
           }
         })
         .select();
@@ -115,7 +116,7 @@ export default function AssistantsPage() {
       
       if (data && data.length > 0) {
         // Add the new assistant to the list
-        const newAssistant = toFrontendAssistant(data[0]);
+        const newAssistant = data[0]
         setAssistants([newAssistant, ...assistants]);
         setNewAssistantName('');
         setNewAssistantDescription('');
@@ -139,7 +140,7 @@ export default function AssistantsPage() {
   const handleDeleteAssistant = async (assistantId: string) => {
     try {
       // Find the assistant to delete
-      const assistantToDelete = assistants.find(a => a.id === assistantId || a.assistant_id === assistantId);
+      const assistantToDelete = assistants.find(a => a.id === assistantId || a.id === assistantId);
       
       if (!assistantToDelete) {
         toast("Error",{
@@ -159,10 +160,10 @@ export default function AssistantsPage() {
       }
       
       // Update local state
-      setAssistants(assistants.filter(a => a.id !== assistantId && a.assistant_id !== assistantId));
+      setAssistants(assistants.filter(a => a.id !== assistantId && a.id !== assistantId));
       
       toast("Assistant deleted",{
-        description: `${assistantToDelete.name || assistantToDelete.assistantName} has been removed`,
+        description: `${assistantToDelete.name} has been removed`,
       });
     } catch (error: any) {
       console.error('Error deleting assistant:', error);
@@ -181,8 +182,12 @@ export default function AssistantsPage() {
 
   // Filter assistants based on search query and selected tab
   const filteredAssistants = assistants.filter(assistant => {
-    const matchesSearch = (assistant.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         assistant.description?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = assistant.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (typeof assistant.params === 'object' && 
+                            assistant.params !== null &&
+                           'description' in assistant.params && 
+                           typeof assistant.params.description === 'string' && 
+                           assistant.params.description.toLowerCase().includes(searchQuery.toLowerCase()));
     
     // Filter based on selected tab (for future implementation)
     if (selectedTab === 'all') {
@@ -278,7 +283,7 @@ export default function AssistantsPage() {
             >
               {filteredAssistants.map((assistant) => (
                 <motion.div
-                  key={assistant.id || assistant.assistant_id}
+                  key={assistant.id || assistant.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
@@ -303,7 +308,7 @@ export default function AssistantsPage() {
             >
               {filteredAssistants.map((assistant, index) => (
                 <motion.div
-                  key={assistant.id || assistant.assistant_id}
+                  key={assistant.id || assistant.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: index * 0.05 }}

@@ -36,150 +36,323 @@ export type Database = {
     Tables: {
       assistants: {
         Row: {
-          assistant_id: string
-          id: string
-          last_used_at: string | null
-          message_count: number | null
-          metadata: Json | null
-          started_at: string | null
-          user_id: string
-        }
-        Insert: {
-          assistant_id: string
-          id?: string
-          last_used_at?: string | null
-          message_count?: number | null
-          metadata?: Json | null
-          started_at?: string | null
-          user_id: string
-        }
-        Update: {
-          assistant_id?: string
-          id?: string
-          last_used_at?: string | null
-          message_count?: number | null
-          metadata?: Json | null
-          started_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      chat_history: {
-        Row: {
-          answer: string
-          assistant_id: string
+          assigned_phone_number: string | null
           created_at: string | null
           id: string
-          metadata: Json | null
-          question: string
+          is_starred: boolean | null
+          name: string
+          params: Json | null
+          plan_id: string | null
           user_id: string | null
         }
         Insert: {
-          answer: string
-          assistant_id: string
+          assigned_phone_number?: string | null
           created_at?: string | null
           id?: string
-          metadata?: Json | null
-          question: string
+          is_starred?: boolean | null
+          name: string
+          params?: Json | null
+          plan_id?: string | null
           user_id?: string | null
         }
         Update: {
-          answer?: string
-          assistant_id?: string
+          assigned_phone_number?: string | null
           created_at?: string | null
           id?: string
-          metadata?: Json | null
-          question?: string
+          is_starred?: boolean | null
+          name?: string
+          params?: Json | null
+          plan_id?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assistants_assigned_phone_number_fkey"
+            columns: ["assigned_phone_number"]
+            isOneToOne: false
+            referencedRelation: "phonenumbers"
+            referencedColumns: ["number"]
+          },
+          {
+            foreignKeyName: "assistants_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      phone_numbers: {
+      assistantusage: {
         Row: {
-          assigned_at: string | null
-          assigned_to_user_id: string | null
-          created_at: string | null
+          assistant_id: string | null
           id: string
-          metadata: Json | null
-          phone_number: string
-          twilio_sid: string
-          unassigned_at: string | null
+          interactions_used: number | null
+          last_reset_at: string | null
+          usage_tier_id: string | null
         }
         Insert: {
-          assigned_at?: string | null
-          assigned_to_user_id?: string | null
-          created_at?: string | null
+          assistant_id?: string | null
           id?: string
-          metadata?: Json | null
-          phone_number: string
-          twilio_sid: string
-          unassigned_at?: string | null
+          interactions_used?: number | null
+          last_reset_at?: string | null
+          usage_tier_id?: string | null
         }
         Update: {
-          assigned_at?: string | null
-          assigned_to_user_id?: string | null
-          created_at?: string | null
+          assistant_id?: string | null
           id?: string
-          metadata?: Json | null
-          phone_number?: string
-          twilio_sid?: string
-          unassigned_at?: string | null
+          interactions_used?: number | null
+          last_reset_at?: string | null
+          usage_tier_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assistantusage_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistantusage_usage_tier_id_fkey"
+            columns: ["usage_tier_id"]
+            isOneToOne: false
+            referencedRelation: "usagetiers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      user_plans: {
+      interactions: {
+        Row: {
+          assistant_id: string | null
+          chat: string
+          id: string
+          interaction_time: string | null
+          request: Json
+          response: Json
+        }
+        Insert: {
+          assistant_id?: string | null
+          chat: string
+          id?: string
+          interaction_time?: string | null
+          request: Json
+          response: Json
+        }
+        Update: {
+          assistant_id?: string | null
+          chat?: string
+          id?: string
+          interaction_time?: string | null
+          request?: Json
+          response?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phonenumberpool: {
+        Row: {
+          added_at: string | null
+          added_by_admin: string | null
+          id: string
+          phone_number_id: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_by_admin?: string | null
+          id?: string
+          phone_number_id?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          added_by_admin?: string | null
+          id?: string
+          phone_number_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phonenumberpool_added_by_admin_fkey"
+            columns: ["added_by_admin"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phonenumberpool_phone_number_id_fkey"
+            columns: ["phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "phonenumbers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phonenumbers: {
         Row: {
           created_at: string | null
           id: string
-          max_sms: number
-          metadata: Json | null
-          plan_cost: number
-          plan_type: string
-          renewal_date: string
-          sms_received: number | null
-          sms_sent: number | null
-          user_id: string
+          is_assigned: boolean | null
+          number: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          max_sms?: number
-          metadata?: Json | null
-          plan_cost?: number
-          plan_type?: string
-          renewal_date: string
-          sms_received?: number | null
-          sms_sent?: number | null
-          user_id: string
+          is_assigned?: boolean | null
+          number: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          max_sms?: number
-          metadata?: Json | null
-          plan_cost?: number
-          plan_type?: string
-          renewal_date?: string
-          sms_received?: number | null
-          sms_sent?: number | null
-          user_id?: string
+          is_assigned?: boolean | null
+          number?: string
         }
         Relationships: []
       }
-      user_roles: {
+      plans: {
         Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          max_assistants: number | null
+          max_interactions: number | null
+          name: string
+          price: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          max_assistants?: number | null
+          max_interactions?: number | null
+          name: string
+          price?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          max_assistants?: number | null
+          max_interactions?: number | null
+          name?: string
+          price?: number | null
+        }
+        Relationships: []
+      }
+      usagetiers: {
+        Row: {
+          created_at: string | null
+          id: string
+          max_phone_numbers: number | null
+          max_requests_per_month: number | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          max_phone_numbers?: number | null
+          max_requests_per_month?: number | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          max_phone_numbers?: number | null
+          max_requests_per_month?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          auth_user_id: string | null
+          created_at: string | null
+          id: string
           is_admin: boolean | null
-          user_id: string
+          plan_id: string | null
+          updated_at: string | null
         }
         Insert: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
           is_admin?: boolean | null
-          user_id: string
+          plan_id?: string | null
+          updated_at?: string | null
         }
         Update: {
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
           is_admin?: boolean | null
-          user_id?: string
+          plan_id?: string | null
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      userusage: {
+        Row: {
+          assistants_used: number | null
+          id: string
+          interactions_used: number | null
+          last_reset_at: string | null
+          phone_numbers_used: number | null
+          usage_tier_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          assistants_used?: number | null
+          id?: string
+          interactions_used?: number | null
+          last_reset_at?: string | null
+          phone_numbers_used?: number | null
+          usage_tier_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          assistants_used?: number | null
+          id?: string
+          interactions_used?: number | null
+          last_reset_at?: string | null
+          phone_numbers_used?: number | null
+          usage_tier_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "userusage_usage_tier_id_fkey"
+            columns: ["usage_tier_id"]
+            isOneToOne: false
+            referencedRelation: "usagetiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "userusage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
