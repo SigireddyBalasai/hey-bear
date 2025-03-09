@@ -3,14 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Search, Calendar, Filter, ArrowLeft, ChevronDown } from 'lucide-react';
+import { Search, Calendar, Filter, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import FilterComponent from './FilterComponent';
 import StatCard from './StatCard';
 import PlanUsage from './PlanUsage';
 import InteractionLog from './InteractionLog';
 import { useData } from './DataContext';
-import logger from '@/lib/logger';
 import { 
   Select,
   SelectContent,
@@ -19,12 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Create a logger with context
-const pageLogger = logger.withContext('Dashboard');
-
 const ConciergeInteractionDashboard = () => {
-  pageLogger.debug('Rendering dashboard');
-  
   const { 
     allInteractions, 
     stats, 
@@ -32,7 +26,7 @@ const ConciergeInteractionDashboard = () => {
     isLoading, 
     setIsLoading,
     filterInteractions,
-    totalPages: dataContextTotalPages,
+    // totalPages: dataContextTotalPages,
     currentPage,
     setCurrentPage,
     searchTerm,
@@ -43,62 +37,45 @@ const ConciergeInteractionDashboard = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   
-  // Calculate default dates (1 month ago to today)
   const today = new Date();
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-  // Calculate pagination based on itemsPerPage
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, allInteractions.length);
   
-  // Calculate total pages based on itemsPerPage
   const totalPages = Math.max(1, Math.ceil(allInteractions.length / itemsPerPage));
 
-  // Log when interactions data changes
-  useEffect(() => {
-    pageLogger.debug(`Interactions updated: ${allInteractions.length} items`);
-  }, [allInteractions]);
+  useEffect(() => {}, [allInteractions]);
   
-  // Reset to first page when itemsPerPage changes
   useEffect(() => {
     setCurrentPage(1);
-    pageLogger.debug(`Items per page changed to ${itemsPerPage}`);
   }, [itemsPerPage, setCurrentPage]);
 
-  // Function to change page - only affect the interactions section
   const changePage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
-      pageLogger.debug(`Changing page to ${page}`);
-      // Show loading only for the table/conversation section
       setIsLoading(true);
       setCurrentPage(page);
     }
   };
   
-  // Handle items per page change
   const handleItemsPerPageChange = (value: string) => {
     setItemsPerPage(Number(value));
   };
 
-  // Generate pagination numbers
   const getPaginationNumbers = () => {
     const result = [];
     
-    // Always show first page
     result.push(1);
     
-    // Current page and surrounding pages
     for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
       if (!result.includes(i)) result.push(i);
     }
     
-    // Always show last page if more than 1 page
     if (totalPages > 1 && !result.includes(totalPages)) {
       result.push(totalPages);
     }
     
-    // Add ellipsis as needed
     const withEllipsis = [];
     for (let i = 0; i < result.length; i++) {
       if (i > 0 && result[i] - result[i-1] > 1) {
@@ -110,28 +87,21 @@ const ConciergeInteractionDashboard = () => {
     return withEllipsis;
   };
 
-  // Handle date range change
   const handleDateRangeChange = (startDate: string, endDate: string) => {
-    pageLogger.debug('Date range changed', { startDate, endDate });
     filterInteractions({ fromDate: startDate, toDate: endDate });
   };
 
-  // Handle search
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    pageLogger.debug(`Search term changed: "${value}"`);
     setSearchTerm(value);
   };
 
-  // Track tab changes
   const handleTabChange = (tab: string) => {
-    pageLogger.debug(`Tab changed to: ${tab}`);
     setActiveTab(tab);
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 p-4 md:p-8">
-      {/* Top navigation button */}
       <div className="mb-6">
         <Link href="/assistants">
           <Button variant="outline" size="sm" className="flex items-center gap-1">
@@ -139,10 +109,10 @@ const ConciergeInteractionDashboard = () => {
             Back to Assistants
           </Button>
         </Link>
-      </div>
-      
-      {/* Header */}
+        </div>
+      );
       <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6"></div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Syed's Concierge</h1>
           <p className="text-gray-500">555-555-1234</p>
@@ -153,7 +123,6 @@ const ConciergeInteractionDashboard = () => {
         </div>
       </div>
 
-      {/* Date Filter and Search */}
       <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
           <Popover>
@@ -206,7 +175,6 @@ const ConciergeInteractionDashboard = () => {
             variant="outline" 
             size="sm" 
             onClick={() => {
-              pageLogger.debug(`Filter visibility toggle: ${!showFilters}`);
               setShowFilters(!showFilters);
             }}
             className={showFilters ? "bg-gray-100" : ""}
@@ -225,11 +193,9 @@ const ConciergeInteractionDashboard = () => {
           />
         </div>
       </div>
-
-      {/* Filter Component */}
+      {showFilters && <FilterComponent setShowFilters={setShowFilters} />}
       {showFilters && <FilterComponent setShowFilters={setShowFilters} />}
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard 
           title="Total Interactions" 
@@ -260,12 +226,9 @@ const ConciergeInteractionDashboard = () => {
         />
       </div>
 
-      {/* Plan Usage Section */}
       <PlanUsage />
 
-      {/* Interaction Log Section with pagination controls updated */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        {/* Table header with page size selector added */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <div className="flex gap-2">
             <Button

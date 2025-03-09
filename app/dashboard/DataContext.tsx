@@ -1,10 +1,6 @@
 "use client";
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Interaction, DashboardStats } from './models';
-import logger from '@/lib/logger';
-
-// Create a logger with context
-const contextLogger = logger.withContext('DataContext');
 
 interface DataContextType {
   allInteractions: Interaction[];
@@ -35,8 +31,6 @@ const defaultStats: DashboardStats = {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  contextLogger.debug('Initializing DataProvider');
-  
   const [allInteractions, setAllInteractions] = useState<Interaction[]>([]);
   const [stats, setStats] = useState<DashboardStats>(defaultStats);
   const [dateRange, setDateRange] = useState<string>('Loading...');
@@ -47,9 +41,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [filters, setFilters] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
 
-  // Set default date range from 1 month ago to today
   useEffect(() => {
-    contextLogger.debug('Setting default date range');
     const today = new Date();
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -62,23 +54,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const fetchInteractions = async (params: Record<string, string> = {}) => {
-    const opLogger = contextLogger.startOperation('fetchInteractions');
     setIsLoading(true);
     setError(null);
     
-    // Build URL with query parameters
     const queryParams = new URLSearchParams();
-    
-    // Add pagination parameters
     queryParams.append('page', currentPage.toString());
     queryParams.append('pageSize', '5');
     
-    // Add search term if present
     if (searchTerm) {
       queryParams.append('searchTerm', searchTerm);
     }
     
-    // Add filters if present
     if (filters) {
       if (filters.fromDate) queryParams.append('startDate', filters.fromDate);
       if (filters.toDate) queryParams.append('endDate', filters.toDate);
@@ -87,13 +73,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }
     
-    // Add any additional parameters passed in
     Object.entries(params).forEach(([key, value]) => {
       if (value) queryParams.append(key, value);
     });
     
     const queryString = queryParams.toString();
-    contextLogger.debug('Fetching interactions', { queryString, page: currentPage });
     
     try {
       const response = await fetch(`/api/dashboard/interactions?${queryString}`);
@@ -104,51 +88,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       const data = await response.json();
-      contextLogger.debug('Received data', { 
-        interactionsCount: data.interactions.length,
-        totalPages: data.pagination.totalPages,
-        dateRange: data.dateRange,
-        stats: data.stats,
-        data
-      });
       
       setAllInteractions(data.interactions);
       setStats(data.stats);
       setDateRange(data.dateRange);
       setTotalPages(data.pagination.totalPages);
-      opLogger.end({ success: true });
       
     } catch (error) {
-      contextLogger.error('Error fetching interactions', { error });
-      // Fallback to empty data on error
       setAllInteractions([]);
       setError(`Failed to load data: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      opLogger.end({ success: false, error });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Initial data fetch when filters are set
   useEffect(() => {
     if (filters.fromDate && filters.toDate) {
-      contextLogger.debug('Initial data fetch with filters', { filters });
       fetchInteractions();
     }
   }, [filters.fromDate, filters.toDate]);
 
-  // Fetch when pagination or search changes
   useEffect(() => {
     if (filters.fromDate && filters.toDate) {
-      contextLogger.debug('Fetching due to pagination/search change', { page: currentPage, searchTerm });
       fetchInteractions();
     }
   }, [currentPage, searchTerm]);
 
   const filterInteractions = (newFilters: any) => {
-    contextLogger.debug('Applying new filters', { newFilters });
     setFilters(newFilters);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   };
 
   return (
@@ -182,7 +150,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useData = () => {
   const context = useContext(DataContext);
   if (context === undefined) {
-    contextLogger.error('useData called outside of DataProvider');
     throw new Error('useData must be used within a DataProvider');
   }
   return context;
