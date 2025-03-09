@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -22,12 +22,17 @@ import { useDropzone } from "react-dropzone";
 import { FileStatusBadge } from "@/components/ui/file-status-badge";
 import { ProcessingFileIndicator } from "@/components/processing-file-indicator";
 
+// Replace the constant date with a function to ensure consistency on the client side
+const getCurrentTimestamp = () => {
+  return new Date().toISOString();
+};
+
 const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> }) => {
   // State variables
   const [assistantName, setAssistantName] = useState<string>('');
   const [user, setUser] = useState<any>(null);
   const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{ role: string; content: string; timestamp: Date }[]>([]);
+  const [chatHistory, setChatHistory] = useState<{ role: string; content: string; timestamp: string }[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [isChatDisabled, setIsChatDisabled] = useState(false);
   const [fileList, setFileList] = useState<AssistantFilesList>({ files: [] });
@@ -164,7 +169,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   
   useEffect(() => {
     fetchFiles();
-  }, [assistantName]);
+  }, [assistantName, fetchFiles]);
 
   // Auto-scroll chat to bottom on new messages
   useEffect(() => {
@@ -201,13 +206,13 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   };
 
   // Send message to assistant
-  const handleChat = async (e?: React.FormEvent) => {
+  const handleChat = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (isChatDisabled || !message.trim() || isSending) return;
 
     try {
       setIsSending(true);
-      const userMessage = { role: 'user', content: message, timestamp: new Date() };
+      const userMessage = { role: 'user', content: message, timestamp: getCurrentTimestamp() };
       setChatHistory([...chatHistory, userMessage]);
       setMessage('');
 
@@ -221,7 +226,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       if (res.ok && data.response) {
         setChatHistory(prev => [
           ...prev, 
-          { role: 'assistant', content: data.response, timestamp: new Date() }
+          { role: 'assistant', content: data.response, timestamp: getCurrentTimestamp() }
         ]);
       } else {
         toast("Failed to get response",{
@@ -236,7 +241,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     } finally {
       setIsSending(false);
     }
-  };
+  }, [isChatDisabled, message, isSending, assistantName, chatHistory]);
 
   // Add file to assistant
   const handleAddFile = async () => {
@@ -485,7 +490,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
                               {msg.role === 'user' ? 'You' : assistantName}
                             </p>
                             <span className="text-xs text-muted-foreground">
-                              {format(msg.timestamp, 'h:mm a')}
+                              {format(new Date(msg.timestamp), 'h:mm a')}
                             </span>
                           </div>
                           <div className="whitespace-pre-wrap text-sm">
