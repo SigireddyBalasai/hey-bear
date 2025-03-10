@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { useDropzone } from "react-dropzone";
 import { FileStatusBadge } from "@/components/ui/file-status-badge";
 import { ProcessingFileIndicator } from "@/components/processing-file-indicator";
+import { FileErrorDialog } from "@/components/ui/file-error-dialog";
 
 // Replace the constant date with a function to ensure consistency on the client side
 const getCurrentTimestamp = () => {
@@ -30,6 +31,9 @@ const getCurrentTimestamp = () => {
 const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> }) => {
   // State variables
   const [assistantName, setAssistantName] = useState<string>('');
+  const [assistantId, setAssistantId] = useState<string>('');
+  const [displayName, setDisplayName] = useState<string>('Loading...');
+  const [pinecone_name, setPineconeName] = useState<string>('');
   const [user, setUser] = useState<any>(null);
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{ role: string; content: string; timestamp: string }[]>([]);
@@ -44,17 +48,59 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [deletingFileIds, setDeletingFileIds] = useState<string[]>([]);
   const [processingFileIds, setProcessingFileIds] = useState<string[]>([]);
   const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null);
+const [fileError, setFileError] = useState<{
+    title: string;
+    description: string;
+    details?: string;
+    show: boolean;
+  }>({
+    title: '',
+    description: '',
+    show: false
+  });
   
   const router = useRouter();
   const supabase = createClient();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load params
+  // Load params and fetch assistant details
   useEffect(() => {
     async function loadParams() {
-      const { assistantName } = await params;
-      setAssistantName(assistantName);
+      try {
+        const { assistantName } = await params;
+        setAssistantId(assistantName); // This is actually the assistant ID from the URL
+        
+        // Fetch assistant details from Supabase
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('assistants')
+          .select('id, name, pinecone_name, params')
+          .eq('id', assistantName)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching assistant:', error);
+          toast("Error", {
+            description: "Couldn't load assistant details"
+          });
+          return;
+        }
+        
+        if (data) {
+          setDisplayName(data.name);
+          setAssistantName(data.name);
+          setPineconeName(data.pinecone_name || '');
+          
+          // Update document title
+          document.title = `Chat with ${data.name}`;
+        }
+      } catch (error) {
+        console.error('Error loading assistant details:', error);
+        toast("Error", {
+          description: "Couldn't load assistant details"
+        });
+      }
     }
     loadParams();
   }, [params]);
@@ -101,7 +147,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
 
   // Fetch files for the assistant
   const fetchFiles = async () => {
-    if (assistantName) {
+    if (pinecone_name) {
       try {
         const isInitialLoad = isLoading;
         if (isInitialLoad) setIsLoading(true);
@@ -109,7 +155,10 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         const res = await fetch('/api/assistant/file/list', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assistantName }),
+          body: JSON.stringify({ 
+            assistantId: assistantId,
+            pinecone_name: pinecone_name 
+          }),
         });
 
         const data = await res.json();
@@ -168,8 +217,10 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   };
   
   useEffect(() => {
-    fetchFiles();
-  }, [assistantName, fetchFiles]);
+    if (pinecone_name) {
+      fetchFiles();
+    }
+  }, [pinecone_name]);
 
   // Auto-scroll chat to bottom on new messages
   useEffect(() => {
@@ -215,11 +266,14 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       const userMessage = { role: 'user', content: message, timestamp: getCurrentTimestamp() };
       setChatHistory([...chatHistory, userMessage]);
       setMessage('');
-
+      
       const res = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assistantName, message }),
+        body: JSON.stringify({ 
+          assistantId: assistantId,
+          message 
+        }),
       });
       
       const data = await res.json();
@@ -229,19 +283,19 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
           { role: 'assistant', content: data.response, timestamp: getCurrentTimestamp() }
         ]);
       } else {
-        toast("Failed to get response",{
+        toast("Failed to get response", {
           description: data.error || "The assistant couldn't process your request",
         });
       }
     } catch (error) {
       console.error("Chat error:", error);
-      toast("Communication error",{
+      toast("Communication error", {
         description: "Failed to send your message. Please try again.",
       });
     } finally {
       setIsSending(false);
     }
-  }, [isChatDisabled, message, isSending, assistantName, chatHistory]);
+  }, [isChatDisabled, message, isSending, assistantId, chatHistory]);
 
   // Add file to assistant
   const handleAddFile = async () => {
@@ -262,7 +316,8 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       }, 100);
       
       const formData = new FormData();
-      formData.append('assistantName', assistantName);
+      formData.append('assistantId', assistantId);
+      formData.append('pinecone_name', pinecone_name);
       formData.append('file', file);
       
       const res = await fetch('/api/assistant/file/add', {
@@ -282,14 +337,20 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         await fetchFiles(); // Refresh files list
         startStatusPolling(); // Start polling for status changes
       } else {
-        toast("Upload failed",{
+        // Show file error dialog with server error details
+        setFileError({
+          title: "File Upload Error",
           description: data.error || "Failed to upload file",
+          details: data.details || undefined,
+          show: true
         });
       }
     } catch (error) {
       console.error("File upload error:", error);
-      toast("Upload error",{
+      setFileError({
+        title: "Upload Error",
         description: "Something went wrong during file upload",
+        show: true
       });
     } finally {
       setIsUploading(false);
@@ -306,7 +367,11 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       const res = await fetch('/api/assistant/file/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assistantName, fileId }),
+        body: JSON.stringify({ 
+          assistantId: assistantId,
+          pinecone_name: pinecone_name,
+          fileId 
+        }),
       });
 
       const data = await res.json();
@@ -342,6 +407,11 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     await supabase.auth.signOut();
     setUser(null);
     router.push('/sign-in');
+  };
+
+  // Handle closing the file error dialog
+  const closeFileErrorDialog = () => {
+    setFileError(prev => ({ ...prev, show: false }));
   };
 
   // Handle keyboard shortcuts
@@ -405,7 +475,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-2xl font-bold flex-1">{assistantName}</h1>
+        <h1 className="text-2xl font-bold flex-1">{displayName}</h1>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -441,7 +511,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
                   <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle>{assistantName}</CardTitle>
+                  <CardTitle>{displayName}</CardTitle>
                   <CardDescription className="text-xs">
                     {fileList?.files?.length || 0} file(s) loaded
                   </CardDescription>
@@ -487,7 +557,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center justify-between">
                             <p className="font-medium text-sm">
-                              {msg.role === 'user' ? 'You' : assistantName}
+                              {msg.role === 'user' ? 'You' : displayName}
                             </p>
                             <span className="text-xs text-muted-foreground">
                               {format(new Date(msg.timestamp), 'h:mm a')}
@@ -560,7 +630,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
             <CardHeader>
               <CardTitle>Manage Files</CardTitle>
               <CardDescription>
-                Add or remove files for {assistantName} to use in conversations
+                Add or remove files for {displayName} to use in conversations
               </CardDescription>
             </CardHeader>
             
@@ -709,6 +779,15 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
           Sign Out
         </Button>
       </div>
+      
+      {/* File Error Dialog */}
+      <FileErrorDialog
+        open={fileError.show}
+        onClose={closeFileErrorDialog}
+        title={fileError.title}
+        description={fileError.description}
+        details={fileError.details}
+      />
     </div>
   );
 };

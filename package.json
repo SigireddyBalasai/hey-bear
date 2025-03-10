@@ -37,7 +37,8 @@
     "react-dropzone": "^14.3.8",
     "recharts": "^2.15.1",
     "sonner": "^2.0.1",
-    "twilio": "^5.4.5"
+    "twilio": "^5.4.5",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

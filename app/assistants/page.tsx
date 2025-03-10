@@ -33,56 +33,86 @@ export default function AssistantsPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  // Fetch user and assistants data
-  useEffect(() => {
-    const fetchUserAndAssistants = async () => {
-      try {
-        setIsLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-        
-        if (user) {
-          // Fetch assistants directly from Supabase
-          const { data, error } = await supabase
-            .from('assistants')
-            .select('*')
-            .eq('user_id', user.id);
-          
-          if (error) {
-            throw error;
-          }
-          
-          if (data) {
-            // Convert database assistants to frontend format
-            const frontendAssistants = data.map((assistant: Assistant) => assistant);
-            
-            // Sort by creation date (newest first)
-            frontendAssistants.sort((a: Assistant, b: Assistant) => {
-              const dateA = a.created_at || '';
-              const dateB = b.created_at || '';
-              return new Date(dateB).getTime() - new Date(dateA).getTime();
-            });
-            
-            setAssistants(frontendAssistants);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast("Connection error",{
-          description: "Failed to connect to the server",
-        });
-      } finally {
-        setIsLoading(false);
+  // Function to fetch assistants
+  const fetchAssistants = async () => {
+    try {
+      setIsLoading(true);
+      
+      // First get the authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.error('Error fetching user:', userError);
+        setUser(null);
+        return;
       }
-    };
-    
-    fetchUserAndAssistants();
+      
+      setUser(user);
+      
+      // Now fetch the user record from the users table to get the proper ID
+      const { data: userData, error: userDataError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+        
+      if (userDataError) {
+        console.error('Error fetching user data:', userDataError);
+        return;
+      }
+      
+      if (!userData) {
+        console.error('User record not found in users table');
+        return;
+      }
+      
+      // Fetch assistants using the user_id from users table
+      const { data: assistantsData, error: assistantsError } = await supabase
+        .from('assistants')
+        .select('*')
+        .eq('user_id', userData.id);
+      
+      if (assistantsError) {
+        console.error('Error fetching assistants:', assistantsError);
+        return;
+      }
+      
+      console.log('Fetched assistants:', assistantsData);
+      
+      // Process and sort assistants
+      if (assistantsData && assistantsData.length > 0) {
+        const frontendAssistants = assistantsData;
+        
+        // Sort by creation date (newest first)
+        frontendAssistants.sort((a: Assistant, b: Assistant) => {
+          const dateA = a.created_at || '';
+          const dateB = b.created_at || '';
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
+        
+        setAssistants(frontendAssistants);
+      } else {
+        setAssistants([]);
+      }
+    } catch (error) {
+      console.error('Error in fetchAssistants:', error);
+      toast("Connection error", {
+        description: "Failed to connect to the server",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch user and assistants data on component mount
+  useEffect(() => {
+    fetchAssistants();
   }, []);
 
   // Handle creating a new assistant
   const handleCreateAssistant = async () => {
     if (!newAssistantName.trim()) {
-      toast("Name required",{
+      toast("Name required", {
         description: "Please provide a name for your assistant",
       });
       return;
@@ -91,44 +121,40 @@ export default function AssistantsPage() {
     try {
       setIsCreating(true);
       
-      // Generate a unique assistant ID
-      const assistantId = `assist_${Math.random().toString(36).substring(2, 15)}`;
+      // Send request to our backend API
+      const response = await fetch('/api/assistant/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assistantName: newAssistantName,
+          description: newAssistantDescription,
+        }),
+      });
       
-      // Create the assistant in Supabase
-      const { data , error } = await supabase
-        .from('assistants')
-        .insert({
-          id: assistantId,
-          user_id: user.id,
-          created_at: new Date().toISOString(),
-          name: newAssistantName,
-          params: {
-        description: newAssistantDescription || 'No description provided',
-        is_active: true,
-        createdAt: new Date().toISOString()
-          }
-        })
-        .select();
+      const data = await response.json();
       
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create assistant');
       }
       
-      if (data && data.length > 0) {
-        // Add the new assistant to the list
-        const newAssistant = data[0]
-        setAssistants([newAssistant, ...assistants]);
-        setNewAssistantName('');
-        setNewAssistantDescription('');
-        setCreateDialogOpen(false);
-        
-        toast("Assistant created",{
-          description: `${newAssistantName} has been created successfully`,
-        });
-      }
+      // Reset form fields and close dialog
+      setNewAssistantName('');
+      setNewAssistantDescription('');
+      setCreateDialogOpen(false);
+      
+      // Show success toast
+      toast("Assistant created", {
+        description: `${newAssistantName} has been created successfully`,
+      });
+      
+      // Fetch the updated list of assistants
+      await fetchAssistants();
+      
     } catch (error: any) {
       console.error('Error creating assistant:', error);
-      toast("Error",{
+      toast("Error", {
         description: error.message || "Something went wrong while creating the assistant",
       });
     } finally {
@@ -140,10 +166,10 @@ export default function AssistantsPage() {
   const handleDeleteAssistant = async (assistantId: string) => {
     try {
       // Find the assistant to delete
-      const assistantToDelete = assistants.find(a => a.id === assistantId || a.id === assistantId);
+      const assistantToDelete = assistants.find(a => a.id === assistantId);
       
       if (!assistantToDelete) {
-        toast("Error",{
+        toast("Error", {
           description: "Assistant not found",
         });
         return;
@@ -153,21 +179,21 @@ export default function AssistantsPage() {
       const { error } = await supabase
         .from('assistants')
         .delete()
-        .eq('id', assistantToDelete.id);
+        .eq('id', assistantId);
       
       if (error) {
         throw error;
       }
       
       // Update local state
-      setAssistants(assistants.filter(a => a.id !== assistantId && a.id !== assistantId));
+      setAssistants(assistants.filter(a => a.id !== assistantId));
       
-      toast("Assistant deleted",{
+      toast("Assistant deleted", {
         description: `${assistantToDelete.name} has been removed`,
       });
     } catch (error: any) {
       console.error('Error deleting assistant:', error);
-      toast("Error",{
+      toast("Error", {
         description: error.message || "Something went wrong while deleting the assistant",
       });
     }
@@ -283,7 +309,7 @@ export default function AssistantsPage() {
             >
               {filteredAssistants.map((assistant) => (
                 <motion.div
-                  key={assistant.id || assistant.id}
+                  key={assistant.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
@@ -308,7 +334,7 @@ export default function AssistantsPage() {
             >
               {filteredAssistants.map((assistant, index) => (
                 <motion.div
-                  key={assistant.id || assistant.id}
+                  key={assistant.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: index * 0.05 }}

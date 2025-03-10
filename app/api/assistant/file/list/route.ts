@@ -4,43 +4,71 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { assistantName } = await req.json();
+    // Validate request body
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
+    }
+
+    const { assistantId, pinecone_name } = body;
     
-    if (!assistantName) {
-      return NextResponse.json({ error: 'Assistant name is required' }, { status: 400 });
+    // Validate required fields
+    if (!assistantId) {
+      return NextResponse.json({ error: 'Missing assistantId' }, { status: 400 });
     }
     
     const supabase = await createClient();
 
-    // Check if user is authenticated
+    // Check user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
     if (authError || !user) {
+      console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
+    
+    // If pinecone_name wasn't provided in the request, fetch it from the database
+    let assistantPineconeName = pinecone_name;
+    
+    if (!assistantPineconeName) {
+      // Fetch the assistant details from the database
+      const { data: assistantData, error: assistantError } = await supabase
+        .from('assistants')
+        .select('pinecone_name')
+        .eq('id', assistantId)
+        .single();
+      
+      if (assistantError || !assistantData) {
+        console.error('Error fetching assistant:', assistantError);
+        return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
+      }
+      
+      assistantPineconeName = assistantData.pinecone_name;
+      if (!assistantPineconeName) {
+        return NextResponse.json({ error: 'Invalid assistant configuration' }, { status: 500 });
+      }
+    }
+    
     try {
+      // Get Pinecone client and list files for this assistant
       const pinecone = getPineconeClient();
-      const assistant = pinecone.Assistant(assistantName);
+      if (!pinecone) {
+        return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
+      }
       
-      console.log('Listing files for assistant:', assistantName);
-      
-      const filesResponse = await assistant.listFiles().catch(error => {
-        console.error(`Error listing files for assistant ${assistantName}:`, error);
-        return { files: [] }; // Return empty array on error
-      });
-      
-      // Handle cases where filesResponse might be null or undefined
-      const files = filesResponse && filesResponse.files ? filesResponse.files : [];
-      
-      console.log('Fetched files:', files);
+      const assistant = pinecone.Assistant(assistantPineconeName);
+      const files = await assistant.listFiles();
+
       return NextResponse.json({ files });
     } catch (error: any) {
-      console.error('Error listing files:', error);
-      // Return empty files array instead of error
-      return NextResponse.json({ files: [] });
+      console.error('Error listing assistant files:', error);
+      return NextResponse.json(
+        { error: `Failed to list files: ${error.message}` }, 
+        { status: 500 }
+      );
     }
-  } catch (error) {
-    console.error('Unexpected error in file list:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
+  } catch (e: any) {
+    console.error('Unexpected error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,83 +1,110 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { MoreHorizontal, MessageSquare, Trash2 } from 'lucide-react';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
-import { formatDistanceToNow } from 'date-fns';
-import { useState } from 'react';
-import Link from 'next/link';
-
+import React from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { MoreHorizontal, Bot, Star, Trash } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import { Tables } from '@/lib/db.types';
-type Assistant = Tables<"assistants">
+import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+type Assistant = Tables<'assistants'>;
 
 interface AssistantCardProps {
   assistant: Assistant;
   getInitials: (name: string) => string;
   getAvatarColor: (name: string) => string;
-  handleDeleteAssistant: (assistantId: string) => Promise<void>;
+  handleDeleteAssistant: (id: string) => void;
 }
 
-export function AssistantCard({ 
-  assistant, 
-  getInitials, 
-  getAvatarColor, 
-  handleDeleteAssistant 
-}: AssistantCardProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const assistantName = assistant.name || 'Unnamed Assistant';
-  const createdAt = assistant.created_at || new Date().toISOString();
+export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDeleteAssistant }: AssistantCardProps) {
+  // Parse description from params if available
+  const description = typeof assistant.params === 'object' && 
+                     assistant.params !== null && 
+                     'description' in assistant.params ? 
+                     String(assistant.params.description) : 
+                     'No description provided';
   
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await handleDeleteAssistant(assistant.id);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-  
+  // Format the creation date
+  const createdAt = assistant.created_at ? 
+    format(new Date(assistant.created_at), 'MMM d, yyyy') : 
+    'Unknown date';
+
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-2">
-            <div 
-              className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${getAvatarColor(assistantName)}`}
-            >
-              {getInitials(assistantName)}
-            </div>
-            <div>
-              <CardTitle className="text-lg">{assistantName}</CardTitle>
-              <CardDescription className="text-xs">
-                Created {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
-              </CardDescription>
-            </div>
-          </div>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between">
+          <Avatar className={cn("h-12 w-12", getAvatarColor(assistant.name))}>
+            <AvatarFallback>{getInitials(assistant.name)}</AvatarFallback>
+          </Avatar>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="p-1 h-auto" aria-label="Options">
+              <Button variant="ghost" size="icon">
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDelete} disabled={isDeleting}>
-                <Trash2 className="h-4 w-4 mr-2 text-destructive" />
-                {isDeleting ? 'Deleting...' : 'Delete'}
+              <DropdownMenuItem 
+                onClick={() => handleDeleteAssistant(assistant.id)}
+                className="text-red-600 focus:text-red-600 dark:focus:text-red-400 cursor-pointer"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                Created: {createdAt}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            {assistant.name}
+            {assistant.is_starred && (
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            )}
+          </CardTitle>
+          <CardDescription className="line-clamp-2 mt-1">
+            {description}
+          </CardDescription>
+        </div>
       </CardHeader>
       
-      <CardFooter className="pt-1 flex justify-between items-center">
-        <Link href={`/chat/${assistant.id || assistant.id}`} passHref>
-          <Button size="sm">Chat</Button>
-        </Link>
+      <CardContent className="flex-1">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="flex items-center">
+            <Bot className="mr-1 h-3 w-3" /> Assistant
+          </Badge>
+        </div>
+      </CardContent>
+      
+      <CardFooter>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href={`/assistants/${assistant.id}`} className="w-full">
+                <Button className="w-full">
+                  Open Assistant
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>
+              Chat with {assistant.name}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </CardFooter>
     </Card>
   );

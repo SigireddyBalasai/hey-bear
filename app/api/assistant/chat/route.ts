@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
+import { Tables } from '@/lib/db.types';
 
+// Define table types for better type safety
+type Interactions = Tables<'interactions'> & { duration: number }
+type AssistantUsage = Tables<'assistantusage'>
 export async function POST(req: NextRequest) {
   // Record the request timestamp
   const requestTimestamp = new Date();
@@ -13,10 +17,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
     }
 
-    const { assistantName, message } = body;
+    const { assistantId, message } = body;
     
     // Validate required fields
-    if (!assistantName || !message) {
+    if (!assistantId || !message) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     
@@ -30,6 +34,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Fetch the assistant from the database to get its Pinecone name
+    const { data: assistantData, error: assistantError } = await supabase
+      .from('assistants')
+      .select('pinecone_name, name')
+      .eq('id', assistantId)
+      .single();
+    
+    if (assistantError || !assistantData) {
+      console.error('Error fetching assistant:', assistantError);
+      return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
+    }
+    
+    const { pinecone_name, name: assistantName } = assistantData;
+    
+    if (!pinecone_name) {
+      return NextResponse.json({ error: 'Invalid assistant configuration: missing Pinecone name' }, { status: 500 });
+    }
+
     // Handle Pinecone assistant
     try {
       const pinecone = getPineconeClient();
@@ -37,7 +59,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
       }
 
-      const assistant = pinecone.Assistant(assistantName);
+      console.log(`Using Pinecone assistant name: ${pinecone_name}`);
+      const assistant = pinecone.Assistant(pinecone_name);
       if (!assistant) {
         return NextResponse.json({ error: 'Failed to create assistant' }, { status: 500 });
       }
@@ -52,52 +75,30 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Assistant returned no response' }, { status: 500 });
       }
 
-      // Save chat to Supabase with timing information
-      const { error: chatError } = await supabase.from('chat_history').insert({
-        user_id: user.id,
-        assistant_id: assistantName,
-        question: message,
-        answer: response.message?.content || '',
-        metadata: { 
-          assistant_name: assistantName,
-          assistant_id: assistant,
-          user_email: user.email,
-          requestTimestamp: requestTimestamp.toISOString(),
-          responseTimestamp: responseTimestamp.toISOString(),
-          responseDuration: responseDuration // in milliseconds
-        },
-      });
+      // Save interaction to Supabase with proper typing
+      const interactionData: Omit<Interactions, 'id'> = {
+        request: { message, timestamp: requestTimestamp.toISOString() },
+        assistant_id: assistantId,
+        chat: message,
+        response: { message: response.message?.content || '' },
+        duration: responseDuration,
+        interaction_time: requestTimestamp.toISOString()
+      };
 
-      if (chatError) {
-        console.error('Error saving chat to Supabase:', chatError);
+      const { error: interactionError } = await supabase
+        .from('interactions')
+        .insert(interactionData);
+
+      if (interactionError) {
+        console.error('Error saving interaction to Supabase:', interactionError);
       }
 
       // Update assistant usage statistics
-      const { data: assistantData, error: fetchError } = await supabase
-        .from('assistants')
-        .select('message_count')
-        .eq('user_id', user.id)
-        .eq('assistant_id', assistantName)
-        .single();
+      const { error: usageError } = await supabase
+        .rpc('increment', { row_id: assistantId, increment_by: 1 });
 
-      if (fetchError && fetchError.code !== 'PGRST116') { // Not found error
-        console.error('Error fetching assistant:', fetchError);
-      }
-
-      const newMessageCount = ((assistantData?.message_count !== null && assistantData?.message_count !== undefined) ? 
-        assistantData.message_count : 0) + 1;
-        
-      const { error: updateError } = await supabase
-        .from('assistants')
-        .update({
-          last_used_at: new Date().toISOString(),
-          message_count: newMessageCount,
-        })
-        .eq('user_id', user.id)
-        .eq('assistant_id', assistantName);
-
-      if (updateError) {
-        console.error('Error updating assistant:', updateError);
+      if (usageError) {
+        console.error('Error updating assistant usage:', usageError);
       }
 
       return NextResponse.json({ 

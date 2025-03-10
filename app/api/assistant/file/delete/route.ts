@@ -1,53 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
-import { PineconeRequestError } from '@pinecone-database/pinecone/dist/errors';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const assistantName = body?.assistantName;
-    const fileId = body?.fileId;
-    
-    if (!assistantName || !fileId) {
-      return NextResponse.json({ error: 'Assistant name and file ID are required' }, { status: 400 });
-    }
-    
-    const supabase = await createClient();
-    if (!supabase) {
-      return NextResponse.json({ error: 'Failed to initialize Supabase client' }, { status: 500 });
+    // Validate request body
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
     }
 
-    const { data, error: authError } = await supabase.auth.getUser();
-    if (authError || !data?.user) {
+    const { assistantId, pinecone_name, fileId } = body;
+    
+    if (!assistantId || !fileId) {
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+
+    // Check user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
+    
+    // Get pinecone_name if not provided
+    let assistantPineconeName = pinecone_name;
+    
+    if (!assistantPineconeName) {
+      // Fetch the assistant from the database
+      const { data: assistantData, error: assistantError } = await supabase
+        .from('assistants')
+        .select('pinecone_name')
+        .eq('id', assistantId)
+        .single();
+      
+      if (assistantError || !assistantData) {
+        console.error('Error fetching assistant:', assistantError);
+        return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
+      }
+      
+      assistantPineconeName = assistantData.pinecone_name;
+      if (!assistantPineconeName) {
+        return NextResponse.json({ error: 'Invalid assistant configuration' }, { status: 500 });
+      }
+    }
+    
     try {
+      // Get Pinecone client and delete file from this assistant
       const pinecone = getPineconeClient();
       if (!pinecone) {
-        return NextResponse.json({ error: 'Failed to initialize Pinecone client' }, { status: 500 });
+        return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
       }
       
-      const assistant = pinecone.Assistant(assistantName);
-      if (!assistant) {
-        return NextResponse.json({ error: 'Failed to initialize assistant' }, { status: 500 });
-      }
-      
-      console.log(`Deleting file ${fileId} from ${assistantName}`);
-      
+      const assistant = pinecone.Assistant(assistantPineconeName);
       await assistant.deleteFile(fileId);
 
-      return NextResponse.json({ message: `File ${fileId} deleted from ${assistantName}` });
+      return NextResponse.json({ 
+        message: 'File deletion initiated',
+        fileId: fileId
+      });
     } catch (error: any) {
       console.error('Error deleting file:', error);
-      if (error instanceof PineconeRequestError && error.cause?.message === 'FILE_NOT_FOUND') {
-        return NextResponse.json({ error: `File "${fileId}" not found in Pinecone.` }, { status: 404 });
-      }
-      return NextResponse.json({ error: error.message || 'Unknown error occurred' }, { status: 500 });
+      return NextResponse.json(
+        { error: `Failed to delete file: ${error.message}` }, 
+        { status: 500 }
+      );
     }
-  } catch (error: any) {
-    console.error('Error processing request:', error);
-    return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
+  } catch (e: any) {
+    console.error('Unexpected error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

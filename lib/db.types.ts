@@ -42,6 +42,7 @@ export type Database = {
           is_starred: boolean | null
           name: string
           params: Json | null
+          pinecone_name: string | null
           plan_id: string | null
           user_id: string | null
         }
@@ -52,6 +53,7 @@ export type Database = {
           is_starred?: boolean | null
           name: string
           params?: Json | null
+          pinecone_name?: string | null
           plan_id?: string | null
           user_id?: string | null
         }
@@ -62,6 +64,7 @@ export type Database = {
           is_starred?: boolean | null
           name?: string
           params?: Json | null
+          pinecone_name?: string | null
           plan_id?: string | null
           user_id?: string | null
         }
