@@ -81,9 +81,18 @@ const [fileError, setFileError] = useState<{
         
         if (error) {
           console.error('Error fetching assistant:', error);
-          toast("Error", {
-            description: "Couldn't load assistant details"
+          toast.error("Assistant unavailable", {
+            description: "The assistant you tried to access is disabled or doesn't exist"
           });
+          router.push('/assistants');
+          return;
+        }
+        
+        if (!data) {
+          toast.error("Assistant not found", {
+            description: "This assistant no longer exists or has been disabled."
+          });
+          router.push('/assistants');
           return;
         }
         
@@ -97,13 +106,14 @@ const [fileError, setFileError] = useState<{
         }
       } catch (error) {
         console.error('Error loading assistant details:', error);
-        toast("Error", {
-          description: "Couldn't load assistant details"
+        toast.error("Assistant error", {
+          description: "Unable to load this assistant. Redirecting to assistants page."
         });
+        router.push('/assistants');
       }
     }
     loadParams();
-  }, [params]);
+  }, [params, router]);
 
   // Fetch user data
   useEffect(() => {
@@ -147,6 +157,11 @@ const [fileError, setFileError] = useState<{
 
   // Fetch files for the assistant
   const fetchFiles = async () => {
+    if (!assistantId || !pinecone_name) {
+      // If we don't have valid assistant details, don't try to fetch files
+      return;
+    }
+    
     if (pinecone_name) {
       try {
         const isInitialLoad = isLoading;
@@ -217,10 +232,10 @@ const [fileError, setFileError] = useState<{
   };
   
   useEffect(() => {
-    if (pinecone_name) {
+    if (pinecone_name && assistantId) {
       fetchFiles();
     }
-  }, [pinecone_name]);
+  }, [pinecone_name, assistantId]);
 
   // Auto-scroll chat to bottom on new messages
   useEffect(() => {
@@ -470,7 +485,7 @@ const [fileError, setFileError] = useState<{
   ).length || 0;
   
   return (
-    <div className="container mx-auto p-2 md:p-4 h-screen flex flex-col">
+    <div className="container mx-auto p-2 md:p-4 h-screen flex flex-col max-w-5xl">
       <div className="flex items-center mb-4 gap-2">
         <Button 
           variant="ghost" 
@@ -482,6 +497,7 @@ const [fileError, setFileError] = useState<{
               router.push('/assistants'); // Navigate to assistants page from chat tab
             }
           }}
+          className="hover:bg-muted"
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
@@ -493,6 +509,7 @@ const [fileError, setFileError] = useState<{
                 variant="outline" 
                 size="sm" 
                 onClick={() => setActiveTab(activeTab === "chat" ? "files" : "chat")}
+                className="shadow-sm hover:bg-accent"
               >
                 {activeTab === "chat" ? (
                   <><Paperclip className="h-4 w-4 mr-2" /> Manage Files</>
@@ -513,7 +530,7 @@ const [fileError, setFileError] = useState<{
         <TabsContent value="chat" className="flex-1 flex flex-col space-y-4 mt-0">
           {/* Show processing files indicator if needed */}
           {processingFilesCount > 0 && (
-            <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-900">
+            <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/70 dark:border-blue-800 shadow-sm">
               <CardContent className="p-3 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
                 <p className="text-sm">
@@ -523,10 +540,10 @@ const [fileError, setFileError] = useState<{
             </Card>
           )}
           
-          <Card className="flex-1 flex flex-col overflow-hidden">
-            <CardHeader className="pb-3">
+          <Card className="flex-1 flex flex-col overflow-hidden border-muted shadow-lg">
+            <CardHeader className="pb-3 border-b">
               <div className="flex items-center space-x-2">
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-8 w-8 ring-2 ring-primary/10">
                   <AvatarImage src="/bot-avatar.png" alt="Assistant" />
                   <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
                 </Avatar>
@@ -535,7 +552,7 @@ const [fileError, setFileError] = useState<{
                   <CardDescription className="text-xs flex items-center gap-2">
                     <span>{fileList?.files?.length || 0} file(s) loaded</span>
                     {isChatDisabled && (
-                      <Badge variant="outline" className="text-amber-500 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900">
+                      <Badge variant="outline" className="text-amber-500 border-amber-200 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-900">
                         Chat Disabled
                       </Badge>
                     )}
@@ -544,10 +561,12 @@ const [fileError, setFileError] = useState<{
               </div>
             </CardHeader>
             
-            <CardContent className="flex-1 overflow-hidden">
+            <CardContent className="flex-1 overflow-hidden p-0">
               {chatHistory.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                  <Bot className="h-16 w-16 mb-4 text-muted-foreground" />
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                    <Bot className="h-8 w-8 text-primary" />
+                  </div>
                   <h3 className="font-semibold text-lg">
                     {!fileList?.files?.length ? "Add Files to Start" : "Start a conversation"}
                   </h3>
@@ -559,7 +578,7 @@ const [fileError, setFileError] = useState<{
                   {!fileList?.files?.length && (
                     <Button 
                       variant="default"
-                      className="mt-4"
+                      className="mt-6"
                       onClick={() => setActiveTab("files")}
                     >
                       <Paperclip className="h-4 w-4 mr-2" />
@@ -568,8 +587,8 @@ const [fileError, setFileError] = useState<{
                   )}
                 </div>
               ) : (
-                <ScrollArea className="h-full pr-4">
-                  <div className="space-y-4 pb-4">
+                <ScrollArea className="h-full pr-0">
+                  <div className="py-4 px-4 space-y-6">
                     {chatHistory.map((msg, idx) => (
                       <motion.div
                         key={idx}
@@ -577,32 +596,43 @@ const [fileError, setFileError] = useState<{
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
                         className={cn(
-                          "flex items-start gap-3 rounded-lg p-3",
-                          msg.role === 'user' ? "bg-muted" : "bg-accent"
+                          "flex gap-3 max-w-[85%]",
+                          msg.role === 'user' ? "ml-auto flex-row-reverse" : ""
                         )}
                       >
                         {msg.role === 'user' ? (
-                          <Avatar>
+                          <Avatar className="bg-blue-500 text-white ring-4 ring-blue-100 dark:ring-blue-900/30 flex-shrink-0">
                             <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
                             <AvatarImage src={user?.user_metadata?.avatar_url} />
                           </Avatar>
                         ) : (
-                          <Avatar>
+                          <Avatar className="ring-4 ring-accent flex-shrink-0">
                             <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
                             <AvatarImage src="/bot-avatar.png" />
                           </Avatar>
                         )}
                         
-                        <div className="flex-1 space-y-2">
+                        <div className={cn(
+                          "flex flex-col space-y-1 rounded-lg p-3 shadow-sm",
+                          msg.role === 'user' 
+                            ? "bg-primary text-primary-foreground rounded-tr-none"
+                            : "bg-muted rounded-tl-none"
+                        )}>
                           <div className="flex items-center justify-between">
-                            <p className="font-medium text-sm">
+                            <p className="font-semibold text-sm">
                               {msg.role === 'user' ? 'You' : displayName}
                             </p>
-                            <span className="text-xs text-muted-foreground">
+                            <span className={cn(
+                              "text-xs",
+                              msg.role === 'user' ? "text-primary-foreground/80" : "text-muted-foreground"
+                            )}>
                               {format(new Date(msg.timestamp), 'h:mm a')}
                             </span>
                           </div>
-                          <div className="whitespace-pre-wrap text-sm">
+                          <div className={cn(
+                            "whitespace-pre-wrap text-sm leading-relaxed",
+                            msg.role === 'user' && "text-primary-foreground"
+                          )}>
                             {msg.content}
                           </div>
                         </div>
@@ -614,7 +644,7 @@ const [fileError, setFileError] = useState<{
               )}
             </CardContent>
             
-            <CardFooter className="pt-3 pb-3">
+            <CardFooter className="p-3 border-t bg-card/50">
               <form onSubmit={handleChat} className="w-full flex items-end gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -629,8 +659,8 @@ const [fileError, setFileError] = useState<{
                     onChange={(e) => setMessage(e.target.value)}
                     disabled={isChatDisabled || isSending}
                     className={cn(
-                      "pr-10",
-                      isChatDisabled && "bg-muted text-muted-foreground"
+                      "pr-10 py-5 shadow-sm focus-visible:ring-primary",
+                      isChatDisabled ? "bg-muted text-muted-foreground" : "bg-background"
                     )}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -648,8 +678,10 @@ const [fileError, setFileError] = useState<{
                   size="icon"
                   disabled={isChatDisabled || !message.trim() || isSending}
                   className={cn(
-                    "transition-opacity",
-                    (isChatDisabled || !fileList?.files?.length) && "opacity-50 cursor-not-allowed"
+                    "h-10 w-10 shadow-sm transition-all",
+                    (isChatDisabled || !fileList?.files?.length) 
+                      ? "opacity-50 cursor-not-allowed" 
+                      : "hover:shadow-md"
                   )}
                   aria-label={!fileList?.files?.length ? "Add files first" : "Send message"}
                 >
@@ -665,7 +697,7 @@ const [fileError, setFileError] = useState<{
           
           {/* Only show this warning if we have files but they're all processing */}
           {isChatDisabled && processingFilesCount > 0 && (fileList?.files?.length ?? 0) > 0 && (
-            <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-900">
+            <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/70 dark:border-amber-900 shadow-sm">
               <CardContent className="p-3 flex items-center gap-2">
                 <Info className="h-4 w-4 text-amber-500" />
                 <p className="text-sm">Chat will be enabled once file processing is complete.</p>
@@ -676,39 +708,44 @@ const [fileError, setFileError] = useState<{
 
         {/* Files Tab */}
         <TabsContent value="files" className="flex-1 flex flex-col space-y-4 mt-0">
-          <Card className="flex-1 flex flex-col">
-            <CardHeader>
+          <Card className="flex-1 flex flex-col border-muted shadow-lg">
+            <CardHeader className="border-b">
               <CardTitle>Manage Files</CardTitle>
               <CardDescription>
                 Add or remove files for {displayName} to use in conversations
               </CardDescription>
             </CardHeader>
             
-            <CardContent className="flex-1 flex flex-col">
+            <CardContent className="flex-1 flex flex-col p-4">
               {/* File Upload Area */}
               <div 
                 {...getRootProps()} 
                 className={cn(
-                  "border-2 border-dashed rounded-xl p-6 mb-6 cursor-pointer transition-colors",
+                  "border-2 border-dashed rounded-xl p-6 mb-6 cursor-pointer transition-all",
                   isDragActive 
-                    ? "border-primary bg-primary/10" 
-                    : "border-muted-foreground/25 hover:border-primary/50"
+                    ? "border-primary bg-primary/10 shadow-inner" 
+                    : "border-muted-foreground/25 hover:border-primary/50 hover:shadow"
                 )}
               >
                 <input {...getInputProps()} />
                 <div className="flex flex-col items-center justify-center space-y-2 text-center">
-                  <Upload className={cn(
-                    "h-10 w-10 mb-2 transition-transform",
-                    isDragActive ? "text-primary scale-110" : "text-muted-foreground"
-                  )} />
-                  <h3 className="font-medium text-lg">
+                  <div className={cn(
+                    "rounded-full p-3 transition-all",
+                    isDragActive ? "bg-primary/20" : "bg-muted"
+                  )}>
+                    <Upload className={cn(
+                      "h-8 w-8 transition-transform",
+                      isDragActive ? "text-primary scale-110" : "text-muted-foreground"
+                    )} />
+                  </div>
+                  <h3 className="font-semibold text-lg">
                     {isDragActive ? "Drop file here" : "Drag & drop a file"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Or click to browse
+                    Or click to browse your device
                   </p>
                   {file && (
-                    <Badge variant="outline" className="mt-2 px-3 py-1">
+                    <Badge variant="secondary" className="mt-2 px-3 py-1 shadow-sm">
                       <FileText className="h-3 w-3 mr-1" /> {file.name}
                     </Badge>
                   )}
@@ -717,10 +754,13 @@ const [fileError, setFileError] = useState<{
 
               {/* File Upload Progress */}
               {isUploading && (
-                <div className="mb-6 space-y-2">
+                <div className="mb-6 space-y-2 p-3 bg-muted/50 rounded-lg">
                   <div className="flex justify-between text-sm">
-                    <span>Uploading {file?.name}</span>
-                    <span>{uploadProgress}%</span>
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span>Uploading {file?.name}</span>
+                    </div>
+                    <span className="font-medium">{uploadProgress}%</span>
                   </div>
                   <Progress value={uploadProgress} className="h-2" />
                 </div>
@@ -729,7 +769,7 @@ const [fileError, setFileError] = useState<{
               {file && !isUploading && (
                 <Button 
                   onClick={handleAddFile} 
-                  className="mb-6"
+                  className="mb-6 shadow-sm"
                   disabled={isUploading}
                 >
                   {isUploading ? (
@@ -742,13 +782,22 @@ const [fileError, setFileError] = useState<{
 
               {/* File List */}
               <div className="flex-1">
-                <h3 className="font-medium mb-2">Current Files</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium">Current Files</h3>
+                  {(fileList?.files?.length ?? 0) > 0 && (
+                    <Badge variant="outline">
+                      {fileList?.files?.length} file{fileList?.files?.length !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
                 <ScrollArea className="h-[300px] rounded-md border">
                   {fileList?.files?.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground">
-                      <FileText className="h-8 w-8 mx-auto mb-2" />
-                      <p>No files added yet</p>
-                      <p className="text-sm">Add files to enable chat functionality</p>
+                    <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                        <FileText className="h-6 w-6" />
+                      </div>
+                      <p className="font-medium">No files added yet</p>
+                      <p className="text-sm mt-1">Add files to enable chat functionality</p>
                     </div>
                   ) : (
                     <ul className="p-1">
@@ -762,27 +811,39 @@ const [fileError, setFileError] = useState<{
                           <li
                             key={index}
                             className={cn(
-                              "flex flex-col p-2 rounded-md transition-colors",
+                              "flex flex-col p-3 rounded-md transition-colors mb-1",
                               isProcessing 
-                                ? "bg-blue-50/50 dark:bg-blue-950/30" 
+                                ? "bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/50" 
                                 : isDeleting
-                                  ? "bg-amber-50/50 dark:bg-amber-950/30"
+                                  ? "bg-amber-50/70 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800/50"
                                   : "hover:bg-accent hover:text-accent-foreground"
                             )}
                           >
                             <div className="flex items-center justify-between w-full">
                               <div className="flex items-center flex-1 min-w-0">
-                                <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
-                                <span className="text-sm font-medium truncate max-w-[180px]">
-                                  {file.name}
-                                </span>
+                                <div className={cn(
+                                  "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mr-3",
+                                  isProcessing ? "bg-blue-100 dark:bg-blue-900/30" :
+                                  isDeleting ? "bg-amber-100 dark:bg-amber-900/30" : 
+                                  "bg-muted"
+                                )}>
+                                  <FileText className="h-4 w-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm font-medium truncate block">
+                                    {file.name}
+                                  </span>
+                                  {!isProcessing && !isDeleting && (
+                                    <span className="text-xs text-muted-foreground">Ready to use</span>
+                                  )}
+                                </div>
                               </div>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleDeleteFile(file.id)}
                                 disabled={!isActionable}
-                                className="flex-shrink-0"
+                                className="flex-shrink-0 h-8 w-8"
                               >
                                 {isDeleting ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -796,13 +857,13 @@ const [fileError, setFileError] = useState<{
                             
                             {/* Show status badge */}
                             {(fileStatus && fileStatus !== 'Ready') && (
-                              <div className="mt-1 ml-6">
+                              <div className="mt-2 ml-11">
                                 <FileStatusBadge 
                                   status={fileStatus} 
                                   percentDone={file.percentDone ?? undefined}
                                 />
                                 {isProcessing && (file.percentDone ?? 0) > 0 && (
-                                  <div className="mt-1">
+                                  <div className="mt-2">
                                     <Progress value={file.percentDone} className="h-1" />
                                   </div>
                                 )}

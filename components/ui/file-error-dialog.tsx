@@ -32,10 +32,12 @@ export function FileErrorDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-5 w-5" /> 
+            <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertCircle className="h-4 w-4 text-destructive" /> 
+            </div>
             {title}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="pt-2">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -45,7 +47,7 @@ export function FileErrorDialog({
             <Button
               variant="outline"
               size="sm"
-              className="w-full flex justify-between"
+              className="w-full flex justify-between items-center"
               onClick={() => setShowDetails(!showDetails)}
             >
               <span>Technical Details</span>
@@ -53,7 +55,7 @@ export function FileErrorDialog({
             </Button>
             
             {showDetails && (
-              <div className="bg-muted p-3 rounded-md text-sm font-mono whitespace-pre-wrap max-h-[200px] overflow-auto">
+              <div className="bg-muted p-3 rounded-md text-sm font-mono whitespace-pre-wrap max-h-[200px] overflow-auto shadow-inner">
                 {details}
               </div>
             )}
@@ -61,7 +63,9 @@ export function FileErrorDialog({
         )}
         
         <DialogFooter>
-          <Button onClick={onClose}>Dismiss</Button>
+          <Button onClick={onClose} className="w-full sm:w-auto">
+            Dismiss
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
