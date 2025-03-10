@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from 'sonner';
 import { Upload, SendIcon, X, FileText, Loader2, ChevronLeft, User, Bot, Paperclip, Info, Clock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from '@/components/ui/badge';
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence, motion } from "framer-motion";
@@ -38,7 +38,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{ role: string; content: string; timestamp: string }[]>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [isChatDisabled, setIsChatDisabled] = useState(false);
+  const [isChatDisabled, setIsChatDisabled] = useState(true);
   const [fileList, setFileList] = useState<AssistantFilesList>({ files: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -190,12 +190,12 @@ const [fileError, setFileError] = useState<{
               clearInterval(statusPollingInterval);
               setStatusPollingInterval(null);
             }
-          }
-          
+            }
+
           // Determine if chat should be disabled
           const readyFiles = data.files?.files?.filter(
-            (file: any) => file.status !== 'Processing' && file.status !== 'Deleting'
-          );
+              (file: any) => file.status !== 'Processing' && file.status !== 'Deleting'
+            );
           setIsChatDisabled(readyFiles?.length === 0);
         } else {
           console.error("Error fetching files:", data.error);
@@ -472,7 +472,17 @@ const [fileError, setFileError] = useState<{
   return (
     <div className="container mx-auto p-2 md:p-4 h-screen flex flex-col">
       <div className="flex items-center mb-4 gap-2">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => {
+            if (activeTab === "files") {
+              setActiveTab("chat");
+            } else {
+              router.push('/assistants'); // Navigate to assistants page from chat tab
+            }
+          }}
+        >
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-bold flex-1">{displayName}</h1>
@@ -502,6 +512,16 @@ const [fileError, setFileError] = useState<{
         {/* Chat Tab */}
         <TabsContent value="chat" className="flex-1 flex flex-col space-y-4 mt-0">
           {/* Show processing files indicator if needed */}
+          {processingFilesCount > 0 && (
+            <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-900">
+              <CardContent className="p-3 flex items-center gap-2">
+                <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                <p className="text-sm">
+                  {processingFilesCount} file(s) being processed. Chat will be available once processing completes.
+                </p>
+              </CardContent>
+            </Card>
+          )}
           
           <Card className="flex-1 flex flex-col overflow-hidden">
             <CardHeader className="pb-3">
@@ -512,8 +532,13 @@ const [fileError, setFileError] = useState<{
                 </Avatar>
                 <div>
                   <CardTitle>{displayName}</CardTitle>
-                  <CardDescription className="text-xs">
-                    {fileList?.files?.length || 0} file(s) loaded
+                  <CardDescription className="text-xs flex items-center gap-2">
+                    <span>{fileList?.files?.length || 0} file(s) loaded</span>
+                    {isChatDisabled && (
+                      <Badge variant="outline" className="text-amber-500 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900">
+                        Chat Disabled
+                      </Badge>
+                    )}
                   </CardDescription>
                 </div>
               </div>
@@ -523,10 +548,24 @@ const [fileError, setFileError] = useState<{
               {chatHistory.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8">
                   <Bot className="h-16 w-16 mb-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-lg">Start a conversation</h3>
+                  <h3 className="font-semibold text-lg">
+                    {!fileList?.files?.length ? "Add Files to Start" : "Start a conversation"}
+                  </h3>
                   <p className="text-muted-foreground max-w-md mt-2">
-                    Ask me anything about the documents you've provided. I'm here to help!
+                    {!fileList?.files?.length 
+                      ? "This assistant needs document files to work. Please add at least one file."
+                      : "Ask me anything about the documents you've provided. I'm here to help!"}
                   </p>
+                  {!fileList?.files?.length && (
+                    <Button 
+                      variant="default"
+                      className="mt-4"
+                      onClick={() => setActiveTab("files")}
+                    >
+                      <Paperclip className="h-4 w-4 mr-2" />
+                      Add Files
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <ScrollArea className="h-full pr-4">
@@ -580,14 +619,19 @@ const [fileError, setFileError] = useState<{
                 <div className="relative flex-1">
                   <Input
                     ref={inputRef}
-                    placeholder={isChatDisabled 
-                      ? "Add files to start chatting..." 
-                      : "Type your message... (Press / to focus)"
-                    }
+                    placeholder={!fileList?.files?.length
+                      ? "Add files to enable chat functionality..."
+                      : (isChatDisabled 
+                         ? "Chat disabled - waiting for files to process..." 
+                         : "Type your message... (Press / to focus)"
+                      )}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     disabled={isChatDisabled || isSending}
-                    className="pr-10"
+                    className={cn(
+                      "pr-10",
+                      isChatDisabled && "bg-muted text-muted-foreground"
+                    )}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -596,13 +640,18 @@ const [fileError, setFileError] = useState<{
                     }}
                   />
                   <kbd className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-50">
-                    /
+                    {isChatDisabled ? "Disabled" : "/"}
                   </kbd>
                 </div>
                 <Button 
                   type="submit" 
                   size="icon"
                   disabled={isChatDisabled || !message.trim() || isSending}
+                  className={cn(
+                    "transition-opacity",
+                    (isChatDisabled || !fileList?.files?.length) && "opacity-50 cursor-not-allowed"
+                  )}
+                  aria-label={!fileList?.files?.length ? "Add files first" : "Send message"}
                 >
                   {isSending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -614,11 +663,12 @@ const [fileError, setFileError] = useState<{
             </CardFooter>
           </Card>
           
-          {isChatDisabled && processingFilesCount === 0 && (
+          {/* Only show this warning if we have files but they're all processing */}
+          {isChatDisabled && processingFilesCount > 0 && (fileList?.files?.length ?? 0) > 0 && (
             <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-900">
               <CardContent className="p-3 flex items-center gap-2">
                 <Info className="h-4 w-4 text-amber-500" />
-                <p className="text-sm">This assistant needs files to work. Switch to the Files tab to add documents.</p>
+                <p className="text-sm">Chat will be enabled once file processing is complete.</p>
               </CardContent>
             </Card>
           )}
