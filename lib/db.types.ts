@@ -135,26 +135,32 @@ export type Database = {
         Row: {
           assistant_id: string | null
           chat: string
+          duration: number | null
           id: string
           interaction_time: string | null
-          request: Json
-          response: Json
+          request: string
+          response: string
+          user_id: string | null
         }
         Insert: {
           assistant_id?: string | null
           chat: string
+          duration?: number | null
           id?: string
           interaction_time?: string | null
-          request: Json
-          response: Json
+          request: string
+          response: string
+          user_id?: string | null
         }
         Update: {
           assistant_id?: string | null
           chat?: string
+          duration?: number | null
           id?: string
           interaction_time?: string | null
-          request?: Json
-          response?: Json
+          request?: string
+          response?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -162,6 +168,13 @@ export type Database = {
             columns: ["assistant_id"]
             isOneToOne: false
             referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

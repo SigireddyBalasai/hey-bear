@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useData } from './DataContext';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 interface FilterProps {
   setShowFilters: (show: boolean) => void;
 }
 
 const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
-  const { allInteractions, filterInteractions } = useData();
+  const { allInteractions, filterInteractions, assistantId, setAssistantId } = useData();
   
   // Calculate default dates (1 month ago to today)
   const today = new Date();
@@ -19,7 +21,6 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
   
   const [fromDate, setFromDate] = useState(oneMonthAgo.toISOString().split('T')[0]);
   const [toDate, setToDate] = useState(today.toISOString().split('T')[0]);
-  const [phoneNumber, setPhoneNumber] = useState('all');
   const [uniquePhoneNumbers, setUniquePhoneNumbers] = useState<string[]>([]);
   
   // Extract unique phone numbers when interactions change
@@ -30,8 +31,13 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
   }, [allInteractions]);
   
   const handleApplyFilters = () => {
-    filterInteractions({ fromDate, toDate, phoneNumber });
+    filterInteractions({ fromDate, toDate, assistantId: assistantId || undefined });
     setShowFilters(false);
+  };
+
+  const handleAssistantChange = (assistantId: string) => {
+    setAssistantId(assistantId);
+    filterInteractions({ assistantId });
   };
   
   return (
@@ -55,21 +61,27 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
             />
           </div>
           <div>
-            <label className="text-sm font-medium block mb-1">Phone Number</label>
-            <Select 
-              value={phoneNumber} 
-              onValueChange={setPhoneNumber}
+            <h3 className="mb-2 font-medium">Assistant</h3>
+            <RadioGroup 
+              defaultValue={assistantId || 'all'} 
+              className="flex flex-col space-y-1"
+              onValueChange={handleAssistantChange}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="All Phone Numbers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Phone Numbers</SelectItem>
-                {uniquePhoneNumbers.map((phone) => (
-                  <SelectItem key={phone} value={phone}>{phone}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="all" id="assistant-all" />
+                <Label htmlFor="assistant-all">All Assistants</Label>
+              </div>
+              {/* Add your assistant options here */}
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="assistant-1" id="assistant-1" />
+                <Label htmlFor="assistant-1">Personal Concierge</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="assistant-2" id="assistant-2" />
+                <Label htmlFor="assistant-2">Travel Planner</Label>
+              </div>
+              {/* Add more assistants as needed */}
+            </RadioGroup>
           </div>
           <div>
             <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleApplyFilters}>

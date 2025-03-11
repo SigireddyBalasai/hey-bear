@@ -102,8 +102,10 @@ CREATE TABLE IF NOT EXISTS "public"."interactions" (
     "assistant_id" "uuid",
     "interaction_time" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     "chat" "text" NOT NULL,
-    "request" "jsonb" NOT NULL,
-    "response" "jsonb" NOT NULL
+    "request" "text" NOT NULL,
+    "response" "text" NOT NULL,
+    "duration" bigint,
+    "user_id" "uuid"
 );
 
 
@@ -295,6 +297,11 @@ ALTER TABLE ONLY "public"."assistantusage"
 
 ALTER TABLE ONLY "public"."interactions"
     ADD CONSTRAINT "interactions_assistant_id_fkey" FOREIGN KEY ("assistant_id") REFERENCES "public"."assistants"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."interactions"
+    ADD CONSTRAINT "interactions_user_id_fkey1" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id");
 
 
 
