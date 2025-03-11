@@ -26,41 +26,48 @@ const ConciergeInteractionDashboard = () => {
     isLoading, 
     setIsLoading,
     filterInteractions,
-    // totalPages: dataContextTotalPages,
     currentPage,
     setCurrentPage,
     searchTerm,
-    setSearchTerm
+    setSearchTerm,
+    totalItems,
+    totalPages: apiTotalPages,
+    fetchInteractions,
+    pageSize,
+    setPageSize,
+    assistantId // Add assistantId here
   } = useData();
   
   const [activeTab, setActiveTab] = useState('table');
   const [showFilters, setShowFilters] = useState(false);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
   
   const today = new Date();
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, allInteractions.length);
-  
-  const totalPages = Math.max(1, Math.ceil(allInteractions.length / itemsPerPage));
-
-  useEffect(() => {}, [allInteractions]);
+  // Using API pagination instead of client-side pagination
+  useEffect(() => {
+    fetchInteractions({
+      page: currentPage,
+      pageSize: pageSize,
+      searchTerm: searchTerm,
+      assistantId: assistantId || undefined // Pass assistantId here
+    });
+  }, [currentPage, pageSize, searchTerm, assistantId]);
   
   useEffect(() => {
-    setCurrentPage(1);
-  }, [itemsPerPage, setCurrentPage]);
+    setCurrentPage(1); // Reset to page 1 when changing page size
+  }, [pageSize, setCurrentPage]);
 
   const changePage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
+    if (page >= 1 && page <= apiTotalPages) {
       setIsLoading(true);
       setCurrentPage(page);
     }
   };
   
   const handleItemsPerPageChange = (value: string) => {
-    setItemsPerPage(Number(value));
+    setPageSize(Number(value));
   };
 
   const getPaginationNumbers = () => {
@@ -68,12 +75,12 @@ const ConciergeInteractionDashboard = () => {
     
     result.push(1);
     
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(apiTotalPages - 1, currentPage + 1); i++) {
       if (!result.includes(i)) result.push(i);
     }
     
-    if (totalPages > 1 && !result.includes(totalPages)) {
-      result.push(totalPages);
+    if (apiTotalPages > 1 && !result.includes(apiTotalPages)) {
+      result.push(apiTotalPages);
     }
     
     const withEllipsis = [];
@@ -109,13 +116,11 @@ const ConciergeInteractionDashboard = () => {
             Back to Assistants
           </Button>
         </Link>
-        </div>
-      );
+      </div>
       <div className="flex justify-between items-center mb-6">
-      <div className="flex justify-between items-center mb-6"></div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Syed's Concierge</h1>
-          <p className="text-gray-500">555-555-1234</p>
+          {/* Removed phone number */}
         </div>
         <div className="text-right">
           <h2 className="text-xl font-semibold text-gray-800">Interaction Dashboard</h2>
@@ -194,35 +199,34 @@ const ConciergeInteractionDashboard = () => {
         </div>
       </div>
       {showFilters && <FilterComponent setShowFilters={setShowFilters} />}
-      {showFilters && <FilterComponent setShowFilters={setShowFilters} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard 
           title="Total Interactions" 
           value={stats.totalInteractions} 
           description="Total messages or requests received by your concierge"
-          loading={false}
+          loading={isLoading}
         />
         
         <StatCard 
           title="Active Contacts" 
           value={stats.activeContacts} 
           description="Unique phone numbers that have interacted with your concierge"
-          loading={false}
+          loading={isLoading}
         />
         
         <StatCard 
           title="Interactions Per Contact" 
           value={stats.interactionsPerContact.toFixed(1)} 
           description="Average interactions per unique contact"
-          loading={false}
+          loading={isLoading}
         />
         
         <StatCard 
           title="Average Response Time" 
           value={stats.averageResponseTime} 
           description="Average time for your concierge to respond to a message"
-          loading={false}
+          loading={isLoading}
         />
       </div>
 
@@ -250,7 +254,7 @@ const ConciergeInteractionDashboard = () => {
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">Show:</span>
             <Select 
-              value={itemsPerPage.toString()} 
+              value={pageSize.toString()} 
               onValueChange={handleItemsPerPageChange}
             >
               <SelectTrigger className="w-[80px] h-8">
@@ -272,11 +276,11 @@ const ConciergeInteractionDashboard = () => {
           interactions={allInteractions} 
           activeTab={activeTab} 
           setActiveTab={handleTabChange} 
-          startIndex={startIndex} 
-          endIndex={endIndex} 
+          startIndex={0} // Not needed with API pagination
+          endIndex={allInteractions.length} // Not needed with API pagination
           allInteractions={allInteractions} 
           currentPage={currentPage} 
-          totalPages={totalPages} 
+          totalPages={apiTotalPages} 
           changePage={changePage} 
           getPaginationNumbers={getPaginationNumbers} 
         />
