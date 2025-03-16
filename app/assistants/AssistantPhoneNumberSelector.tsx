@@ -137,7 +137,7 @@ export function AssistantPhoneNumberSelector({
     try {
       // Now attempt the assignment
       console.log(`Sending assignment request`);
-      console.log(`Using Twilio for SMS integration`);
+      console.log(`Using Twilio for SMS and voice integration`);
       const response = await fetch('/api/phone-numbers/assign', {
         method: 'POST',
         headers: {
@@ -146,7 +146,7 @@ export function AssistantPhoneNumberSelector({
         body: JSON.stringify({
           assistantId,
           phoneNumber: selectedNumber,
-          webhookUrl: webhook // Make sure we use the correct property name here
+          webhookUrl: webhook
         }),
       });
 
@@ -352,7 +352,7 @@ export function AssistantPhoneNumberSelector({
                           placeholder="https://your-webhook-url.com/path"
                         />
                         <p className="text-xs text-muted-foreground">
-                          The webhook URL will receive SMS events for this assistant.
+                          The webhook URL will handle both SMS messages and voice calls for this assistant.
                         </p>
                       </div>
                     </div>
@@ -361,6 +361,7 @@ export function AssistantPhoneNumberSelector({
                       <p>When you assign a phone number:</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
                         <li>Users can interact with the assistant via SMS</li>
+                        <li>Voice callers will be prompted to use SMS instead</li>
                         <li>SMS messages will be forwarded to your webhook</li>
                         <li>Standard messaging rates may apply to end users</li>
                         <li>One phone number can only be assigned to one assistant</li>
@@ -400,6 +401,9 @@ export function AssistantPhoneNumberSelector({
             <p><strong>TwiML App:</strong> {twilioAppInfo.twimlApp.name || twilioAppInfo.twimlApp.friendlyName || 'SMS Handler'}</p>
             <p><strong>App SID:</strong> {twilioAppInfo.twimlApp.sid ? `${twilioAppInfo.twimlApp.sid.substring(0, 8)}...` : 'Not available'}</p>
             <p><strong>SMS URL:</strong> {twilioAppInfo.twimlApp.smsUrl || 'Not configured'}</p>
+            {twilioAppInfo.phoneDetails?.voiceUrl && (
+              <p><strong>Voice URL:</strong> {twilioAppInfo.phoneDetails.voiceUrl}</p>
+            )}
             <p><strong>Created:</strong> {twilioAppInfo.twimlApp.dateCreated 
               ? new Date(twilioAppInfo.twimlApp.dateCreated).toLocaleString() 
               : new Date().toLocaleString()}</p>
