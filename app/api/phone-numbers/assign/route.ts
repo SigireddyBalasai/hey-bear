@@ -125,7 +125,6 @@ export async function POST(request: Request) {
       .from('phonenumbers')
       .update({ 
         is_assigned: true,
-        twilio_app_sid: twimlAppSid
       })
       .eq('number', phoneNumber);
     
