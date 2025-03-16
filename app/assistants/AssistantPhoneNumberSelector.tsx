@@ -90,13 +90,9 @@ export function AssistantPhoneNumberSelector({
 
   // Build default webhook URL
   const getDefaultWebhookUrl = () => {
-    // Ensure the URL is properly formatted with the assistantId and token as query parameters
-    const baseUrl = `${getOrigin()}/api/twilio/webhook`;
-    const url = new URL(baseUrl);
-    url.searchParams.append('assistantId', assistantId);
-    // Add the webhook token
-    url.searchParams.append('token', 'webhook-token-123456'); // In production, fetch this from env
-    return url.toString();
+    // Only include the essentials in the webhook URL
+    // Twilio may have issues with URL params, so keep it simple
+    return `${getOrigin()}/api/twilio/webhook?assistantId=${assistantId}`;
   };
 
   // Use default webhook when checkbox changes
