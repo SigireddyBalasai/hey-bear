@@ -68,17 +68,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to create assistant' }, { status: 500 });
       }
 
-      // Handle system message by including it in the messages array if provided
-      let messages;
+      // Create messages array with proper role validation
+      const messages = [];
+      
+      // Add system message first if provided
       if (systemOverride) {
-        // Add system message first, then user message
-        messages = [
-          { role: 'system', content: systemOverride },
-          { role: 'user', content: message }
-        ];
-      } else {
-        messages = [{ role: 'user', content: message }];
+        messages.push({
+          role: 'assistant', // Use 'assistant' for system messages
+          content: systemOverride
+        });
       }
+      
+      // Add user message
+      messages.push({
+        role: 'user',
+        content: message
+      });
       
       // Use only valid options for Pinecone Assistant API
       const response = await assistant.chat({ messages });
