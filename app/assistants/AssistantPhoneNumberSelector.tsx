@@ -158,11 +158,19 @@ export function AssistantPhoneNumberSelector({
       }
 
       // Store TwiML app info if available
-      if (data.twilioDetails) {
-        setTwilioAppInfo(data.twilioDetails);
+      if (data.data?.twilioDetails) {
+        console.log('TwiML app details received:', data.data.twilioDetails);
+        setTwilioAppInfo(data.data.twilioDetails);
+        
+        // Display details in toast for confirmation
+        toast.success('Phone number assigned with Twilio integration', {
+          description: `TwiML app created with SID: ${data.data.twilioDetails.twimlApp.sid.substring(0, 10)}...`,
+          duration: 5000
+        });
+      } else {
+        toast.success('Phone number assigned successfully!');
       }
-
-      toast.success('Phone number assigned successfully!');
+      
       onAssigned(selectedNumber);
       setDialogOpen(false);
     } catch (error) {
@@ -378,9 +386,12 @@ export function AssistantPhoneNumberSelector({
             <CardTitle className="text-sm text-green-800 dark:text-green-200">Twilio Integration Details</CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-1 text-green-700 dark:text-green-300">
-            <p><strong>TwiML App:</strong> {twilioAppInfo.twimlApp?.name}</p>
+            <p><strong>TwiML App:</strong> {twilioAppInfo.twimlApp?.name || twilioAppInfo.twimlApp?.friendlyName}</p>
             <p><strong>App SID:</strong> {twilioAppInfo.twimlApp?.sid}</p>
             <p><strong>SMS URL:</strong> {twilioAppInfo.twimlApp?.smsUrl}</p>
+            <p><strong>Created:</strong> {twilioAppInfo.twimlApp?.dateCreated 
+              ? new Date(twilioAppInfo.twimlApp.dateCreated).toLocaleString() 
+              : 'Unknown'}</p>
           </CardContent>
         </Card>
       )}
