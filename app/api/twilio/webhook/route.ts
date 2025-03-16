@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createServiceClient } from '@/utils/supabase/server-admin';
 
 export async function POST(req: Request) {
   console.log(`[${new Date().toISOString()}] Twilio webhook received`);
@@ -31,7 +31,8 @@ export async function POST(req: Request) {
       return generateTwimlResponse('Missing required information', isVoiceCall);
     }
 
-    const supabase = await createClient();
+    // Use service client instead of authenticated client
+    const supabase = createServiceClient();
     
     // Get assistant details
     const { data: assistant, error } = await supabase
@@ -59,21 +60,23 @@ export async function POST(req: Request) {
       // Get the base URL from the incoming request
       // This ensures we use the same host that received the webhook
       const baseUrl = new URL(req.url);
-      const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/assistant/chat`;
+      const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/assistant/chat/webhook`;
       
-      console.log(`Calling assistant chat API at: ${apiUrl}`);
+      console.log(`Calling assistant webhook chat API at: ${apiUrl}`);
       
-      // Send the request to the chat endpoint using the current host
+      // Send the request to the webhook-specific chat endpoint
       const chatResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Webhook-Secret': process.env.WEBHOOK_SECRET || 'webhook-secret'
         },
         body: JSON.stringify({
           assistantId: assistant.id,
           message: body,
           systemOverride: `You are responding to an SMS message. Keep your response concise.`,
-          userPhone: from
+          userPhone: from,
+          userId: assistant.user_id // Pass the user_id directly since we're bypassing auth
         }),
       });
 
@@ -84,7 +87,7 @@ export async function POST(req: Request) {
       const responseData = await chatResponse.json();
       const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
       
-      // Record the interaction
+      // Record the interaction using service client
       await supabase
         .from('interactions')
         .insert({
@@ -109,7 +112,7 @@ export async function POST(req: Request) {
       // Fallback response
       const fallbackResponse = "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
       
-      // Record error interaction
+      // Record error interaction using service client
       await supabase
         .from('interactions')
         .insert({
