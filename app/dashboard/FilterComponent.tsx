@@ -6,13 +6,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useData } from './DataContext';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { createClient } from '@/utils/supabase/client';
+import { Tables } from '@/lib/db.types';
 
 interface FilterProps {
   setShowFilters: (show: boolean) => void;
 }
 
+type Assistant = Tables<'assistants'>;
+
 const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
   const { allInteractions, filterInteractions, assistantId, setAssistantId } = useData();
+  const [assistants, setAssistants] = useState<Assistant[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Calculate default dates (1 month ago to today)
   const today = new Date();
@@ -21,14 +27,56 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
   
   const [fromDate, setFromDate] = useState(oneMonthAgo.toISOString().split('T')[0]);
   const [toDate, setToDate] = useState(today.toISOString().split('T')[0]);
-  const [uniquePhoneNumbers, setUniquePhoneNumbers] = useState<string[]>([]);
   
-  // Extract unique phone numbers when interactions change
+  // Fetch user's assistants
   useEffect(() => {
-    if (allInteractions.length > 0) {
-      setUniquePhoneNumbers(Array.from(new Set(allInteractions.map(i => i.phoneNumber))));
+    async function fetchAssistants() {
+      try {
+        setIsLoading(true);
+        const supabase = createClient();
+        
+        // First get the authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('Error fetching user:', userError);
+          return;
+        }
+        
+        // Get user ID from users table
+        const { data: userData, error: userDataError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .single();
+          
+        if (userDataError || !userData) {
+          console.error('Error fetching user data:', userDataError);
+          return;
+        }
+        
+        // Fetch assistants belonging to this user
+        const { data: assistantsData, error: assistantsError } = await supabase
+          .from('assistants')
+          .select('*')  // Select all fields to match the Assistant type
+          .eq('user_id', userData.id);
+        
+        if (assistantsError) {
+          console.error('Error fetching assistants:', assistantsError);
+          return;
+        }
+        
+        if (assistantsData && assistantsData.length > 0) {
+          setAssistants(assistantsData as Assistant[]);
+        }
+      } catch (error) {
+        console.error('Error fetching assistants:', error);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [allInteractions]);
+    
+    fetchAssistants();
+  }, []);
   
   const handleApplyFilters = () => {
     filterInteractions({ fromDate, toDate, assistantId: assistantId || undefined });
@@ -37,7 +85,7 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
 
   const handleAssistantChange = (assistantId: string) => {
     setAssistantId(assistantId);
-    filterInteractions({ assistantId });
+    filterInteractions({ fromDate, toDate, assistantId });
   };
   
   return (
@@ -71,16 +119,19 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
                 <RadioGroupItem value="all" id="assistant-all" />
                 <Label htmlFor="assistant-all">All Assistants</Label>
               </div>
-              {/* Add your assistant options here */}
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="assistant-1" id="assistant-1" />
-                <Label htmlFor="assistant-1">Personal Concierge</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="assistant-2" id="assistant-2" />
-                <Label htmlFor="assistant-2">Travel Planner</Label>
-              </div>
-              {/* Add more assistants as needed */}
+              
+              {isLoading ? (
+                <div className="text-sm text-muted-foreground">Loading assistants...</div>
+              ) : assistants.length > 0 ? (
+                assistants.map(assistant => (
+                  <div key={assistant.id} className="flex items-center space-x-2">
+                    <RadioGroupItem value={assistant.id} id={`assistant-${assistant.id}`} />
+                    <Label htmlFor={`assistant-${assistant.id}`}>{assistant.name}</Label>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">No assistants found</div>
+              )}
             </RadioGroup>
           </div>
           <div>

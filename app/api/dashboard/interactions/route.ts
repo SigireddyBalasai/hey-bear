@@ -89,13 +89,28 @@ export async function GET(req: NextRequest) {
     }
 
     // Get total count for pagination
-    const { count, error: countError } = await query.select('id', { count: 'exact' });
+    const countQuery = supabase
+      .from('interactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+      
+    // Apply the same filters as the main query
+    if (assistantId && assistantId !== 'all') {
+      countQuery.eq('assistant_id', assistantId);
+    }
+    
+    countQuery.gte('interaction_time', startDateFormatted).lte('interaction_time', endDateFormatted);
+    
+    if (searchTerm) {
+      countQuery.or(`request.ilike.%${searchTerm}%,response.ilike.%${searchTerm}%`);
+    }
+    
+    const { count, error: countError } = await countQuery;
 
     if (countError) {
       console.error('Error getting count:', countError);
       return NextResponse.json({ error: 'Failed to fetch interactions' }, { status: 500 });
     }
-
     const totalCount = count || 0;
     console.log('Total interactions count:', totalCount);
 
@@ -139,10 +154,10 @@ export async function GET(req: NextRequest) {
         response: typeof chat.response === 'string' ? chat.response : JSON.stringify(chat.response),
         type: type,
         responseTime: responseTime,
-        assistant_id: chat.assistant_id,
-        user_id: chat.user_id,
-        duration: chat.duration,
-        interaction_time: chat.interaction_time,
+        assistant_id: chat.assistant_id ?? undefined,
+        user_id: chat.user_id ?? undefined,
+        duration: chat.duration ?? undefined,
+        interaction_time: chat.interaction_time ?? undefined,
         chat: chat.chat
       };
     });
@@ -152,11 +167,24 @@ export async function GET(req: NextRequest) {
     const uniqueAssistantIds = new Set(interactions.map(i => i.assistant_id).filter(Boolean)).size;
     console.log('Unique assistant IDs count:', uniqueAssistantIds);
 
+    // Add this before creating the stats object
+    let totalDuration = 0;
+    let validDurationCount = 0;
+
+    interactions.forEach(interaction => {
+      if (interaction.duration && typeof interaction.duration === 'number') {
+        totalDuration += interaction.duration;
+        validDurationCount++;
+      }
+    });
+
+    const averageDuration = validDurationCount > 0 ? totalDuration / validDurationCount : 0;
+
     const stats: DashboardStats = {
       totalInteractions: totalCount,
       activeContacts: uniqueAssistantIds,
       interactionsPerContact: uniqueAssistantIds > 0 ? Math.round((totalCount / uniqueAssistantIds) * 10) / 10 : 0,
-      averageResponseTime: '0s',
+      averageResponseTime: formatResponseTime(averageDuration), // Use the calculated average
       phoneNumbers: `${uniqueAssistantIds}/10`,
       smsReceived: `${Math.floor(totalCount / 2)}/200`,
       smsSent: `${Math.ceil(totalCount / 2)}/200`,

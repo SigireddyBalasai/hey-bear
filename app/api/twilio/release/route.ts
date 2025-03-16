@@ -68,12 +68,23 @@ export async function POST(request: Request) {
       await client.incomingPhoneNumbers(sid).remove();
     }
 
-    // Log the action
-    await supabase.from('admin_logs').insert({
+    if (phoneNumber) {
+      await supabase
+        .from('phonenumbers')
+        .update({ is_assigned: false })
+        .eq('number', phoneNumber);
+    }
+
+    await supabase.from('interactions').insert({
       user_id: adminId,
-      action: 'release_phone_number',
-      details: { twilioSid: sid, phoneNumber },
-      created_at: new Date().toISOString(),
+      assistant_id: null, 
+      chat: 'system',
+      request: 'Release phone number',
+      response: JSON.stringify({ 
+        action: 'release_phone_number', 
+        details: { twilioSid: sid, phoneNumber } 
+      }),
+      interaction_time: new Date().toISOString()
     });
 
     return NextResponse.json({

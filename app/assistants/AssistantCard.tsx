@@ -24,9 +24,10 @@ interface AssistantCardProps {
   getInitials: (name: string) => string;
   getAvatarColor: (name: string) => string;
   handleDeleteAssistant: (id: string) => void;
+  handleToggleStar: (id: string, isStarred: boolean) => void;
 }
 
-export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDeleteAssistant }: AssistantCardProps) {
+export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDeleteAssistant, handleToggleStar }: AssistantCardProps) {
   // Parse description from params if available
   const description = typeof assistant.params === 'object' && 
                      assistant.params !== null && 
@@ -72,9 +73,33 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
         <div>
           <CardTitle className="flex items-center gap-2">
             {assistant.name}
-            {assistant.is_starred && (
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleToggleStar(assistant.id, !assistant.is_starred);
+                    }}
+                  >
+                    <Star 
+                      className={cn(
+                        "h-4 w-4", 
+                        assistant.is_starred 
+                          ? "fill-yellow-400 text-yellow-400" 
+                          : "text-muted-foreground"
+                      )} 
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {assistant.is_starred ? "Unstar" : "Star"} assistant
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardTitle>
           <CardDescription className="line-clamp-2 mt-1">
             {description}

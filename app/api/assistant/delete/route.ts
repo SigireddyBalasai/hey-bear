@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
       // Clean up chat history
       const { error: chatDeleteError } = await supabase
-        .from('chat_history')
+        .from('interactions')
         .delete()
         .eq('user_id', user.id)
         .eq('assistant_id', assistantName);

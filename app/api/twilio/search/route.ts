@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import twilio from 'twilio';
 import { createClient } from '@/utils/supabase/server';
 import { checkIsAdmin } from '@/utils/admin';
+import twilio from 'twilio';
 
-// Initialize Twilio client
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
+    // Check authentication and admin permissions
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -16,60 +13,78 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Use the checkIsAdmin utility function
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
-    
-    if (adminError || !isAdmin) {
+    // Check admin status
+    const { data: userData, error: userDataError } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('auth_user_id', user.id)
+      .single();
+      
+    if (userDataError || !userData?.is_admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { areaCode, country, smsEnabled } = body;
+    // Get search parameters
+    const { areaCode, country = 'US', smsEnabled = true } = await req.json();
 
-    if (!accountSid || !authToken) {
+    if (!areaCode) {
       return NextResponse.json(
-        { error: 'Twilio credentials not configured' },
-        { status: 500 }
+        { error: 'Area code is required' },
+        { status: 400 }
       );
     }
 
+    // Initialize Twilio client
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+    // Check if Twilio credentials are configured
+    if (!accountSid || !authToken) {
+      return NextResponse.json({
+        success: false,
+        error: 'Twilio credentials not configured',
+      }, { status: 500 });
+    }
+
+    // Initialize Twilio client
     const client = twilio(accountSid, authToken);
     
     // Build search parameters
     const searchParams: any = {
+      areaCode,
       limit: 10,
-      capabilities: {},
     };
     
-    if (country) {
-      searchParams.countryCode = country;
-    }
-    
-    if (areaCode) {
-      searchParams.areaCode = areaCode;
-    }
-    
     if (smsEnabled) {
-      searchParams.capabilities.sms = true;
+      searchParams.smsEnabled = true;
     }
 
-    // Search for phone numbers
-    const availableNumbers = await client.availablePhoneNumbers(country || 'US').local.list(searchParams);
+    try {
+      // Search for phone numbers using Twilio API
+      const availableNumbers = await client.availablePhoneNumbers(country).local.list(searchParams);
 
-    const formattedNumbers = availableNumbers.map(number => ({
-      phoneNumber: number.phoneNumber,
-      friendlyName: number.friendlyName,
-      locality: number.locality,
-      region: number.region,
-      isoCountry: number.isoCountry,
-      capabilities: number.capabilities,
-    }));
+      // Format the response
+      const formattedNumbers = availableNumbers.map(number => ({
+        phoneNumber: number.phoneNumber,
+        friendlyName: number.friendlyName,
+        locality: number.locality || 'Unknown',
+        region: number.region || 'Unknown',
+        isoCountry: number.isoCountry,
+        capabilities: number.capabilities,
+      }));
 
-    return NextResponse.json({
-      success: true,
-      numbers: formattedNumbers,
-    });
+      return NextResponse.json({
+        success: true,
+        numbers: formattedNumbers
+      });
+    } catch (twilioError: any) {
+      console.error('Twilio API error:', twilioError);
+      
+      return NextResponse.json({
+        success: false,
+        error: `Twilio API Error: ${twilioError.message}`
+      }, { status: 500 });
+    }
   } catch (error: any) {
     console.error('Error searching for phone numbers:', error);
     return NextResponse.json(

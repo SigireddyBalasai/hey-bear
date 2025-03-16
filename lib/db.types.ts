@@ -135,31 +135,46 @@ export type Database = {
         Row: {
           assistant_id: string | null
           chat: string
+          cost_estimate: number | null
           duration: number | null
           id: string
+          input_tokens: number | null
           interaction_time: string | null
+          is_error: boolean | null
+          output_tokens: number | null
           request: string
           response: string
+          token_usage: number | null
           user_id: string | null
         }
         Insert: {
           assistant_id?: string | null
           chat: string
+          cost_estimate?: number | null
           duration?: number | null
           id?: string
+          input_tokens?: number | null
           interaction_time?: string | null
+          is_error?: boolean | null
+          output_tokens?: number | null
           request: string
           response: string
+          token_usage?: number | null
           user_id?: string | null
         }
         Update: {
           assistant_id?: string | null
           chat?: string
+          cost_estimate?: number | null
           duration?: number | null
           id?: string
+          input_tokens?: number | null
           interaction_time?: string | null
+          is_error?: boolean | null
+          output_tokens?: number | null
           request?: string
           response?: string
+          token_usage?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -296,6 +311,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_admin: boolean | null
+          last_active: string | null
           plan_id: string | null
           updated_at: string | null
         }
@@ -304,6 +320,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_admin?: boolean | null
+          last_active?: string | null
           plan_id?: string | null
           updated_at?: string | null
         }
@@ -312,6 +329,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_admin?: boolean | null
+          last_active?: string | null
           plan_id?: string | null
           updated_at?: string | null
         }
@@ -328,28 +346,34 @@ export type Database = {
       userusage: {
         Row: {
           assistants_used: number | null
+          cost_estimate: number | null
           id: string
           interactions_used: number | null
           last_reset_at: string | null
           phone_numbers_used: number | null
+          token_usage: number | null
           usage_tier_id: string | null
           user_id: string | null
         }
         Insert: {
           assistants_used?: number | null
+          cost_estimate?: number | null
           id?: string
           interactions_used?: number | null
           last_reset_at?: string | null
           phone_numbers_used?: number | null
+          token_usage?: number | null
           usage_tier_id?: string | null
           user_id?: string | null
         }
         Update: {
           assistants_used?: number | null
+          cost_estimate?: number | null
           id?: string
           interactions_used?: number | null
           last_reset_at?: string | null
           phone_numbers_used?: number | null
+          token_usage?: number | null
           usage_tier_id?: string | null
           user_id?: string | null
         }
@@ -375,7 +399,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      assign_phone_number: {
+        Args: {
+          p_assistant_id: string
+          p_phone_number: string
+          p_phone_number_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

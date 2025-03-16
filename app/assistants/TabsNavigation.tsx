@@ -40,11 +40,11 @@ type TabsNavigationProps = {
   
   export function TabsNavigation({ selectedTab, setSelectedTab }: TabsNavigationProps) {
     return (
-      <Tabs defaultValue="all" className="mb-6" onValueChange={setSelectedTab}>
+      <Tabs defaultValue="all" className="mb-6" onValueChange={setSelectedTab} value={selectedTab}>
         <TabsList>
           <TabsTrigger value="all">All Assistants</TabsTrigger>
-          <TabsTrigger value="favorites" disabled>Favorites</TabsTrigger>
-          <TabsTrigger value="shared" disabled>Shared</TabsTrigger>
+          <TabsTrigger value="favorites">Favorites</TabsTrigger>
+          <TabsTrigger value="shared">Shared</TabsTrigger>
         </TabsList>
       </Tabs>
     );

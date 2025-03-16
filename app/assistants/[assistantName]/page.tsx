@@ -9,7 +9,7 @@ import { AssistantFilesList } from '@pinecone-database/pinecone';
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from 'sonner';
-import { Upload, SendIcon, X, FileText, Loader2, ChevronLeft, User, Bot, Paperclip, Info, Clock } from 'lucide-react';
+import { Upload, SendIcon, X, FileText, Loader2, ChevronLeft, User, Bot, Paperclip, Info, Clock, Phone } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from '@/components/ui/badge';
 import { Progress } from "@/components/ui/progress";
@@ -22,6 +22,7 @@ import { useDropzone } from "react-dropzone";
 import { FileStatusBadge } from "@/components/ui/file-status-badge";
 import { ProcessingFileIndicator } from "@/components/processing-file-indicator";
 import { FileErrorDialog } from "@/components/ui/file-error-dialog";
+import { AssistantPhoneNumberSelector } from '../AssistantPhoneNumberSelector';
 
 // Replace the constant date with a function to ensure consistency on the client side
 const getCurrentTimestamp = () => {
@@ -44,6 +45,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("chat");
   const [deletingFileIds, setDeletingFileIds] = useState<string[]>([]);
   const [processingFileIds, setProcessingFileIds] = useState<string[]>([]);
@@ -75,7 +77,7 @@ const [fileError, setFileError] = useState<{
         const supabase = createClient();
         const { data, error } = await supabase
           .from('assistants')
-          .select('id, name, pinecone_name, params')
+          .select('id, name, pinecone_name, params, assigned_phone_number')
           .eq('id', assistantName)
           .single();
         
@@ -100,6 +102,7 @@ const [fileError, setFileError] = useState<{
           setDisplayName(data.name);
           setAssistantName(data.name);
           setPineconeName(data.pinecone_name || '');
+          setAssignedPhoneNumber(data.assigned_phone_number || null);
           
           // Update document title
           document.title = `Chat with ${data.name}`;
@@ -114,6 +117,40 @@ const [fileError, setFileError] = useState<{
     }
     loadParams();
   }, [params, router]);
+
+  useEffect(() => {
+    const getAssistant = async () => {
+      try {
+        // Await the params promise to get the actual assistantName
+        const { assistantName } = await params;
+        
+        const { data, error } = await supabase
+          .from('assistants')
+          .select('*')
+          .eq('name', assistantName)
+          .single();
+
+        if (error) {
+          console.error("Error fetching assistant:", error);
+          toast.error("Failed to load assistant details.");
+        }
+
+        if (data) {
+          setDisplayName(data.name);
+          setAssistantName(data.name);
+          setPineconeName(data.pinecone_name || '');
+          setAssignedPhoneNumber(data.assigned_phone_number || null);
+        }
+      } catch (error) {
+        console.error("Unexpected error:", error);
+        toast.error("Failed to load assistant details due to an unexpected error.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    getAssistant();
+  }, [params, supabase]);
 
   // Fetch user data
   useEffect(() => {
@@ -429,6 +466,11 @@ const [fileError, setFileError] = useState<{
     setFileError(prev => ({ ...prev, show: false }));
   };
 
+  // Handle phone number assignment
+  const handlePhoneNumberAssigned = (phoneNumber: string) => {
+    setAssignedPhoneNumber(phoneNumber || null);
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -501,7 +543,15 @@ const [fileError, setFileError] = useState<{
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-2xl font-bold flex-1">{displayName}</h1>
+        <h1 className="text-2xl font-bold flex-1">
+          {displayName}
+          {assignedPhoneNumber && (
+            <Badge variant="outline" className="ml-2 gap-1 align-middle">
+              <Phone className="h-3 w-3" />
+              SMS
+            </Badge>
+          )}
+        </h1>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -704,6 +754,17 @@ const [fileError, setFileError] = useState<{
               </CardContent>
             </Card>
           )}
+
+          {/* Phone Number Assignment Section */}
+          <Card className="border-muted shadow-sm">
+            <CardContent className="p-4">
+              <AssistantPhoneNumberSelector 
+                assistantId={assistantId}
+                onAssigned={handlePhoneNumberAssigned}
+                currentPhoneNumber={assignedPhoneNumber}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Files Tab */}
@@ -876,6 +937,23 @@ const [fileError, setFileError] = useState<{
                   )}
                 </ScrollArea>
               </div>
+            </CardContent>
+          </Card>
+          
+          {/* Phone Number Assignment Section */}
+          <Card className="border-muted shadow-sm">
+            <CardHeader className="border-b">
+              <CardTitle>SMS Capability</CardTitle>
+              <CardDescription>
+                Assign a phone number to enable SMS interactions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <AssistantPhoneNumberSelector 
+                assistantId={assistantId}
+                onAssigned={handlePhoneNumberAssigned}
+                currentPhoneNumber={assignedPhoneNumber}
+              />
             </CardContent>
           </Card>
         </TabsContent>

@@ -4,8 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import { Tables } from '@/lib/db.types';
 
 // Define table types for better type safety
-type Interactions = Tables<'interactions'> & { duration: number }
-type AssistantUsage = Tables<'assistantusage'>
+type Interactions = Tables<'interactions'>
+type Assistant = Tables<'assistants'>
 export async function POST(req: NextRequest) {
   // Record the request timestamp
   const requestTimestamp = new Date();
@@ -34,6 +34,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Fetch the user ID from users table using auth user ID
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (userError || !userData) {
+      console.error('User not found in users table:', userError);
+      return NextResponse.json({ error: 'User not found in system' }, { status: 404 });
+    }
+
     // Fetch the assistant from the database to get its Pinecone name
     const { data: assistantData, error: assistantError } = await supabase
       .from('assistants')
@@ -45,9 +57,7 @@ export async function POST(req: NextRequest) {
       console.error('Error fetching assistant:', assistantError);
       return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
     }
-    
     const { pinecone_name, name: assistantName } = assistantData;
-    
     if (!pinecone_name) {
       return NextResponse.json({ error: 'Invalid assistant configuration: missing Pinecone name' }, { status: 500 });
     }
@@ -75,16 +85,28 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Assistant returned no response' }, { status: 500 });
       }
 
-      // Save interaction to Supabase with proper typing
+      // Extract token usage and cost information from the response if available
+      const tokenCount = response.usage?.totalTokens || 0
+      // Simple cost estimation (adjust the rate based on your actual pricing)
+      const costRate = 0.002 / 1000; // Example: $0.002 per 1000 tokens
+      const costEstimate = tokenCount * costRate;
+
+      // Save interaction to Supabase with proper typing, using the actual user ID from users table
       const interactionData: Omit<Interactions, 'id'> = {
-        request: { message, timestamp: requestTimestamp.toISOString() },
+        request:  message,
         assistant_id: assistantId,
         chat: message,
-        response: { message: response.message?.content || '' },
+        response:  response.message?.content || "",
         duration: responseDuration,
-        interaction_time: requestTimestamp.toISOString()
+        interaction_time: requestTimestamp.toISOString(),
+        user_id: userData.id, // Use the ID from users table, not the auth user ID
+        cost_estimate: costEstimate > 0 ? costEstimate : null,
+        is_error: false,
+        token_usage: tokenCount > 0 ? tokenCount : null,
+        input_tokens: response.usage?.promptTokens || null,
+        output_tokens: response.usage?.completionTokens || null
       };
-
+      
       const { error: interactionError } = await supabase
         .from('interactions')
         .insert(interactionData);
@@ -92,10 +114,16 @@ export async function POST(req: NextRequest) {
       if (interactionError) {
         console.error('Error saving interaction to Supabase:', interactionError);
       }
-
       // Update assistant usage statistics
       const { error: usageError } = await supabase
-        .rpc('increment', { row_id: assistantId, increment_by: 1 });
+        .from('assistants')
+        .update({
+          // Only use fields that exist in the assistants table schema
+          params: {
+            last_used_at: requestTimestamp.toISOString()
+          }
+        })
+        .eq('id', assistantId);
 
       if (usageError) {
         console.error('Error updating assistant usage:', usageError);
@@ -103,6 +131,8 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ 
         response: response.message?.content || '',
+        tokens: tokenCount,
+        cost: costEstimate,
         timing: {
           requestTimestamp: requestTimestamp.toISOString(),
           responseTimestamp: responseTimestamp.toISOString(),

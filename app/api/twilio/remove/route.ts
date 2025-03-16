@@ -20,9 +20,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: phoneData, error: fetchError } = await supabase
-    .from('phone_numbers')
-    .select('twilio_sid')
-    .eq('phone_number', phoneNumber)
+    .from('phonenumbers')
+    .select('id')
+    .eq('number', phoneNumber)
     .single();
 
   if (fetchError || !phoneData) {
@@ -30,12 +30,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await twilioClient.incomingPhoneNumbers(phoneData.twilio_sid).remove();
+    await twilioClient.incomingPhoneNumbers(phoneData.id).remove();
 
     const { error } = await supabase
-      .from('phone_numbers')
+      .from('phonenumbers')
       .delete()
-      .eq('phone_number', phoneNumber);
+      .eq('number', phoneNumber);
 
     if (error) throw error;
 

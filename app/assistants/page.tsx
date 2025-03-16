@@ -14,6 +14,9 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tables } from '@/lib/db.types';
+import { UserCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Phone } from 'lucide-react';
 
 
 type Assistant = Tables<'assistants'>
@@ -215,11 +218,13 @@ export default function AssistantsPage() {
                            typeof assistant.params.description === 'string' && 
                            assistant.params.description.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    // Filter based on selected tab (for future implementation)
+    // Filter based on selected tab
     if (selectedTab === 'all') {
       return matchesSearch;
+    } else if (selectedTab === 'favorites') {
+      return matchesSearch && assistant.is_starred === true;
     } else {
-      // Additional filters could be added here (favorites, shared, etc.)
+      // Additional filters could be added here (shared, etc.)
       return matchesSearch;
     }
   });
@@ -246,6 +251,34 @@ export default function AssistantsPage() {
     return colors[index];
   };
   
+  const handleToggleStar = async (assistantId: string, isStarred: boolean) => {
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('assistants')
+        .update({ is_starred: isStarred })
+        .eq('id', assistantId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update local state
+      setAssistants(assistants.map(a => 
+        a.id === assistantId ? { ...a, is_starred: isStarred } : a
+      ));
+      
+      toast(`Assistant ${isStarred ? "starred" : "unstarred"}`, {
+        description: `${assistants.find(a => a.id === assistantId)?.name} has been ${isStarred ? "starred" : "unstarred"}`,
+      });
+    } catch (error: any) {
+      console.error('Error toggling star:', error);
+      toast("Error", {
+        description: error.message || "Something went wrong while updating the assistant",
+      });
+    }
+  };
+
   // Display loading state
   if (isLoading) {
     return <Loading />;
@@ -286,18 +319,26 @@ export default function AssistantsPage() {
         isCreating={isCreating}
       />
 
-      {/* No results state */}
-      {filteredAssistants.length === 0 && (
+      {/* Show coming soon for shared tab */}
+      {selectedTab === 'shared' ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <UserCircle className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-semibold mb-2">Sharing Coming Soon</h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            The ability to share and collaborate on assistants with team members will be available soon.
+          </p>
+        </div>
+      ) : filteredAssistants.length === 0 ? (
         <EmptyState
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           setCreateDialogOpen={setCreateDialogOpen}
         />
-      )}
-
-      {/* Assistants grid/list view */}
-      {filteredAssistants.length > 0 && (
+      ) : (
         <AnimatePresence mode="wait">
+          {/* Rest of the rendering logic for assistants */}
           {viewMode === 'grid' ? (
             <motion.div
               key="grid"
@@ -319,7 +360,14 @@ export default function AssistantsPage() {
                     getInitials={getInitials}
                     getAvatarColor={getAvatarColor}
                     handleDeleteAssistant={handleDeleteAssistant}
+                    handleToggleStar={handleToggleStar}
                   />
+                  {assistant.assigned_phone_number && (
+                    <Badge variant="outline" className="ml-2 gap-1">
+                      <Phone className="h-3 w-3" />
+                      SMS
+                    </Badge>
+                  )}
                 </motion.div>
               ))}
             </motion.div>
@@ -344,7 +392,14 @@ export default function AssistantsPage() {
                     getInitials={getInitials}
                     getAvatarColor={getAvatarColor}
                     handleDeleteAssistant={handleDeleteAssistant}
+                    handleToggleStar={handleToggleStar}
                   />
+                  {assistant.assigned_phone_number && (
+                    <Badge variant="outline" className="ml-2 gap-1">
+                      <Phone className="h-3 w-3" />
+                      SMS
+                    </Badge>
+                  )}
                 </motion.div>
               ))}
             </motion.div>

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, LayoutGrid, LayoutList } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 
 type SearchAndControlsProps = {
   searchQuery: string;
@@ -62,10 +62,12 @@ export function SearchAndControls({
         </TooltipProvider>
 
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            <span>New Assistant</span>
-          </Button>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              <span>New Assistant</span>
+            </Button>
+          </DialogTrigger>
         </Dialog>
       </div>
     </div>

@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
       }
       
-      pinecone_name = assistantData.pinecone_name;
+      pinecone_name = assistantData.pinecone_name || '';
       if (!pinecone_name) {
         return NextResponse.json({ error: 'Invalid assistant configuration' }, { status: 500 });
       }

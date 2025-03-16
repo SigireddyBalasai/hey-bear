@@ -64,6 +64,79 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
 
 
+
+CREATE OR REPLACE FUNCTION "public"."assign_phone_number"("p_assistant_id" "uuid", "p_phone_number" "text", "p_phone_number_id" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Update assistant with assigned phone number
+  UPDATE public.assistants
+  SET assigned_phone_number = p_phone_number
+  WHERE id = p_assistant_id;
+  
+  -- Mark phone number as assigned
+  UPDATE public.phonenumbers
+  SET is_assigned = true
+  WHERE id = p_phone_number_id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."assign_phone_number"("p_assistant_id" "uuid", "p_phone_number" "text", "p_phone_number_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_user_last_active"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  UPDATE public.users
+  SET last_active = NOW()
+  WHERE id = NEW.user_id;
+  
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_user_last_active"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_user_usage_stats"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Update user usage statistics
+  UPDATE public.userusage
+  SET 
+    interactions_used = COALESCE(interactions_used, 0) + 1,
+    token_usage = COALESCE(token_usage, 0) + COALESCE(NEW.token_usage, 0),
+    cost_estimate = COALESCE(cost_estimate, 0) + COALESCE(NEW.cost_estimate, 0)
+  WHERE user_id = NEW.user_id;
+
+  -- If no row exists for this user, create one
+  IF NOT FOUND THEN
+    INSERT INTO public.userusage (
+      user_id, 
+      interactions_used, 
+      assistants_used, 
+      token_usage,
+      cost_estimate
+    ) VALUES (
+      NEW.user_id, 
+      1, 
+      0, 
+      COALESCE(NEW.token_usage, 0),
+      COALESCE(NEW.cost_estimate, 0)
+    );
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_user_usage_stats"() OWNER TO "postgres";
+
 SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
@@ -105,7 +178,12 @@ CREATE TABLE IF NOT EXISTS "public"."interactions" (
     "request" "text" NOT NULL,
     "response" "text" NOT NULL,
     "duration" bigint,
-    "user_id" "uuid"
+    "user_id" "uuid",
+    "token_usage" integer DEFAULT 0,
+    "cost_estimate" numeric(10,4) DEFAULT 0,
+    "is_error" boolean DEFAULT false,
+    "input_tokens" numeric,
+    "output_tokens" numeric
 );
 
 
@@ -166,7 +244,8 @@ CREATE TABLE IF NOT EXISTS "public"."users" (
     "plan_id" "uuid",
     "created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    "is_admin" boolean DEFAULT false
+    "is_admin" boolean DEFAULT false,
+    "last_active" timestamp with time zone
 );
 
 
@@ -180,7 +259,9 @@ CREATE TABLE IF NOT EXISTS "public"."userusage" (
     "interactions_used" integer DEFAULT 0,
     "assistants_used" integer DEFAULT 0,
     "phone_numbers_used" integer DEFAULT 0,
-    "last_reset_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    "last_reset_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    "token_usage" integer DEFAULT 0,
+    "cost_estimate" numeric(10,4) DEFAULT 0
 );
 
 
@@ -254,6 +335,14 @@ CREATE INDEX "idx_interactions_assistant_id" ON "public"."interactions" USING "b
 
 
 
+CREATE INDEX "idx_interactions_time" ON "public"."interactions" USING "btree" ("interaction_time");
+
+
+
+CREATE INDEX "idx_interactions_user_time" ON "public"."interactions" USING "btree" ("user_id", "interaction_time");
+
+
+
 CREATE INDEX "idx_phone_number_pool_phone_number_id" ON "public"."phonenumberpool" USING "btree" ("phone_number_id");
 
 
@@ -267,6 +356,14 @@ CREATE INDEX "idx_user_usage_user_id" ON "public"."userusage" USING "btree" ("us
 
 
 CREATE INDEX "idx_users_auth_user_id" ON "public"."users" USING "btree" ("auth_user_id");
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_update_user_last_active" AFTER INSERT ON "public"."interactions" FOR EACH ROW EXECUTE FUNCTION "public"."update_user_last_active"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_update_user_usage" AFTER INSERT ON "public"."interactions" FOR EACH ROW EXECUTE FUNCTION "public"."update_user_usage_stats"();
 
 
 
@@ -521,6 +618,24 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+
+
+
+GRANT ALL ON FUNCTION "public"."assign_phone_number"("p_assistant_id" "uuid", "p_phone_number" "text", "p_phone_number_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."assign_phone_number"("p_assistant_id" "uuid", "p_phone_number" "text", "p_phone_number_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."assign_phone_number"("p_assistant_id" "uuid", "p_phone_number" "text", "p_phone_number_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_user_last_active"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_user_last_active"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_user_last_active"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_user_usage_stats"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_user_usage_stats"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_user_usage_stats"() TO "service_role";
 
 
 

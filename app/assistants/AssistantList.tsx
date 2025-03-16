@@ -22,9 +22,10 @@ interface AssistantListProps {
   getInitials: (name: string) => string;
   getAvatarColor: (name: string) => string;
   handleDeleteAssistant: (id: string) => void;
+  handleToggleStar: (id: string, isStarred: boolean) => void;
 }
 
-export function AssistantList({ assistant, getInitials, getAvatarColor, handleDeleteAssistant }: AssistantListProps) {
+export function AssistantList({ assistant, getInitials, getAvatarColor, handleDeleteAssistant, handleToggleStar }: AssistantListProps) {
   // Parse description from params if available
   const description = typeof assistant.params === 'object' && 
                      assistant.params !== null && 
@@ -49,9 +50,33 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
             <h3 className="font-medium truncate">
               {assistant.name}
             </h3>
-            {assistant.is_starred && (
-              <Star className="h-4 w-4 flex-shrink-0 fill-yellow-400 text-yellow-400" />
-            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleToggleStar(assistant.id, !assistant.is_starred);
+                    }}
+                  >
+                    <Star 
+                      className={cn(
+                        "h-4 w-4", 
+                        assistant.is_starred 
+                          ? "fill-yellow-400 text-yellow-400" 
+                          : "text-muted-foreground"
+                      )} 
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {assistant.is_starred ? "Unstar" : "Star"} assistant
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           
           <CardDescription className="line-clamp-1 text-sm">
