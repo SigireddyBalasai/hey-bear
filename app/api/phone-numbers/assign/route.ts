@@ -198,14 +198,25 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
       throw new Error(`No Twilio number found matching ${phoneNumber}`);
     }
     
-    // Update the webhook URL for SMS and Voice
-    await client.incomingPhoneNumbers(incomingPhoneNumbers[0].sid)
+    const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
+
+    // Create TwiML App
+    const twimlApp = await client.applications.create({
+      friendlyName: `HeyBear Assistant - ${phoneNumber}`,
+      smsUrl: webhookUrl,
+      voiceUrl: webhookUrl,
+      smsMethod: 'POST',
+      voiceMethod: 'POST'
+    } as any).catch(err => {
+      throw new Error(`Failed to create Twilio application: ${err.message}`);
+    });
+
+    // Update the phone number with the TwiML app SID
+    await client.incomingPhoneNumbers(incomingPhoneNumberSid)
       .update({
-        smsMethod: 'POST',
-        smsUrl: webhookUrl,
-        voiceMethod: 'POST',
-        voiceUrl: webhookUrl // Set voice URL to the same webhook URL
-      } as any); // Type assertion to bypass TypeScript error
+        smsApplicationSid: twimlApp.sid,
+        voiceApplicationSid: twimlApp.sid
+      });
   } catch (error) {
     console.error('Error updating Twilio webhook:', error);
     throw error;

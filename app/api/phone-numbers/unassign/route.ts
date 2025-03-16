@@ -146,7 +146,6 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
     const formattedNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     
     // Find the Twilio phone number
-    console.log(`[${new Date().toISOString()}] updateTwilioWebhook - Finding Twilio number: ${formattedNumber}`);
     const incomingPhoneNumbers = await client.incomingPhoneNumbers.list({
       phoneNumber: formattedNumber
     });
@@ -156,37 +155,21 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
     }
     
     const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
-    console.log(`[${new Date().toISOString()}] updateTwilioWebhook - Found Twilio number SID: ${incomingPhoneNumberSid}`);
 
-    // Update the webhook URL for SMS and Voice
-    console.log(`[${new Date().toISOString()}] updateTwilioWebhook - Updating Twilio number with:`, { smsUrl: webhookUrl || '', voiceUrl: webhookUrl || '' });
-    try {
-      const updateParams = {
-        smsMethod: 'POST',
-        smsUrl: webhookUrl || '',
-        voiceMethod: 'POST',
-        voiceUrl: webhookUrl || ''
-      };
-      console.log(`[${new Date().toISOString()}] updateTwilioWebhook - Update parameters:`, updateParams);
+    // Get the TwiML app SID from the phone number
+    const incomingPhoneNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid).fetch();
+    const twimlAppSid = incomingPhoneNumber.smsApplicationSid;
 
-      await client.incomingPhoneNumbers(incomingPhoneNumberSid)
-        .update(updateParams);
-      console.log(`[${new Date().toISOString()}] updateTwilioWebhook - Twilio update successful`);
-    } catch (e: any) {
-      console.error(`[${new Date().toISOString()}] updateTwilioWebhook - Twilio update failed:`, e);
-    }
-      
-    console.log(`[${new Date().toISOString()}] Twilio webhook updated successfully for ${phoneNumber}`);
+    // Clear the webhook URL for SMS and Voice
+    await client.incomingPhoneNumbers(incomingPhoneNumberSid)
+      .update({
+        smsApplicationSid: null,
+        voiceApplicationSid: null
+      } as any); // Type assertion to bypass TypeScript error
 
-    // Verify the webhook configuration
-    try {
-      const updatedNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid).fetch();
-      console.log(`[${new Date().toISOString()}] Twilio number details after update:`, {
-        smsUrl: updatedNumber.smsUrl,
-        voiceUrl: updatedNumber.voiceUrl
-      });
-    } catch (e: any) {
-      console.error(`[${new Date().toISOString()}] updateTwilioWebhook - Twilio fetch failed:`, e);
+    // Delete the TwiML app
+    if (twimlAppSid) {
+      await client.applications(twimlAppSid).remove();
     }
   } catch (error) {
     console.error('Error updating Twilio webhook:', error);
