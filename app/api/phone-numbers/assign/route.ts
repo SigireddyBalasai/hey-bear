@@ -107,40 +107,38 @@ export async function POST(request: Request) {
     let twimlAppDetails: any = null;
     let incomingPhoneNumbers: any[] | null = null;
     try {
-      if (process.env.SMS_PROVIDER === 'twilio') {
-        console.log(`[${new Date().toISOString()}] Phone Number Assignment - Creating and configuring Twilio TwiML app...`);
-        console.log(`[${new Date().toISOString()}] Phone Number Assignment - Using webhook URL: ${finalWebhookUrl}`);
-        
-        // Update to return full TwiML app details
-        const twilioResult = await createAndConfigureTwilioTwiMLApp(phoneNumber, finalWebhookUrl);
-        if (!twilioResult || !twilioResult.sid) {
-          throw new Error('Failed to create Twilio TwiML app - no app SID returned');
-        }
-        
-        twimlAppSid = twilioResult.sid;
-        twimlAppDetails = twilioResult;
-        incomingPhoneNumbers = twilioResult.incomingPhoneNumbers;
-        
-        console.log(`[${new Date().toISOString()}] Phone Number Assignment - Successfully created and configured Twilio TwiML app with SID: ${twimlAppSid}`);
-        console.log(`[${new Date().toISOString()}] Phone Number Assignment - TwiML app details: ${JSON.stringify({
-          sid: twilioResult.sid,
-          friendlyName: twilioResult.friendlyName,
-          smsUrl: twilioResult.smsUrl,
-        })}`);
-        
-        // Verify the TwiML app was correctly assigned to the phone number
-        if (twimlAppSid) {
-          const phoneVerification = await verifyTwilioPhoneConfig(phoneNumber, twimlAppSid);
-          if (!phoneVerification.success) {
-            throw new Error(`TwiML app created but not correctly assigned to phone number: ${phoneVerification.error || 'Unknown error'}`);
-          }
-        } else {
-          throw new Error('TwiML app was not created successfully (no app SID available)');
-        }
-        
-        // Store a reference in the session table for cross-referencing if table exists
+      // Removed SMS_PROVIDER check - always using Twilio
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Creating and configuring Twilio TwiML app...`);
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Using webhook URL: ${finalWebhookUrl}`);
+      
+      // Update to return full TwiML app details
+      const twilioResult = await createAndConfigureTwilioTwiMLApp(phoneNumber, finalWebhookUrl);
+      if (!twilioResult || !twilioResult.sid) {
+        throw new Error('Failed to create Twilio TwiML app - no app SID returned');
       }
-      // Other SMS providers could be added here
+      
+      twimlAppSid = twilioResult.sid;
+      twimlAppDetails = twilioResult;
+      incomingPhoneNumbers = twilioResult.incomingPhoneNumbers;
+      
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Successfully created and configured Twilio TwiML app with SID: ${twimlAppSid}`);
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - TwiML app details: ${JSON.stringify({
+        sid: twilioResult.sid,
+        friendlyName: twilioResult.friendlyName,
+        smsUrl: twilioResult.smsUrl,
+      })}`);
+      
+      // Verify the TwiML app was correctly assigned to the phone number
+      if (twimlAppSid) {
+        const phoneVerification = await verifyTwilioPhoneConfig(phoneNumber, twimlAppSid);
+        if (!phoneVerification.success) {
+          throw new Error(`TwiML app created but not correctly assigned to phone number: ${phoneVerification.error || 'Unknown error'}`);
+        }
+      } else {
+        throw new Error('TwiML app was not created successfully (no app SID available)');
+      }
+      
+      // Removed Twilio sessions table insertion
     } catch (smsError: any) {
       console.error(`[${new Date().toISOString()}] Phone Number Assignment - SMS provider error:`, smsError);
       return NextResponse.json(

@@ -63,14 +63,16 @@ export async function POST(request: Request) {
     
     // 1. Clear webhook if using Twilio or other SMS provider
     try {
-      if (process.env.SMS_PROVIDER === 'twilio') {
-        console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Clearing Twilio webhook...`);
-        await updateTwilioWebhook(phoneNumber, null);
-        console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Successfully cleared Twilio webhook`);
-      }
-      // Other SMS providers could be added here
-    } catch (smsError) {
-      console.error("SMS provider error:", smsError);
+      // Removed SMS_PROVIDER check - always using Twilio
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Clearing Twilio webhook...`);
+      
+      // Get the app SID directly from the Twilio API, not from DB
+      const cleanupResult = await updateTwilioWebhook(phoneNumber, null);
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Successfully cleared Twilio webhook`, cleanupResult);
+      
+      // Removed Twilio sessions table update
+    } catch (twilioError) {
+      console.error("Twilio error:", twilioError);
       // Continue anyway as we want to unassign in our database
     }
     

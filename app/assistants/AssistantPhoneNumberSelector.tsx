@@ -137,6 +137,7 @@ export function AssistantPhoneNumberSelector({
     try {
       // Now attempt the assignment
       console.log(`Sending assignment request`);
+      console.log(`Using Twilio for SMS integration`);
       const response = await fetch('/api/phone-numbers/assign', {
         method: 'POST',
         headers: {
@@ -159,7 +160,7 @@ export function AssistantPhoneNumberSelector({
 
       // Store TwiML app info if available
       if (data.data?.twilioDetails) {
-        console.log('TwiML app details received:', JSON.stringify(data.data.twilioDetails, null, 2));
+        console.log('Twilio TwiML app details received:', JSON.stringify(data.data.twilioDetails, null, 2));
         
         // Additional check to make sure we have valid TwiML app data
         if (data.data.twilioDetails.twimlApp && data.data.twilioDetails.twimlApp.sid) {
@@ -171,7 +172,7 @@ export function AssistantPhoneNumberSelector({
             duration: 5000
           });
         } else {
-          console.warn('TwiML app SID missing from response:', data);
+          console.warn('Twilio TwiML app SID missing from response:', data);
           setTwilioAppInfo(null);
           toast.success('Phone number assigned successfully!');
         }
@@ -198,7 +199,7 @@ export function AssistantPhoneNumberSelector({
       
       toast.error(errorMessage);
     } finally {
-      console.log(`Assignment process completed`);
+      console.log(`Twilio assignment process completed`);
       setIsAssigning(false);
     }
   };
@@ -227,6 +228,7 @@ export function AssistantPhoneNumberSelector({
     
     setIsAssigning(true);
     try {
+      console.log(`Unassigning Twilio number: ${currentPhoneNumber} from assistant: ${assistantId}`);
       const response = await fetch('/api/phone-numbers/unassign', {
         method: 'POST',
         headers: {
@@ -240,14 +242,15 @@ export function AssistantPhoneNumberSelector({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to unassign phone number');
+        throw new Error(errorData.error || 'Failed to unassign Twilio phone number');
       }
 
-      toast.success('Phone number removed successfully');
+      toast.success('Twilio phone number removed successfully');
+      setTwilioAppInfo(null); // Clear Twilio app info
       onAssigned("");
     } catch (error) {
-      console.error('Error unassigning phone number:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to unassign phone number');
+      console.error('Error unassigning Twilio phone number:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to unassign Twilio phone number');
     } finally {
       setIsAssigning(false);
     }
@@ -258,7 +261,7 @@ export function AssistantPhoneNumberSelector({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Phone className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-medium">SMS Phone Number</h3>
+          <h3 className="font-medium">Twilio SMS Number</h3>
         </div>
         
         {currentPhoneNumber ? (
@@ -406,9 +409,9 @@ export function AssistantPhoneNumberSelector({
       
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
-          <p>This assistant can receive and respond to SMS messages at this number.</p>
+          <p>This assistant can receive and respond to SMS messages via Twilio at this number.</p>
         ) : (
-          <p>Assign a phone number to enable SMS interactions with this assistant.</p>
+          <p>Assign a Twilio phone number to enable SMS interactions with this assistant.</p>
         )}
       </div>
     </div>
