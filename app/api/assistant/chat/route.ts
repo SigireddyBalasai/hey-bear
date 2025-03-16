@@ -6,6 +6,7 @@ import { Tables } from '@/lib/db.types';
 // Define table types for better type safety
 type Interactions = Tables<'interactions'>
 type Assistant = Tables<'assistants'>
+
 export async function POST(req: NextRequest) {
   // Record the request timestamp
   const requestTimestamp = new Date();
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
     }
 
-    const { assistantId, message } = body;
+    const { assistantId, message, systemOverride } = body;
     
     // Validate required fields
     if (!assistantId || !message) {
@@ -75,7 +76,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to create assistant' }, { status: 500 });
       }
 
-      const response = await assistant.chat({ messages: [{ role: 'user', content: message }] });
+      // Handle system message by including it in the messages array if provided
+      let messages;
+      if (systemOverride) {
+        // Add system message first, then user message
+        messages = [
+          { role: 'system', content: systemOverride },
+          { role: 'user', content: message }
+        ];
+      } else {
+        messages = [{ role: 'user', content: message }];
+      }
+      
+      // Use only valid options for Pinecone Assistant API
+      const response = await assistant.chat({ messages });
       
       // Record the response timestamp
       const responseTimestamp = new Date();

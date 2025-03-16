@@ -76,11 +76,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to create assistant' }, { status: 500 });
       }
 
-      // Add system override if provided
-      const messages = [{ role: 'user', content: message }];
-      const options = systemOverride ? { systemPrompt: systemOverride } : undefined;
+      // Handle system message by including it in the messages array if provided
+      let messages;
+      if (systemOverride) {
+        // Add system message first, then user message
+        messages = [
+          { role: 'system', content: systemOverride },
+          { role: 'user', content: message }
+        ];
+      } else {
+        messages = [{ role: 'user', content: message }];
+      }
       
-      const response = await assistant.chat({ messages, ...options });
+      // Use only valid options for Pinecone Assistant API
+      const response = await assistant.chat({ messages });
       
       // Record the response timestamp
       const responseTimestamp = new Date();
