@@ -132,6 +132,7 @@ export function AssistantPhoneNumberSelector({
 
     setIsAssigning(true);
     console.log(`Starting phone number assignment: ${selectedNumber} for assistant: ${assistantId}`);
+    console.log(`Using webhook URL: ${webhook}`);
     
     try {
       // Now attempt the assignment
@@ -144,7 +145,7 @@ export function AssistantPhoneNumberSelector({
         body: JSON.stringify({
           assistantId,
           phoneNumber: selectedNumber,
-          webhook: webhook
+          webhookUrl: webhook // Make sure we use the correct property name here
         }),
       });
 

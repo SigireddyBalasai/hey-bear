@@ -768,7 +768,7 @@ const [fileError, setFileError] = useState<{
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
-                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook?assistantId=${assistantId}`}
+                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/api/twilio/webhook?assistantId=${assistantId}`}
               />
             </CardContent>
           </Card>
@@ -960,7 +960,7 @@ const [fileError, setFileError] = useState<{
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
-                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook?assistantId=${assistantId}`}
+                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/api/twilio/webhook?assistantId=${assistantId}`}
               />
             </CardContent>
           </Card>

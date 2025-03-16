@@ -4,7 +4,7 @@ import type { Tables } from '@/lib/db.types';
 
 export async function POST(request: Request) {
   const startTime = new Date();
-  console.log(`[${startTime.toISOString()}] Phone Number Assignment - START`);
+  console.log(`[${startTime.toISOString()}] Phone Number Unassignment - START`);
   
   try {
     const supabase = await createClient();
@@ -12,45 +12,37 @@ export async function POST(request: Request) {
     // Check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Unauthorized request`);
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Unauthorized request`);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.log(`[${new Date().toISOString()}] Phone Number Assignment - User authenticated: ${user.id}`);
+    console.log(`[${new Date().toISOString()}] Phone Number Unassignment - User authenticated: ${user.id}`);
 
     // Parse the request body
-    const { assistantId, phoneNumber, webhookUrl } = await request.json();
-    console.log(`[${new Date().toISOString()}] Phone Number Assignment - Request body:`, { assistantId, phoneNumber, webhookUrl });
+    const { assistantId, phoneNumber } = await request.json();
+    console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Request body:`, { assistantId, phoneNumber });
     
     // Validate required fields
-    if (!assistantId || !phoneNumber || !webhookUrl) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Missing fields`);
+    if (!assistantId || !phoneNumber) {
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Missing fields`);
       return NextResponse.json(
-        { error: 'Missing required fields: assistantId, phoneNumber, and webhookUrl are required' }, 
+        { error: 'Missing required fields' }, 
         { status: 400 }
       );
     }
     
-    // Check if assistant exists
+    // Check if assistant has this phone number assigned
     const { data: assistantData, error: assistantError } = await supabase
       .from('assistants')
       .select('id, assigned_phone_number')
       .eq('id', assistantId)
+      .eq('assigned_phone_number', phoneNumber)
       .single();
     
     if (assistantError || !assistantData) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Assistant not found`);
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Phone number is not assigned to this assistant`);
       return NextResponse.json(
-        { error: 'Assistant not found' }, 
+        { error: 'Phone number is not assigned to this assistant' }, 
         { status: 404 }
-      );
-    }
-    
-    // Check if assistant already has a phone number
-    if (assistantData.assigned_phone_number) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Assistant already has a phone number`);
-      return NextResponse.json(
-        { error: 'Assistant already has a phone number assigned' }, 
-        { status: 400 }
       );
     }
     
@@ -62,95 +54,55 @@ export async function POST(request: Request) {
       .single();
     
     if (phoneNumberError || !phoneNumberData) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Phone number not found in database`);
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Phone number not found in database`);
       return NextResponse.json(
         { error: 'Phone number not found in database' }, 
         { status: 404 }
       );
     }
     
-    // Check if phone number is already assigned
-    if (phoneNumberData.is_assigned) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Phone number already assigned`);
-      return NextResponse.json(
-        { error: 'Phone number is already assigned to an assistant' }, 
-        { status: 400 }
-      );
-    }
-    
-    // 1. Create and configure TwiML app if using Twilio or other SMS provider
-    let twimlAppSid: string | null = null;
+    // 1. Clear webhook if using Twilio or other SMS provider
     try {
       if (process.env.SMS_PROVIDER === 'twilio') {
-        console.log(`[${new Date().toISOString()}] Phone Number Assignment - Creating and configuring Twilio TwiML app...`);
-        twimlAppSid = await createAndConfigureTwilioTwiMLApp(phoneNumber, webhookUrl);
-        console.log(`[${new Date().toISOString()}] Phone Number Assignment - Successfully created and configured Twilio TwiML app with SID: ${twimlAppSid}`);
+        console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Clearing Twilio webhook...`);
+        await updateTwilioWebhook(phoneNumber, null);
+        console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Successfully cleared Twilio webhook`);
       }
       // Other SMS providers could be added here
-    } catch (smsError: any) {
-      console.error(`[${new Date().toISOString()}] Phone Number Assignment - SMS provider error:`, smsError);
-      return NextResponse.json(
-        { error: `Failed to configure SMS provider: ${smsError.message}` }, 
-        { status: 500 }
-      );
+    } catch (smsError) {
+      console.error("SMS provider error:", smsError);
+      // Continue anyway as we want to unassign in our database
     }
     
-    // 2. Update phone number as assigned
+    // 2. Update phone number as unassigned
     const { error: updatePhoneError } = await supabase
       .from('phonenumbers')
-      .update({ 
-        is_assigned: true,
-        twilio_app_sid: twimlAppSid
-      })
+      .update({ is_assigned: false })
       .eq('number', phoneNumber);
     
     if (updatePhoneError) {
-      console.error(`[${new Date().toISOString()}] Phone Number Assignment - Update phone error:`, updatePhoneError);
-      
-      // Clean up the TwiML app if it was created
-      if (twimlAppSid) {
-        try {
-          await cleanupTwilioTwiMLApp(phoneNumber, twimlAppSid);
-        } catch (cleanupError) {
-          console.error("Failed to clean up TwiML app:", cleanupError);
-        }
-      }
-      
+      console.error(`[${new Date().toISOString()}] Phone Number Unassignment - Update phone error:`, updatePhoneError);
       return NextResponse.json(
-        { error: 'Failed to assign phone number' }, 
+        { error: 'Failed to unassign phone number' }, 
         { status: 500 }
       );
     }
     
-    // 3. Update assistant with phone number
+    // 3. Update assistant to remove phone number
     const { error: updateAssistantError } = await supabase
       .from('assistants')
-      .update({ assigned_phone_number: phoneNumber })
+      .update({ assigned_phone_number: null })
       .eq('id', assistantId);
     
     if (updateAssistantError) {
-      console.error(`[${new Date().toISOString()}] Phone Number Assignment - Update assistant error:`, updateAssistantError);
-      
-      // Revert phone number assignment
+      console.error(`[${new Date().toISOString()}] Phone Number Unassignment - Update assistant error:`, updateAssistantError);
       try {
         await supabase
           .from('phonenumbers')
-          .update({ 
-            is_assigned: false,
-            twilio_app_sid: null
-          })
+          .update({ is_assigned: true })
           .eq('number', phoneNumber);
       } catch (revertError) {
         console.error("Failed to revert phone number assignment:", revertError);
-      }
-      
-      // Clean up the TwiML app if it was created
-      if (twimlAppSid) {
-        try {
-          await cleanupTwilioTwiMLApp(phoneNumber, twimlAppSid);
-        } catch (cleanupError) {
-          console.error("Failed to clean up TwiML app:", cleanupError);
-        }
       }
       
       return NextResponse.json(
@@ -161,19 +113,14 @@ export async function POST(request: Request) {
     
     const endTime = new Date();
     const duration = endTime.getTime() - startTime.getTime();
-    console.log(`[${endTime.toISOString()}] Phone Number Assignment - END - Duration: ${duration}ms`);
+    console.log(`[${endTime.toISOString()}] Phone Number Unassignment - END - Duration: ${duration}ms`);
     
     return NextResponse.json({
       success: true,
-      message: 'Phone number assigned successfully',
-      data: {
-        phoneNumber,
-        assistantId,
-        twimlAppSid
-      }
+      message: 'Phone number unassigned successfully',
     });
   } catch (error: any) {
-    console.error(`[${new Date().toISOString()}] Phone Number Assignment - ERROR:`, error);
+    console.error(`[${new Date().toISOString()}] Phone Number Unassignment - ERROR:`, error);
     return NextResponse.json(
       { error: `Internal server error: ${error.message || 'Unknown error'}` }, 
       { status: 500 }
@@ -181,106 +128,8 @@ export async function POST(request: Request) {
   }
 }
 
-// Function to create and configure Twilio TwiML app
-async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl: string): Promise<string> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  
-  if (!accountSid || !authToken) {
-    throw new Error('Twilio credentials not configured');
-  }
-  
-  try {
-    // Dynamic import of twilio to avoid server-side issues
-    const twilio = await import('twilio');
-    const client = twilio.default(accountSid, authToken);
-    
-    // Format number for Twilio if needed
-    const formattedNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    
-    // Find the Twilio phone number
-    const incomingPhoneNumbers = await client.incomingPhoneNumbers.list({
-      phoneNumber: formattedNumber
-    });
-    
-    if (!incomingPhoneNumbers || incomingPhoneNumbers.length === 0) {
-      throw new Error(`No Twilio number found matching ${phoneNumber}`);
-    }
-    
-    const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
-    
-    // Create a new TwiML Application for SMS handling
-    const friendlyName = `SMS Handler for ${phoneNumber}`;
-    console.log(`[${new Date().toISOString()}] Creating new TwiML app: ${friendlyName}`);
-    
-    const newTwiMLApp = await client.applications.create({
-      friendlyName: friendlyName,
-      smsUrl: webhookUrl,
-      smsMethod: 'POST'
-    });
-    
-    console.log(`[${new Date().toISOString()}] Created TwiML app with SID: ${newTwiMLApp.sid}`);
-    
-    // Assign the TwiML app to the phone number
-    await client.incomingPhoneNumbers(incomingPhoneNumberSid)
-      .update({
-        smsApplicationSid: newTwiMLApp.sid
-      });
-    
-    console.log(`[${new Date().toISOString()}] Assigned TwiML app to phone number ${phoneNumber}`);
-    
-    return newTwiMLApp.sid;
-  } catch (error: any) {
-    console.error('Error configuring Twilio webhook:', error);
-    throw new Error(`Twilio configuration failed: ${error.message}`);
-  }
-}
-
-// Function to clean up Twilio TwiML app in case of errors
-async function cleanupTwilioTwiMLApp(phoneNumber: string, twimlAppSid: string): Promise<void> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  
-  if (!accountSid || !authToken) {
-    throw new Error('Twilio credentials not configured');
-  }
-  
-  try {
-    // Dynamic import of twilio to avoid server-side issues
-    const twilio = await import('twilio');
-    const client = twilio.default(accountSid, authToken);
-    
-    // Format number for Twilio if needed
-    const formattedNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    
-    // Find the Twilio phone number
-    const incomingPhoneNumbers = await client.incomingPhoneNumbers.list({
-      phoneNumber: formattedNumber
-    });
-    
-    if (incomingPhoneNumbers && incomingPhoneNumbers.length > 0) {
-      const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
-      
-      // Clear the TwiML app from the phone number
-      await client.incomingPhoneNumbers(incomingPhoneNumberSid)
-        .update({
-          smsApplicationSid: ''
-        });
-      
-      console.log(`[${new Date().toISOString()}] Cleared TwiML app from phone number ${phoneNumber}`);
-    }
-    
-    // Delete the TwiML app
-    await client.applications(twimlAppSid).remove();
-    console.log(`[${new Date().toISOString()}] Deleted TwiML app with SID: ${twimlAppSid}`);
-  } catch (error) {
-    console.error('Error cleaning up Twilio resources:', error);
-    throw error;
-  }
-}
-
-// Function to update Twilio webhook (for unassignment - kept from original code)
-export async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | null) {
+// Function to update Twilio webhook
+async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | null) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   
