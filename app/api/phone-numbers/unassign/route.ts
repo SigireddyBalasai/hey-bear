@@ -160,7 +160,7 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
     const incomingPhoneNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid).fetch();
     const twimlAppSid = incomingPhoneNumber.smsApplicationSid;
 
-    console.log('Found TwiML app SID:', twimlAppSid);
+    console.log('Found TwiML app SID:', twimlAppSid || 'No SID attached to phone number');
 
     // Use empty strings instead of null to clear the ApplicationSid fields
     // Twilio's TypeScript types don't allow null, but empty strings work to clear these values
@@ -170,13 +170,14 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
     };
 
     // Clear the webhook URL for SMS and Voice
-    await client.incomingPhoneNumbers(incomingPhoneNumberSid)
+    const updatedNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid)
       .update(updateParams)
       .catch(err => {
         throw new Error(`Failed to clear webhook URLs: ${err.message}`);
       });
       
-    console.log('Cleared application SIDs from phone number');
+    console.log('Cleared application SIDs from phone number:', updatedNumber.phoneNumber);
+    console.log('New smsApplicationSid value:', updatedNumber.smsApplicationSid || 'cleared');
 
     // Delete the TwiML app
     if (twimlAppSid) {
@@ -185,7 +186,9 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
         .catch(err => {
           throw new Error(`Failed to delete TwiML app: ${err.message}`);
         });
-      console.log('TwiML app deleted successfully');
+      console.log('TwiML app deleted successfully:', twimlAppSid);
+    } else {
+      console.log('No TwiML app to delete');
     }
   } catch (error) {
     console.error('Error updating Twilio webhook:', error);

@@ -150,7 +150,7 @@ export function AssistantPhoneNumberSelector({
       });
 
       const data = await response.json();
-      console.log(`Assignment response:`, data);
+      console.log(`Assignment response:`, JSON.stringify(data, null, 2));
 
       if (!response.ok) {
         console.error('Assignment error response:', data);
@@ -159,14 +159,22 @@ export function AssistantPhoneNumberSelector({
 
       // Store TwiML app info if available
       if (data.data?.twilioDetails) {
-        console.log('TwiML app details received:', data.data.twilioDetails);
-        setTwilioAppInfo(data.data.twilioDetails);
+        console.log('TwiML app details received:', JSON.stringify(data.data.twilioDetails, null, 2));
         
-        // Display details in toast for confirmation
-        toast.success('Phone number assigned with Twilio integration', {
-          description: `TwiML app created with SID: ${data.data.twilioDetails.twimlApp.sid.substring(0, 10)}...`,
-          duration: 5000
-        });
+        // Additional check to make sure we have valid TwiML app data
+        if (data.data.twilioDetails.twimlApp && data.data.twilioDetails.twimlApp.sid) {
+          setTwilioAppInfo(data.data.twilioDetails);
+          
+          // Display details in toast for confirmation
+          toast.success('Phone number assigned with Twilio integration', {
+            description: `TwiML app created with SID: ${data.data.twilioDetails.twimlApp.sid.substring(0, 10)}...`,
+            duration: 5000
+          });
+        } else {
+          console.warn('TwiML app SID missing from response:', data);
+          setTwilioAppInfo(null);
+          toast.success('Phone number assigned successfully!');
+        }
       } else {
         toast.success('Phone number assigned successfully!');
       }
@@ -380,18 +388,18 @@ export function AssistantPhoneNumberSelector({
         )}
       </div>
       
-      {twilioAppInfo && (
+      {twilioAppInfo && twilioAppInfo.twimlApp && (
         <Card className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-green-800 dark:text-green-200">Twilio Integration Details</CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-1 text-green-700 dark:text-green-300">
-            <p><strong>TwiML App:</strong> {twilioAppInfo.twimlApp?.name || twilioAppInfo.twimlApp?.friendlyName}</p>
-            <p><strong>App SID:</strong> {twilioAppInfo.twimlApp?.sid}</p>
-            <p><strong>SMS URL:</strong> {twilioAppInfo.twimlApp?.smsUrl}</p>
-            <p><strong>Created:</strong> {twilioAppInfo.twimlApp?.dateCreated 
+            <p><strong>TwiML App:</strong> {twilioAppInfo.twimlApp.name || twilioAppInfo.twimlApp.friendlyName || 'SMS Handler'}</p>
+            <p><strong>App SID:</strong> {twilioAppInfo.twimlApp.sid ? `${twilioAppInfo.twimlApp.sid.substring(0, 8)}...` : 'Not available'}</p>
+            <p><strong>SMS URL:</strong> {twilioAppInfo.twimlApp.smsUrl || 'Not configured'}</p>
+            <p><strong>Created:</strong> {twilioAppInfo.twimlApp.dateCreated 
               ? new Date(twilioAppInfo.twimlApp.dateCreated).toLocaleString() 
-              : 'Unknown'}</p>
+              : new Date().toLocaleString()}</p>
           </CardContent>
         </Card>
       )}
