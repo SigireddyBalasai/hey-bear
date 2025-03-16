@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/utils/supabase/server-admin';
 
+// A simple token for webhook authentication
+const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || 'webhook-token-123456';
+
 export async function POST(req: Request) {
   console.log(`[${new Date().toISOString()}] Twilio webhook received`);
   
@@ -8,6 +11,13 @@ export async function POST(req: Request) {
     // Extract assistantId from query parameters
     const url = new URL(req.url);
     const assistantId = url.searchParams.get('assistantId');
+    const token = url.searchParams.get('token');
+    
+    // Basic validation of webhook token
+    if (!token || token !== WEBHOOK_TOKEN) {
+      console.log(`Invalid or missing webhook token`);
+      return new Response('Unauthorized', { status: 401 });
+    }
     
     const formData = await req.formData();
     
@@ -31,7 +41,7 @@ export async function POST(req: Request) {
       return generateTwimlResponse('Missing required information', isVoiceCall);
     }
 
-    // Use service client instead of authenticated client
+    // Use non-auth client
     const supabase = createServiceClient();
     
     // Get assistant details
@@ -60,23 +70,25 @@ export async function POST(req: Request) {
       // Get the base URL from the incoming request
       // This ensures we use the same host that received the webhook
       const baseUrl = new URL(req.url);
-      const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/assistant/chat/webhook`;
+      // Extract just protocol and host without path or search params
+      const baseUrlNoPath = `${baseUrl.protocol}//${baseUrl.host}`;
+      const apiUrl = `${baseUrlNoPath}/api/assistant/chat/public`;
       
-      console.log(`Calling assistant webhook chat API at: ${apiUrl}`);
+      console.log(`Calling assistant chat API at: ${apiUrl}`);
       
-      // Send the request to the webhook-specific chat endpoint
+      // Send the request to the public chat endpoint
       const chatResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Webhook-Secret': process.env.WEBHOOK_SECRET || 'webhook-secret'
+          'X-Webhook-Token': WEBHOOK_TOKEN
         },
         body: JSON.stringify({
           assistantId: assistant.id,
           message: body,
           systemOverride: `You are responding to an SMS message. Keep your response concise.`,
           userPhone: from,
-          userId: assistant.user_id // Pass the user_id directly since we're bypassing auth
+          userId: assistant.user_id
         }),
       });
 
@@ -87,7 +99,7 @@ export async function POST(req: Request) {
       const responseData = await chatResponse.json();
       const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
       
-      // Record the interaction using service client
+      // Record the interaction using non-auth client
       await supabase
         .from('interactions')
         .insert({
@@ -112,7 +124,7 @@ export async function POST(req: Request) {
       // Fallback response
       const fallbackResponse = "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
       
-      // Record error interaction using service client
+      // Record error interaction
       await supabase
         .from('interactions')
         .insert({
