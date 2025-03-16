@@ -94,7 +94,7 @@ const [fileError, setFileError] = useState<{
           toast.error("Assistant not found", {
             description: "This assistant no longer exists or has been disabled."
           });
-          router.push('/assistants');
+          router.push('/dashboard');
           return;
         }
         
@@ -106,13 +106,19 @@ const [fileError, setFileError] = useState<{
           
           // Update document title
           document.title = `Chat with ${data.name}`;
+        } else {
+          toast.error("Assistant not found", {
+            description: "This assistant no longer exists or has been disabled."
+          });
+          router.push('/dashboard');
+          return;
         }
       } catch (error) {
         console.error('Error loading assistant details:', error);
         toast.error("Assistant error", {
           description: "Unable to load this assistant. Redirecting to assistants page."
         });
-        router.push('/assistants');
+        router.push('/dashboard');
       }
     }
     loadParams();
@@ -762,6 +768,7 @@ const [fileError, setFileError] = useState<{
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
+                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook?assistantId=${assistantId}`}
               />
             </CardContent>
           </Card>
@@ -953,6 +960,7 @@ const [fileError, setFileError] = useState<{
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
+                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook?assistantId=${assistantId}`}
               />
             </CardContent>
           </Card>

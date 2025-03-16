@@ -31,12 +31,14 @@ interface AssistantPhoneNumberSelectorProps {
   assistantId: string;
   onAssigned: (phoneNumber: string) => void;
   currentPhoneNumber?: string | null;
+  webhookUrl: string;
 }
 
 export function AssistantPhoneNumberSelector({
   assistantId,
   onAssigned,
-  currentPhoneNumber
+  currentPhoneNumber,
+  webhookUrl
 }: AssistantPhoneNumberSelectorProps) {
   const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -121,11 +123,6 @@ export function AssistantPhoneNumberSelector({
       return;
     }
 
-    if (!webhook) {
-      toast.error('Please provide a webhook URL');
-      return;
-    }
-
     setIsAssigning(true);
     console.log(`Starting phone number assignment: ${selectedNumber} for assistant: ${assistantId}`);
     
@@ -140,7 +137,7 @@ export function AssistantPhoneNumberSelector({
         body: JSON.stringify({
           assistantId,
           phoneNumber: selectedNumber,
-          webhook: webhook
+          webhook: webhookUrl
         }),
       });
 

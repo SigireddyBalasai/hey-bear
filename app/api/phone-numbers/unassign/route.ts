@@ -160,16 +160,30 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
     const incomingPhoneNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid).fetch();
     const twimlAppSid = incomingPhoneNumber.smsApplicationSid;
 
+    // Define update parameters based on Twilio's expected types
+    interface PhoneNumberUpdateParams {
+      smsApplicationSid?: string;
+      voiceApplicationSid?: string;
+    }
+    
+    const updateParams: PhoneNumberUpdateParams = {
+      smsApplicationSid: undefined,
+      voiceApplicationSid: undefined
+    };
+
     // Clear the webhook URL for SMS and Voice
     await client.incomingPhoneNumbers(incomingPhoneNumberSid)
-      .update({
-        smsApplicationSid: null,
-        voiceApplicationSid: null
-      } as any); // Type assertion to bypass TypeScript error
+      .update(updateParams)
+      .catch(err => {
+        throw new Error(`Failed to clear webhook URLs: ${err.message}`);
+      });
 
     // Delete the TwiML app
     if (twimlAppSid) {
-      await client.applications(twimlAppSid).remove();
+      await client.applications(twimlAppSid).remove()
+      .catch(err => {
+        throw new Error(`Failed to delete TwiML app: ${err.message}`);
+      });
     }
   } catch (error) {
     console.error('Error updating Twilio webhook:', error);

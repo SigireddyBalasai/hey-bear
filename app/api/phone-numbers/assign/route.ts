@@ -140,7 +140,7 @@ export async function POST(request: Request) {
           await updateTwilioWebhook(phoneNumber, webhookUrl);
           console.log(`[${new Date().toISOString()}] Successfully updated Twilio webhook`);
         }
-      } catch (smsError: any) {
+      } catch (smsError) {
         console.error(`[${new Date().toISOString()}] SMS provider error:`, smsError);
       }
     }
@@ -153,10 +153,11 @@ export async function POST(request: Request) {
       success: true,
       message: 'Phone number assigned successfully'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[${new Date().toISOString()}] Phone Number Assignment - ERROR:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: `Internal server error: ${error.message || 'Unknown error'}` }, 
+      { error: `Internal server error: ${errorMessage}` }, 
       { status: 500 }
     );
   }
@@ -200,14 +201,14 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
     
     const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
 
-    // Create TwiML App
+    // Create TwiML App with properly typed parameters
     const twimlApp = await client.applications.create({
       friendlyName: `HeyBear Assistant - ${phoneNumber}`,
-      smsUrl: webhookUrl,
-      voiceUrl: webhookUrl,
+      smsUrl: webhookUrl || undefined,
+      voiceUrl: webhookUrl || undefined,
       smsMethod: 'POST',
       voiceMethod: 'POST'
-    } as any).catch(err => {
+    }).catch(err => {
       throw new Error(`Failed to create Twilio application: ${err.message}`);
     });
 
@@ -216,6 +217,9 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
       .update({
         smsApplicationSid: twimlApp.sid,
         voiceApplicationSid: twimlApp.sid
+      })
+      .catch(err => {
+        throw new Error(`Failed to update phone number with TwiML app: ${err.message}`);
       });
   } catch (error) {
     console.error('Error updating Twilio webhook:', error);
