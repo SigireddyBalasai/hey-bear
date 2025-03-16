@@ -201,17 +201,37 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
     
     const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
 
+    // Define the proper interface for TwiML app creation
+    interface TwiMLAppParams {
+      friendlyName: string;
+      smsUrl?: string;
+      voiceUrl?: string;
+      smsMethod: string;
+      voiceMethod: string;
+    }
+    
     // Create TwiML App with properly typed parameters
-    const twimlApp = await client.applications.create({
+    const twimlAppParams: TwiMLAppParams = {
       friendlyName: `HeyBear Assistant - ${phoneNumber}`,
-      smsUrl: webhookUrl || undefined,
-      voiceUrl: webhookUrl || undefined,
       smsMethod: 'POST',
       voiceMethod: 'POST'
-    }).catch(err => {
-      throw new Error(`Failed to create Twilio application: ${err.message}`);
-    });
+    };
+    
+    // Only add URLs if they're provided
+    if (webhookUrl) {
+      twimlAppParams.smsUrl = webhookUrl;
+      twimlAppParams.voiceUrl = webhookUrl;
+    }
 
+    console.log('Creating TwiML app with params:', twimlAppParams);
+    const twimlApp = await client.applications.create(twimlAppParams)
+      .catch(err => {
+        console.error('TwiML app creation error:', err);
+        throw new Error(`Failed to create Twilio application: ${err.message}`);
+      });
+
+    console.log('TwiML app created successfully:', twimlApp.sid);
+    
     // Update the phone number with the TwiML app SID
     await client.incomingPhoneNumbers(incomingPhoneNumberSid)
       .update({
@@ -221,6 +241,8 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
       .catch(err => {
         throw new Error(`Failed to update phone number with TwiML app: ${err.message}`);
       });
+      
+    console.log('Phone number updated with TwiML app SID');
   } catch (error) {
     console.error('Error updating Twilio webhook:', error);
     throw error;

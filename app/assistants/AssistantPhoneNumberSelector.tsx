@@ -26,6 +26,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface AssistantPhoneNumberSelectorProps {
   assistantId: string;
@@ -47,6 +48,7 @@ export function AssistantPhoneNumberSelector({
   const [useDefaultWebhook, setUseDefaultWebhook] = useState<boolean>(true);
   const [isAssigning, setIsAssigning] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [twilioAppInfo, setTwilioAppInfo] = useState<any>(null);
   const supabase = createClient();
 
   // Fetch available phone numbers when dialog opens
@@ -123,6 +125,11 @@ export function AssistantPhoneNumberSelector({
       return;
     }
 
+    if (!webhook) {
+      toast.error('Please provide a webhook URL');
+      return;
+    }
+
     setIsAssigning(true);
     console.log(`Starting phone number assignment: ${selectedNumber} for assistant: ${assistantId}`);
     
@@ -137,7 +144,7 @@ export function AssistantPhoneNumberSelector({
         body: JSON.stringify({
           assistantId,
           phoneNumber: selectedNumber,
-          webhook: webhookUrl
+          webhook: webhook
         }),
       });
 
@@ -147,6 +154,11 @@ export function AssistantPhoneNumberSelector({
       if (!response.ok) {
         console.error('Assignment error response:', data);
         throw new Error(data.error || 'Failed to assign phone number');
+      }
+
+      // Store TwiML app info if available
+      if (data.twilioDetails) {
+        setTwilioAppInfo(data.twilioDetails);
       }
 
       toast.success('Phone number assigned successfully!');
@@ -358,6 +370,19 @@ export function AssistantPhoneNumberSelector({
           </Dialog>
         )}
       </div>
+      
+      {twilioAppInfo && (
+        <Card className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-green-800 dark:text-green-200">Twilio Integration Details</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs space-y-1 text-green-700 dark:text-green-300">
+            <p><strong>TwiML App:</strong> {twilioAppInfo.twimlApp?.name}</p>
+            <p><strong>App SID:</strong> {twilioAppInfo.twimlApp?.sid}</p>
+            <p><strong>SMS URL:</strong> {twilioAppInfo.twimlApp?.smsUrl}</p>
+          </CardContent>
+        </Card>
+      )}
       
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
