@@ -129,7 +129,7 @@ export async function POST(request: Request) {
 }
 
 // Function to update Twilio webhook
-async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | null) {
+async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | null, knownAppSid?: string | null) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   
@@ -138,29 +138,56 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
   }
   
   try {
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Starting webhook update for phone number: ${phoneNumber}`);
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Known app SID: ${knownAppSid || 'none'}`);
+    
     // Dynamic import of twilio to avoid server-side issues
     const twilio = await import('twilio');
     const client = twilio.default(accountSid, authToken);
     
     // Format number for Twilio if needed
     const formattedNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Formatted phone number: ${formattedNumber}`);
     
     // Find the Twilio phone number
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Looking up phone number in Twilio account...`);
     const incomingPhoneNumbers = await client.incomingPhoneNumbers.list({
       phoneNumber: formattedNumber
     });
     
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Found ${incomingPhoneNumbers.length} matching phone number(s)`);
+    
     if (!incomingPhoneNumbers || incomingPhoneNumbers.length === 0) {
+      console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] No phone number found matching ${formattedNumber}`);
       throw new Error(`No Twilio number found matching ${phoneNumber}`);
     }
     
+    // Log phone number details
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Phone number details:`, {
+      sid: incomingPhoneNumbers[0].sid,
+      phoneNumber: incomingPhoneNumbers[0].phoneNumber,
+      friendlyName: incomingPhoneNumbers[0].friendlyName,
+      smsUrl: incomingPhoneNumbers[0].smsUrl,
+      smsMethod: incomingPhoneNumbers[0].smsMethod,
+      smsApplicationSid: incomingPhoneNumbers[0].smsApplicationSid || 'none'
+    });
+    
     const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
 
-    // Get the TwiML app SID from the phone number
-    const incomingPhoneNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid).fetch();
-    const twimlAppSid = incomingPhoneNumber.smsApplicationSid;
+    // Get the TwiML app SID from the phone number or use the known value
+    let twimlAppSid = knownAppSid;
+    if (!twimlAppSid) {
+      console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] No known app SID, fetching phone number details...`);
+      const incomingPhoneNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid).fetch();
+      twimlAppSid = incomingPhoneNumber.smsApplicationSid;
+      console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Fetched phone details:`, {
+        sid: incomingPhoneNumber.sid,
+        phoneNumber: incomingPhoneNumber.phoneNumber,
+        smsApplicationSid: incomingPhoneNumber.smsApplicationSid || 'none'
+      });
+    }
 
-    console.log('Found TwiML app SID:', twimlAppSid || 'No SID attached to phone number');
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Found TwiML app SID to remove: ${twimlAppSid || 'No SID attached to phone number'}`);
 
     // Use empty strings instead of null to clear the ApplicationSid fields
     // Twilio's TypeScript types don't allow null, but empty strings work to clear these values
@@ -168,30 +195,60 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
       smsApplicationSid: '',
       voiceApplicationSid: ''
     };
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Update params for clearing app SIDs:`, updateParams);
 
     // Clear the webhook URL for SMS and Voice
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Updating phone number to clear app SIDs...`);
     const updatedNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid)
       .update(updateParams)
       .catch(err => {
+        console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Error clearing webhook URLs:`, err);
         throw new Error(`Failed to clear webhook URLs: ${err.message}`);
       });
       
-    console.log('Cleared application SIDs from phone number:', updatedNumber.phoneNumber);
-    console.log('New smsApplicationSid value:', updatedNumber.smsApplicationSid || 'cleared');
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Successfully cleared application SIDs from phone number:`, updatedNumber.phoneNumber);
+    console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Updated phone details:`, {
+      sid: updatedNumber.sid,
+      phoneNumber: updatedNumber.phoneNumber,
+      smsApplicationSid: updatedNumber.smsApplicationSid || 'cleared',
+      voiceApplicationSid: updatedNumber.voiceApplicationSid || 'cleared'
+    });
 
     // Delete the TwiML app
     if (twimlAppSid) {
-      console.log('Attempting to delete TwiML app:', twimlAppSid);
-      await client.applications(twimlAppSid).remove()
-        .catch(err => {
+      console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] Attempting to delete TwiML app: ${twimlAppSid}`);
+      try {
+        await client.applications(twimlAppSid).remove();
+        console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] TwiML app deleted successfully: ${twimlAppSid}`);
+      } catch (err: any) {
+        console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Failed to delete TwiML app:`, err);
+        if (err.code === 20404) {
+          // App not found is okay - it might have been deleted already
+          console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] App ${twimlAppSid} already deleted or not found`);
+        } else {
           throw new Error(`Failed to delete TwiML app: ${err.message}`);
-        });
-      console.log('TwiML app deleted successfully:', twimlAppSid);
+        }
+      }
     } else {
-      console.log('No TwiML app to delete');
+      console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] No TwiML app SID found to delete`);
     }
-  } catch (error) {
-    console.error('Error updating Twilio webhook:', error);
+    
+    // Return complete status info
+    return {
+      phoneNumber: formattedNumber,
+      phoneNumberSid: incomingPhoneNumberSid,
+      clearedAppSid: twimlAppSid || 'none',
+      deletedApp: Boolean(twimlAppSid),
+      currentSmsAppSid: updatedNumber.smsApplicationSid || 'none'
+    };
+  } catch (error: any) {
+    console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Error updating Twilio webhook:`, error);
+    if (error.code) {
+      console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Twilio error code: ${error.code}`);
+    }
+    if (error.moreInfo) {
+      console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Twilio error info: ${error.moreInfo}`);
+    }
     throw error;
   }
 }
