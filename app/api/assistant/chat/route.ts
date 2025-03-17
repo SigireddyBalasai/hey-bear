@@ -87,8 +87,17 @@ export async function POST(req: NextRequest) {
       
       console.log('Sending message to assistant for processing...');
       console.log(`Messages: ${JSON.stringify(messages)}`);
-      const response = await assistant.chat({ messages });
-      console.log('Received response from assistant');
+
+      // Try sending the message with detailed error logging
+      let response;
+      try {
+        response = await assistant.chat({ messages });
+        console.log('Received response from assistant');
+      } catch (assistantError: unknown) {
+        console.error('Error from Pinecone assistant chat:', assistantError);
+        const errorMessage = assistantError instanceof Error ? assistantError.message : String(assistantError);
+        throw new Error(`Failed to get response from assistant: ${errorMessage}`);
+      }
       
       // Record the response timestamp
       const responseTimestamp = new Date();

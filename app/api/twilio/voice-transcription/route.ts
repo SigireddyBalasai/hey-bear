@@ -35,7 +35,15 @@ export async function POST(req: Request) {
       return generateVoiceResponse("I'm sorry, there was an error processing your request.");
     }
     
-    const supabase = await createClient();
+    // Initialize Supabase with error handling
+    let supabase;
+    try {
+      supabase = await createClient();
+      console.log('Supabase client initialized for voice transcription');
+    } catch (dbError) {
+      console.error('Failed to initialize Supabase client:', dbError);
+      return generateVoiceResponse("I'm sorry, we're experiencing database issues. Please try again later.");
+    }
     
     // Get assistant details
     console.log(`Fetching assistant with ID: ${assistantId}`);
@@ -62,11 +70,14 @@ export async function POST(req: Request) {
       const baseUrl = new URL(req.url);
       const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/assistant/chat`;
       
+      // Create a simplified message for voice interactions
+      const systemMessage = "You are responding to a voice call. Keep your response concise, conversational, and under 150 words. Avoid using special characters or symbols that might be difficult to pronounce.";
+      
       console.log(`Calling assistant chat API at: ${apiUrl}`);
       console.log(`Request payload for voice: ${JSON.stringify({
         assistantId: assistant.id,
         message: speechResult,
-        systemOverride: `You are responding to a voice call. Keep your response concise and conversational.`,
+        systemOverride: systemMessage,
         userPhone: from
       })}`);
       
@@ -80,7 +91,7 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           assistantId: assistant.id,
           message: speechResult,
-          systemOverride: `You are responding to a voice call. Keep your response concise and conversational.`,
+          systemOverride: systemMessage,
           userPhone: from
         }),
       });
@@ -95,37 +106,55 @@ export async function POST(req: Request) {
         return generateVoiceResponse("I'm sorry, I couldn't process your request right now. Please try again later.");
       }
       
-      const responseData = await chatResponse.json();
-      console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
+      // Try to parse the response as JSON with error handling
+      let responseData;
+      try {
+        responseData = await chatResponse.json();
+        console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
+      } catch (parseError) {
+        console.error('Failed to parse chat API response as JSON:', parseError);
+        return generateVoiceResponse("I'm sorry, I received an invalid response format. Please try again later.");
+      }
+      
+      // Get the AI response with fallback
       const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
       console.log(`AI response for voice: "${aiResponse.substring(0, 100)}${aiResponse.length > 100 ? '...' : ''}"`);
       
-      // Record the interaction in the database
-      console.log('Saving voice interaction to database');
-      const { error: insertError } = await supabase
-        .from('interactions')
-        .insert({
-          user_id: assistant.user_id,
-          assistant_id: assistant.id,
-          request: speechResult,
-          response: aiResponse,
-          chat: JSON.stringify({ from, to, type: 'voice', speech: speechResult }),
-          interaction_time: new Date().toISOString(),
-          token_usage: responseData.tokens || null,
-          input_tokens: responseData.usage?.promptTokens || null,
-          output_tokens: responseData.usage?.completionTokens || null,
-          cost_estimate: responseData.cost || null,
-          duration: responseData.timing?.responseDuration || null
-        });
-      
-      if (insertError) {
-        console.error('Error saving voice interaction:', insertError);
-      } else {
-        console.log('Voice interaction saved successfully');
+      // Save interaction even if there's an error later
+      try {
+        // Record the interaction in the database
+        console.log('Saving voice interaction to database');
+        const { error: insertError } = await supabase
+          .from('interactions')
+          .insert({
+            user_id: assistant.user_id,
+            assistant_id: assistant.id,
+            request: speechResult,
+            response: aiResponse,
+            chat: JSON.stringify({ from, to, type: 'voice', speech: speechResult }),
+            interaction_time: new Date().toISOString(),
+            token_usage: responseData.tokens || null,
+            input_tokens: responseData.usage?.promptTokens || null,
+            output_tokens: responseData.usage?.completionTokens || null,
+            cost_estimate: responseData.cost || null,
+            duration: responseData.timing?.responseDuration || null
+          });
+        
+        if (insertError) {
+          console.error('Error saving voice interaction:', insertError);
+        } else {
+          console.log('Voice interaction saved successfully');
+        }
+      } catch (dbError) {
+        console.error('Failed to save interaction:', dbError);
+        // Continue anyway - don't fail the call if DB save fails
       }
       
+      // Make sure the response is not too long for TwiML
+      const truncatedResponse = truncateForVoice(aiResponse);
+      
       // Generate TwiML to speak the response back to the caller
-      return generateVoiceResponse(aiResponse);
+      return generateVoiceResponse(truncatedResponse);
       
     } catch (error) {
       console.error('Error processing voice transcription:', error);
@@ -137,31 +166,65 @@ export async function POST(req: Request) {
   }
 }
 
-// Generate a TwiML voice response
-function generateVoiceResponse(message: string) {
-  console.log(`Generating voice response with message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`);
-  
-  // Optionally add a callback to gather more input after the response
-  const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="alice">${sanitizeMessage(message)}</Say>
-  <Pause length="1"/>
-  <Say voice="alice">If you'd like to ask another question, please call again. Goodbye.</Say>
-</Response>`;
-  
-  console.log(`Voice TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
-  
-  return new Response(twimlResponse, {
-    headers: { 'Content-Type': 'text/xml' }
-  });
+// Truncate response to a safe length for voice
+function truncateForVoice(message: string): string {
+  // TwiML has limits on response size, so truncate if necessary
+  // 1000 chars should be safe for most responses
+  if (message.length > 1000) {
+    return message.substring(0, 997) + "...";
+  }
+  return message;
 }
 
-// Sanitize message for XML
+// Generate a TwiML voice response with better error handling
+function generateVoiceResponse(message: string) {
+  try {
+    console.log(`Generating voice response with message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`);
+    
+    // Sanitize the message for TwiML
+    const sanitizedMessage = sanitizeMessage(message);
+    
+    // Create a simple response without too many extras
+    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">${sanitizedMessage}</Say>
+</Response>`;
+    
+    console.log(`Voice TwiML response length: ${twimlResponse.length} chars`);
+    
+    return new Response(twimlResponse, {
+      headers: { 'Content-Type': 'text/xml' }
+    });
+  } catch (error) {
+    console.error('Error generating voice response:', error);
+    
+    // Super simple fallback if everything else fails
+    const fallbackResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">I'm sorry, an error occurred while processing your request. Please try again later.</Say>
+</Response>`;
+    
+    return new Response(fallbackResponse, {
+      headers: { 'Content-Type': 'text/xml' }
+    });
+  }
+}
+
+// Sanitize message for XML with better error handling
 function sanitizeMessage(message: string): string {
-  return message
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+  if (!message) return "Sorry, no message was provided.";
+  
+  try {
+    return message
+      .replace(/&/g, 'and')  // Replace & with 'and' instead of &amp; to avoid TTS issues
+      .replace(/</g, '')     // Remove < completely
+      .replace(/>/g, '')     // Remove > completely
+      .replace(/"/g, '')     // Remove quotes completely
+      .replace(/'/g, '')     // Remove apostrophes completely
+      // Replace any other potentially problematic characters
+      .replace(/[^\w\s.,?!;:()\-]/g, ''); // Only allow safe characters
+  } catch (error) {
+    console.error('Error sanitizing message:', error);
+    return "I'm sorry, there was an error processing the response.";
+  }
 }
