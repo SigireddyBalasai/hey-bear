@@ -5,11 +5,24 @@ import { createServiceClient } from '@/utils/supabase/server-admin';
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || 'webhook-token-123456';
 
 export async function POST(req: Request) {
-  console.log(`[${new Date().toISOString()}] Twilio webhook received`);
+  const startTime = new Date();
+  const requestId = Math.random().toString(36).substring(7);
   
   try {
-    // Extract assistantId from query parameters
+    console.log(`[${startTime.toISOString()}][${requestId}] Twilio webhook received`);
+    
+    // Log request details
     const url = new URL(req.url);
+    const formData = await req.formData();
+    console.log(`[${new Date().toISOString()}][${requestId}] Request details:`, {
+      method: req.method,
+      url: req.url,
+      params: Object.fromEntries(url.searchParams),
+      headers: Object.fromEntries(req.headers),
+      formData: Object.fromEntries(formData.entries())
+    });
+    
+    // Extract assistantId from query parameters
     const assistantId = url.searchParams.get('assistantId');
     const token = url.searchParams.get('token');
     
@@ -18,7 +31,6 @@ export async function POST(req: Request) {
     // We'll add other security measures instead
     
     // Basic validation of the source by checking for Twilio-specific form fields
-    const formData = await req.formData();
     const twilioFields = ['From', 'To', 'Body', 'MessageSid'];
     const hasTwilioFields = twilioFields.some(field => formData.has(field));
     
@@ -80,9 +92,15 @@ export async function POST(req: Request) {
       const baseUrlNoPath = `${baseUrl.protocol}//${baseUrl.host}`;
       const apiUrl = `${baseUrlNoPath}/api/assistant/chat/public`;
       
-      console.log(`Calling assistant chat API at: ${apiUrl}`);
+      console.log(`[${new Date().toISOString()}][${requestId}] Calling assistant chat API at: ${apiUrl}`);
+      console.log(`[${new Date().toISOString()}][${requestId}] Request payload:`, {
+        assistantId: assistant.id,
+        message: body,
+        userPhone: from,
+        userId: assistant.user_id
+      });
       
-      // Send the request to the public chat endpoint
+      const chatStartTime = new Date();
       const chatResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -97,12 +115,20 @@ export async function POST(req: Request) {
           userId: assistant.user_id
         }),
       });
+      const chatEndTime = new Date();
+      
+      console.log(`[${new Date().toISOString()}][${requestId}] Chat API response time: ${chatEndTime.getTime() - chatStartTime.getTime()}ms`);
 
       if (!chatResponse.ok) {
+        console.error(`[${new Date().toISOString()}][${requestId}] Chat API error:`, {
+          status: chatResponse.status,
+          statusText: chatResponse.statusText
+        });
         throw new Error(`Chat API error: ${chatResponse.status}`);
       }
 
       const responseData = await chatResponse.json();
+      console.log(`[${new Date().toISOString()}][${requestId}] Chat API response:`, responseData);
       const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
       
       // Record the interaction using non-auth client
@@ -122,10 +148,18 @@ export async function POST(req: Request) {
           duration: responseData.timing?.responseDuration || null
         });
       
-      return generateTwimlResponse(aiResponse, false);
+      const twimlResponse = generateTwimlResponse(aiResponse, false);
+      const endTime = new Date();
+      console.log(`[${endTime.toISOString()}][${requestId}] Webhook completed`, {
+        duration: endTime.getTime() - startTime.getTime(),
+        success: true,
+        responseLength: aiResponse.length
+      });
+      
+      return twimlResponse;
       
     } catch (aiError) {
-      console.error('Error calling assistant chat API:', aiError);
+      console.error(`[${new Date().toISOString()}][${requestId}] Error calling assistant chat API:`, aiError);
       
       // Fallback response
       const fallbackResponse = "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
@@ -146,7 +180,11 @@ export async function POST(req: Request) {
       return generateTwimlResponse(fallbackResponse, false);
     }
   } catch (error) {
-    console.error('Error processing Twilio webhook:', error);
+    const endTime = new Date();
+    console.error(`[${endTime.toISOString()}][${requestId}] Error processing Twilio webhook:`, {
+      error,
+      duration: endTime.getTime() - startTime.getTime()
+    });
     return generateTwimlResponse('Sorry, we encountered an error processing your message. Please try again later.', false);
   }
 }
@@ -166,9 +204,16 @@ function handleVoiceCall(assistant: any, caller: string) {
 }
 
 // Generate a TwiML response based on message content
-function generateTwimlResponse(message: string, isVoice: boolean) {
+function generateTwimlResponse(message: string, isVoice: boolean, requestId?: string) {
+  const responseId = requestId || Math.random().toString(36).substring(7);
+  console.log(`[${new Date().toISOString()}][${responseId}] Generating TwiML response:`, {
+    isVoice,
+    messageLength: message.length
+  });
+  
   if (isVoice) {
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<!-- Response ID: ${responseId} -->
 <Response>
   <Say voice="alice">${message}</Say>
 </Response>`, {
@@ -176,6 +221,7 @@ function generateTwimlResponse(message: string, isVoice: boolean) {
     });
   } else {
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<!-- Response ID: ${responseId} -->
 <Response>
   <Message>${message}</Message>
 </Response>`, {
