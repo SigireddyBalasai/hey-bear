@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
 export async function POST(req: Request) {
-  console.log(`[${new Date().toISOString()}] Twilio webhook received`);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] Twilio webhook received`);
   
   try {
     // Extract assistantId from query parameters
     const url = new URL(req.url);
     const assistantId = url.searchParams.get('assistantId');
+    console.log(`Request URL: ${req.url}`);
+    console.log(`Query parameters: ${JSON.stringify(Object.fromEntries(url.searchParams))}`);
     
     const formData = await req.formData();
+    console.log(`Form data keys: ${Array.from(formData.keys()).join(', ')}`);
     
     // Extract data from Twilio webhook
     const from = formData.get('From') as string;
@@ -18,7 +22,13 @@ export async function POST(req: Request) {
     const callSid = formData.get('CallSid') as string | null; // Check for CallSid to identify voice calls
     const isVoiceCall = !!callSid;
     
-    console.log(`Received ${isVoiceCall ? 'voice call' : 'SMS'} from ${from} to ${to}${body ? ': ' + body : ''}`);
+    console.log(`Received ${isVoiceCall ? 'voice call' : 'SMS'} from ${from} to ${to}`);
+    if (body) {
+      console.log(`Message content: "${body.substring(0, 100)}${body.length > 100 ? '...' : ''}"`);
+    }
+    if (callSid) {
+      console.log(`Call SID: ${callSid}`);
+    }
     
     if (!assistantId) {
       console.log(`No assistantId provided, cannot process request`);
@@ -28,12 +38,15 @@ export async function POST(req: Request) {
     console.log(`Using assistantId from URL param: ${assistantId}`);
     
     if (!from || !to || (!body && !isVoiceCall)) {
+      console.error('Missing required information:', { from: !!from, to: !!to, body: !!body || isVoiceCall });
       return generateTwimlResponse('Missing required information', isVoiceCall);
     }
 
     const supabase = await createClient();
+    console.log('Supabase client created');
     
     // Get assistant details
+    console.log(`Fetching assistant with ID: ${assistantId}`);
     const { data: assistant, error } = await supabase
       .from('assistants')
       .select(`
@@ -50,9 +63,12 @@ export async function POST(req: Request) {
       return generateTwimlResponse('Assistant not found', isVoiceCall);
     }
     
+    console.log(`Found assistant: ${assistant.name} (ID: ${assistant.id})`);
+    
     // Handle voice calls differently than SMS
     if (isVoiceCall) {
-      return handleVoiceCall(assistant, from);
+      console.log('Handling as voice call');
+      return handleVoiceCall(assistant, from, to, url.toString(), assistantId);
     }
 
     try {
@@ -62,8 +78,15 @@ export async function POST(req: Request) {
       const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/assistant/chat`;
       
       console.log(`Calling assistant chat API at: ${apiUrl}`);
+      console.log(`Request payload: ${JSON.stringify({
+        assistantId: assistant.id,
+        message: body,
+        systemOverride: `You are responding to an SMS message. Keep your response concise.`,
+        userPhone: from
+      })}`);
       
       // Send the request to the chat endpoint using the current host
+      const chatStartTime = Date.now();
       const chatResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -76,16 +99,24 @@ export async function POST(req: Request) {
           userPhone: from
         }),
       });
+      const chatEndTime = Date.now();
+      console.log(`Chat API response time: ${chatEndTime - chatStartTime}ms`);
+      console.log(`Chat API response status: ${chatResponse.status}`);
 
       if (!chatResponse.ok) {
+        const errorText = await chatResponse.text().catch(() => 'No error details');
+        console.error(`Chat API error response: ${errorText}`);
         throw new Error(`Chat API error: ${chatResponse.status}`);
       }
 
       const responseData = await chatResponse.json();
+      console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
       const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
+      console.log(`AI response: "${aiResponse.substring(0, 100)}${aiResponse.length > 100 ? '...' : ''}"`);
       
       // Record the interaction
-      await supabase
+      console.log('Saving interaction to database');
+      const { error: insertError } = await supabase
         .from('interactions')
         .insert({
           user_id: assistant.user_id,
@@ -101,6 +132,13 @@ export async function POST(req: Request) {
           duration: responseData.timing?.responseDuration || null
         });
       
+      if (insertError) {
+        console.error('Error saving interaction:', insertError);
+      } else {
+        console.log('Interaction saved successfully');
+      }
+      
+      console.log('Generating TwiML response');
       return generateTwimlResponse(aiResponse, false);
       
     } catch (aiError) {
@@ -108,8 +146,10 @@ export async function POST(req: Request) {
       
       // Fallback response
       const fallbackResponse = "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
+      console.log(`Using fallback response: "${fallbackResponse}"`);
       
       // Record error interaction
+      console.log('Recording error interaction');
       await supabase
         .from('interactions')
         .insert({
@@ -130,15 +170,29 @@ export async function POST(req: Request) {
   }
 }
 
-// Handle voice calls
-function handleVoiceCall(assistant: any, caller: string) {
+// Handle voice calls with speech recognition
+function handleVoiceCall(assistant: any, caller: string, to: string, baseUrl: string, assistantId: string) {
+  console.log(`Generating voice response for caller: ${caller}`);
+  
+  // Create a callback URL for the voice transcription
+  const callbackUrl = new URL('/api/twilio/voice-transcription', baseUrl);
+  callbackUrl.searchParams.set('assistantId', assistantId);
+  callbackUrl.searchParams.set('from', caller);
+  callbackUrl.searchParams.set('to', to);
+  
+  console.log(`Setting voice callback URL: ${callbackUrl.toString()}`);
+  
+  // Generate TwiML that prompts the user and records their voice
   const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Hello, you've reached the ${assistant.name} assistant. This assistant communicates via text messages. Please send an SMS to this number instead of calling.</Say>
-  <Pause length="1"/>
-  <Say voice="alice">Thank you for your call. Goodbye.</Say>
+  <Say voice="alice">Hello, you've reached ${assistant.name}. How can I help you today?</Say>
+  <Gather input="speech" action="${callbackUrl.toString()}" speechTimeout="auto" language="en-US" enhanced="true" speechModel="phone_call">
+    <Say voice="alice">Please speak after the tone.</Say>
+  </Gather>
+  <Say voice="alice">I didn't hear anything. Please call again if you'd like to speak with the assistant. Goodbye.</Say>
 </Response>`;
   
+  console.log(`Voice TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
   return new Response(twimlResponse, {
     headers: { 'Content-Type': 'text/xml' }
   });
@@ -146,19 +200,33 @@ function handleVoiceCall(assistant: any, caller: string) {
 
 // Generate a TwiML response based on message content
 function generateTwimlResponse(message: string, isVoice: boolean) {
+  console.log(`Generating ${isVoice ? 'voice' : 'SMS'} TwiML response`);
+  
+  let twimlResponse;
   if (isVoice) {
-    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+    twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">${message}</Say>
-</Response>`, {
-      headers: { 'Content-Type': 'text/xml' }
-    });
+  <Say voice="alice">${sanitizeMessage(message)}</Say>
+</Response>`;
   } else {
-    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+    twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>${message}</Message>
-</Response>`, {
-      headers: { 'Content-Type': 'text/xml' }
-    });
+  <Message>${sanitizeMessage(message)}</Message>
+</Response>`;
   }
+  
+  console.log(`TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
+  return new Response(twimlResponse, {
+    headers: { 'Content-Type': 'text/xml' }
+  });
+}
+
+// Sanitize message for XML
+function sanitizeMessage(message: string): string {
+  return message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
