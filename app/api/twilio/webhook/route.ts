@@ -148,15 +148,26 @@ export async function POST(req: Request) {
           duration: responseData.timing?.responseDuration || null
         });
       
-      const twimlResponse = generateTwimlResponse(aiResponse, false);
+      // Generate and validate TwiML response
+      const twimlResponse = generateTwimlResponse(aiResponse, false, requestId);
       const endTime = new Date();
-      console.log(`[${endTime.toISOString()}][${requestId}] Webhook completed`, {
-        duration: endTime.getTime() - startTime.getTime(),
-        success: true,
-        responseLength: aiResponse.length
+      
+      // Log the actual TwiML response for debugging
+      const twimlContent = await twimlResponse.text().catch(() => 'Failed to read response');
+      console.log(`[${new Date().toISOString()}][${requestId}] Sending TwiML response:`, {
+        content: twimlContent,
+        headers: Object.fromEntries(twimlResponse.headers.entries()),
+        status: twimlResponse.status
       });
       
-      return twimlResponse;
+      // Create a new response with the same content to return (since we consumed the original)
+      return new Response(twimlContent, {
+        headers: {
+          'Content-Type': 'text/xml',
+          'Cache-Control': 'no-cache',
+          'X-Response-ID': requestId
+        }
+      });
       
     } catch (aiError) {
       console.error(`[${new Date().toISOString()}][${requestId}] Error calling assistant chat API:`, aiError);
@@ -203,29 +214,38 @@ function handleVoiceCall(assistant: any, caller: string) {
   });
 }
 
-// Generate a TwiML response based on message content
+// Updated TwiML response generator with proper XML escaping
 function generateTwimlResponse(message: string, isVoice: boolean, requestId?: string) {
   const responseId = requestId || Math.random().toString(36).substring(7);
+  const escapedMessage = message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+  
   console.log(`[${new Date().toISOString()}][${responseId}] Generating TwiML response:`, {
     isVoice,
+    originalMessage: message,
+    escapedMessage,
     messageLength: message.length
   });
   
-  if (isVoice) {
-    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<!-- Response ID: ${responseId} -->
+  const twimlContent = isVoice 
+    ? `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">${message}</Say>
-</Response>`, {
-      headers: { 'Content-Type': 'text/xml' }
-    });
-  } else {
-    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<!-- Response ID: ${responseId} -->
+  <Say voice="alice">${escapedMessage}</Say>
+</Response>`
+    : `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>${message}</Message>
-</Response>`, {
-      headers: { 'Content-Type': 'text/xml' }
-    });
-  }
+  <Message>${escapedMessage}</Message>
+</Response>`;
+
+  return new Response(twimlContent, {
+    headers: {
+      'Content-Type': 'text/xml',
+      'Cache-Control': 'no-cache',
+      'X-Response-ID': responseId
+    }
+  });
 }
