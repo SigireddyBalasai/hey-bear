@@ -167,44 +167,69 @@ async function processMessage({
   logId: string;
   logger: any;
 }) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const apiUrl = `${baseUrl}/api/assistant/chat/public`;
+  // Get base URL from environment or request URL
+  const getBaseUrl = () => {
+    // First try VERCEL_URL (available in Vercel deployments)
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`;
+    }
+    // Then try custom APP_URL
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      return process.env.NEXT_PUBLIC_APP_URL;
+    }
+    // Fallback to localhost only in development
+    if (process.env.NODE_ENV === 'development') {
+      return 'http://localhost:3000';
+    }
+    // If nothing else works, throw error
+    throw new Error('No valid base URL found');
+  };
 
-  logger.debug('Calling chat API:', { apiUrl, message });
-  
-  const chatResponse = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Webhook-Token': WEBHOOK_TOKEN
-    },
-    body: JSON.stringify({
-      assistantId: assistant.id,
+  try {
+    const baseUrl = getBaseUrl();
+    const apiUrl = `${baseUrl}/api/assistant/chat/public`;
+    
+    logger.debug('Using base URL:', baseUrl);
+    logger.debug('Calling chat API:', { apiUrl, message });
+    
+    const chatResponse = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Webhook-Token': WEBHOOK_TOKEN
+      },
+      body: JSON.stringify({
+        assistantId: assistant.id,
+        message,
+        systemOverride: `You are responding to an SMS message. Keep your response concise.`,
+        userPhone: from,
+        userId: assistant.user_id
+      })
+    });
+
+    if (!chatResponse.ok) {
+      logger.error('Chat API error:', { status: chatResponse.status });
+      throw new Error('Failed to get AI response');
+    }
+
+    const responseData = await chatResponse.json();
+    logger.debug('Chat API response:', responseData);
+
+    // Record interaction in database
+    await recordInteraction({
+      assistant,
       message,
-      systemOverride: `You are responding to an SMS message. Keep your response concise.`,
-      userPhone: from,
-      userId: assistant.user_id
-    })
-  });
+      response: responseData,
+      from,
+      to
+    });
 
-  if (!chatResponse.ok) {
-    logger.error('Chat API error:', { status: chatResponse.status });
-    throw new Error('Failed to get AI response');
+    return responseData.response || "I'm sorry, I couldn't generate a response.";
+  } catch (error) {
+    logger.error('Chat API error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to get AI response: ${errorMessage}`);
   }
-
-  const responseData = await chatResponse.json();
-  logger.debug('Chat API response:', responseData);
-
-  // Record interaction in database
-  await recordInteraction({
-    assistant,
-    message,
-    response: responseData,
-    from,
-    to
-  });
-
-  return responseData.response || "I'm sorry, I couldn't generate a response.";
 }
 
 async function recordInteraction({ 
