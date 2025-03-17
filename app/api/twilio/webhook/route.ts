@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/utils/supabase/server-admin';
+import twilio from 'twilio';
 
 // A simple token for webhook authentication
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || 'webhook-token-123456';
@@ -11,9 +12,40 @@ export async function POST(req: Request) {
   try {
     console.log(`[${startTime.toISOString()}][${requestId}] Twilio webhook received`);
     
-    // Log request details
+    // Clone the request to read the body multiple times
+    const reqClone = req.clone();
+    
+    // Get raw body for Twilio validation
+    const rawBody = await reqClone.text();
     const url = new URL(req.url);
     const formData = await req.formData();
+    
+    // Log full request details
+    console.log(`[${new Date().toISOString()}][${requestId}] Raw request details:`, {
+      rawBody,
+      url: url.toString(),
+      twilioSignature: req.headers.get('x-twilio-signature')
+    });
+
+    // Validate Twilio request
+    const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioSignature = req.headers.get('x-twilio-signature') || '';
+    
+    if (twilioAuthToken) {
+      const isValidRequest = twilio.validateRequest(
+        twilioAuthToken,
+        twilioSignature,
+        url.toString(),
+        Object.fromEntries(formData.entries())
+      );
+
+      if (!isValidRequest) {
+        console.error(`[${new Date().toISOString()}][${requestId}] Invalid Twilio signature`);
+        return new Response('Invalid signature', { status: 403 });
+      }
+    }
+    
+    // Log request details
     console.log(`[${new Date().toISOString()}][${requestId}] Request details:`, {
       method: req.method,
       url: req.url,
@@ -231,20 +263,27 @@ function generateTwimlResponse(message: string, isVoice: boolean, requestId?: st
     messageLength: message.length
   });
   
+  const debugInfo = `<!-- Debug: ${responseId} -->`;
   const twimlContent = isVoice 
     ? `<?xml version="1.0" encoding="UTF-8"?>
+${debugInfo}
 <Response>
-  <Say voice="alice">${escapedMessage}</Say>
+    <Say voice="alice">${escapedMessage}</Say>
 </Response>`
     : `<?xml version="1.0" encoding="UTF-8"?>
+${debugInfo}
 <Response>
-  <Message>${escapedMessage}</Message>
+    <Message>${escapedMessage}</Message>
 </Response>`;
 
   return new Response(twimlContent, {
+    status: 200,
     headers: {
-      'Content-Type': 'text/xml',
-      'Cache-Control': 'no-cache',
+      'Content-Type': 'text/xml; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Content-Security-Policy': "default-src 'self'",
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
       'X-Response-ID': responseId
     }
   });
