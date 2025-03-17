@@ -15,17 +15,23 @@ export async function POST(req: NextRequest) {
   const requestTimestamp = new Date();
   
   try {
-    // Simple token auth - check header first, but allow internal calls
-    const providedToken = req.headers.get('X-Webhook-Token');
-    // For internal server-to-server API calls, we check the token
-    // For calls from external webhook providers, we trust our own server's call
-    const internalRequest = 
-      providedToken === WEBHOOK_TOKEN || 
-      req.headers.get('user-agent')?.includes('node-fetch') || 
+    // Expanded internal request validation
+    const isInternalRequest = 
+      // Check webhook token
+      req.headers.get('X-Webhook-Token') === WEBHOOK_TOKEN ||
+      // Check if it's an internal request
+      req.headers.get('X-Internal-Request') === '1' ||
+      // Check user agent
+      req.headers.get('user-agent')?.includes('TwilioWebhook') ||
+      req.headers.get('user-agent')?.includes('node-fetch') ||
       req.headers.get('user-agent')?.includes('undici');
     
-    if (!internalRequest) {
-      console.error('Invalid webhook token or unauthorized source');
+    if (!isInternalRequest) {
+      console.error('Unauthorized request:', {
+        token: req.headers.get('X-Webhook-Token'),
+        userAgent: req.headers.get('user-agent'),
+        internal: req.headers.get('X-Internal-Request')
+      });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
