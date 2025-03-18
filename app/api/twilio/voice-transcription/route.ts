@@ -24,14 +24,20 @@ export async function POST(req: Request) {
     
     if (!speechResult) {
       console.log('No speech transcription received');
-      return generateVoiceResponse("I'm sorry, I couldn't understand what you said. Please try again.");
+      // Check for potential error conditions
+      const speechError = formData.get('SpeechError') as string;
+      if (speechError) {
+        console.error(`Speech error reported by Twilio: ${speechError}`);
+      }
+      
+      return generateVoiceResponse("I'm sorry, I couldn't understand what you said. Could you please try again?");
     }
     
     console.log(`Transcribed speech: "${speechResult}"`);
     console.log(`Transcription confidence: ${confidence || 'unknown'}`);
     
     if (!assistantId || !from || !to) {
-      console.error('Missing required parameters');
+      console.error('Missing required parameters', { assistantId, from, to });
       return generateVoiceResponse("I'm sorry, there was an error processing your request.");
     }
     
@@ -47,6 +53,7 @@ export async function POST(req: Request) {
     
     // Get assistant details
     console.log(`Fetching assistant with ID: ${assistantId}`);
+    
     const { data: assistant, error } = await supabase
       .from('assistants')
       .select(`

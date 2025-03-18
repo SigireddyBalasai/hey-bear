@@ -9,6 +9,8 @@ export async function POST(req: Request) {
     // Extract assistantId from query parameters
     const url = new URL(req.url);
     const assistantId = url.searchParams.get('assistantId');
+    const token = url.searchParams.get('token'); // Optional verification token
+    
     console.log(`Request URL: ${req.url}`);
     console.log(`Query parameters: ${JSON.stringify(Object.fromEntries(url.searchParams))}`);
     
@@ -30,6 +32,12 @@ export async function POST(req: Request) {
       console.log(`Call SID: ${callSid}`);
     }
     
+    // Optional token verification - can be enabled in a production environment
+    if (process.env.VERIFY_WEBHOOK_TOKEN === 'true' && token !== process.env.WEBHOOK_TOKEN) {
+      console.error('Invalid webhook token');
+      return generateTwimlResponse('Unauthorized webhook access', isVoiceCall);
+    }
+    
     if (!assistantId) {
       console.log(`No assistantId provided, cannot process request`);
       return generateTwimlResponse('Assistant ID is required', isVoiceCall);
@@ -41,7 +49,7 @@ export async function POST(req: Request) {
       console.error('Missing required information:', { from: !!from, to: !!to, body: !!body || isVoiceCall });
       return generateTwimlResponse('Missing required information', isVoiceCall);
     }
-
+    
     const supabase = await createClient();
     console.log('Supabase client created');
     
@@ -174,59 +182,104 @@ export async function POST(req: Request) {
 function handleVoiceCall(assistant: any, caller: string, to: string, baseUrl: string, assistantId: string) {
   console.log(`Generating voice response for caller: ${caller}`);
   
-  // Create a callback URL for the voice transcription
-  const callbackUrl = new URL('/api/twilio/voice-transcription', baseUrl);
-  callbackUrl.searchParams.set('assistantId', assistantId);
-  callbackUrl.searchParams.set('from', caller);
-  callbackUrl.searchParams.set('to', to);
-  
-  console.log(`Setting voice callback URL: ${callbackUrl.toString()}`);
-  
-  // Generate TwiML that prompts the user and records their voice
-  const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+  try {
+    // Parse the base URL to ensure we're using the right domain
+    const parsedUrl = new URL(baseUrl);
+    
+    // Create a callback URL for the voice transcription
+    const callbackUrl = new URL('/api/twilio/voice-transcription', parsedUrl.origin);
+    callbackUrl.searchParams.set('assistantId', assistantId);
+    callbackUrl.searchParams.set('from', caller);
+    callbackUrl.searchParams.set('to', to);
+    
+    console.log(`Setting voice callback URL: ${callbackUrl.toString()}`);
+    
+    // Generate TwiML that prompts the user and records their voice
+    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">Hello, you've reached ${assistant.name}. How can I help you today?</Say>
-  <Gather input="speech" action="${callbackUrl.toString()}" speechTimeout="auto" language="en-US" enhanced="true" speechModel="phone_call">
+  <Gather input="speech" action="${callbackUrl.toString()}" speechTimeout="auto" language="en-US" enhanced="true" speechModel="phone_call" timeout="5">
     <Say voice="alice">Please speak after the tone.</Say>
   </Gather>
   <Say voice="alice">I didn't hear anything. Please call again if you'd like to speak with the assistant. Goodbye.</Say>
 </Response>`;
-  
-  console.log(`Voice TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
-  return new Response(twimlResponse, {
-    headers: { 'Content-Type': 'text/xml' }
-  });
+    
+    console.log(`Voice TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
+    return new Response(twimlResponse, {
+      headers: { 'Content-Type': 'text/xml' }
+    });
+  } catch (error) {
+    console.error('Error generating voice TwiML:', error);
+    // Simplified fallback response if anything fails
+    const fallbackTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Hello, I'm having trouble connecting to the assistant. Please try again later.</Say>
+</Response>`;
+    
+    return new Response(fallbackTwiml, {
+      headers: { 'Content-Type': 'text/xml' }
+    });
+  }
 }
 
 // Generate a TwiML response based on message content
 function generateTwimlResponse(message: string, isVoice: boolean) {
   console.log(`Generating ${isVoice ? 'voice' : 'SMS'} TwiML response`);
   
-  let twimlResponse;
-  if (isVoice) {
-    twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+  try {
+    // Sanitize the message for TwiML
+    const sanitizedMessage = sanitizeMessage(message);
+    
+    let twimlResponse;
+    if (isVoice) {
+      twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">${sanitizeMessage(message)}</Say>
+  <Say voice="alice">${sanitizedMessage}</Say>
 </Response>`;
-  } else {
-    twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+    } else {
+      twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>${sanitizeMessage(message)}</Message>
+  <Message>${sanitizedMessage}</Message>
 </Response>`;
+    }
+    
+    console.log(`TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
+    return new Response(twimlResponse, {
+      headers: { 'Content-Type': 'text/xml' }
+    });
+  } catch (error) {
+    console.error(`Error generating ${isVoice ? 'voice' : 'SMS'} TwiML:`, error);
+    
+    // Fallback response
+    const fallbackResponse = isVoice ?
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Sorry, there was an error generating a response.</Say></Response>` :
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Sorry, there was an error generating a response.</Message></Response>`;
+      
+    return new Response(fallbackResponse, {
+      headers: { 'Content-Type': 'text/xml' }
+    });
   }
-  
-  console.log(`TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
-  return new Response(twimlResponse, {
-    headers: { 'Content-Type': 'text/xml' }
-  });
 }
 
 // Sanitize message for XML
 function sanitizeMessage(message: string): string {
-  return message
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+  if (!message) return "Sorry, no response was generated.";
+  
+  try {
+    // For voice, replace problematic characters to improve TTS
+    if (message.length > 1600) {
+      message = message.substring(0, 1597) + '...';
+    }
+    
+    return message
+      .replace(/&/g, 'and')  // Replace & with 'and' for better TTS
+      .replace(/</g, '')     // Remove < completely
+      .replace(/>/g, '')     // Remove > completely
+      .replace(/"/g, '')     // Remove quotes completely
+      .replace(/'/g, '')     // Remove apostrophes completely
+      .replace(/[^\w\s.,?!;:()\-]/g, ''); // Only allow safe characters
+  } catch (error) {
+    console.error('Error sanitizing message:', error);
+    return "Sorry, there was an error processing the response.";
+  }
 }
