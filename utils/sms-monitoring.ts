@@ -53,19 +53,20 @@ export function checkSmsErrorPatterns(message: string): { hasErrors: boolean, er
 }
 
 /**
- * Sanitize a message for SMS delivery - Less aggressive version
- * We need to preserve more characters for proper SMS delivery
+ * Sanitize a message for SMS delivery - Twilio XML compatible
  */
 export function sanitizeForSms(message: string): string {
   if (!message) return '';
   
   try {
-    // Basic sanitization - only remove XML-unsafe characters
+    // Basic XML sanitization - only escape necessary characters
     let sanitized = message
       .replace(/&/g, '&amp;')   // XML encoding for &
       .replace(/</g, '&lt;')    // XML encoding for <
       .replace(/>/g, '&gt;')    // XML encoding for >
       .trim();
+    
+    // Keep all other characters intact
     
     // Truncate if too long
     if (sanitized.length > 1600) {
