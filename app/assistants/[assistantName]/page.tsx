@@ -50,6 +50,10 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [deletingFileIds, setDeletingFileIds] = useState<string[]>([]);
   const [processingFileIds, setProcessingFileIds] = useState<string[]>([]);
   const [statusPollingInterval, setStatusPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  // Add new state variables for URL input
+  const [inputType, setInputType] = useState<"file" | "url">("file");
+  const [url, setUrl] = useState<string>('');
+  const [isUrlValid, setIsUrlValid] = useState<boolean>(true);
 const [fileError, setFileError] = useState<{
     title: string;
     description: string;
@@ -413,6 +417,75 @@ const [fileError, setFileError] = useState<{
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  // Handle adding URL to assistant
+  const handleAddUrl = async () => {
+    
+    try {
+      setIsUploading(true);
+      
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return 95;
+          }
+          return prev + 5;
+        });
+      }, 100);
+      
+      const res = await fetch('/api/assistant/file/add-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistantId,
+          pinecone_name,
+          url
+        }),
+      });
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      const data = await res.json();
+      if (res.ok) {
+        toast("URL added successfully!",{
+          description: `${url} has been added to the assistant.`,
+        });
+        setUrl('');
+        await fetchFiles(); // Refresh files list
+        startStatusPolling(); // Start polling for status changes
+      } else {
+        // Show file error dialog with server error details
+        setFileError({
+          title: "URL Addition Error",
+          description: data.error || "Failed to add URL",
+          details: data.details || undefined,
+          show: true
+        });
+      }
+    } catch (error) {
+      console.error("URL addition error:", error);
+      setFileError({
+        title: "URL Error",
+        description: "Something went wrong while adding this URL",
+        show: true
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Add file or URL to assistant
+  const handleAddContent = () => {
+    if (inputType === "file") {
+      handleAddFile();
+    } else {
+      handleAddUrl();
     }
   };
 
@@ -785,40 +858,83 @@ const [fileError, setFileError] = useState<{
             </CardHeader>
             
             <CardContent className="flex-1 flex flex-col p-4">
-              {/* File Upload Area */}
-              <div 
-                {...getRootProps()} 
-                className={cn(
-                  "border-2 border-dashed rounded-xl p-6 mb-6 cursor-pointer transition-all",
-                  isDragActive 
-                    ? "border-primary bg-primary/10 shadow-inner" 
-                    : "border-muted-foreground/25 hover:border-primary/50 hover:shadow"
-                )}
-              >
-                <input {...getInputProps()} />
-                <div className="flex flex-col items-center justify-center space-y-2 text-center">
-                  <div className={cn(
-                    "rounded-full p-3 transition-all",
-                    isDragActive ? "bg-primary/20" : "bg-muted"
-                  )}>
-                    <Upload className={cn(
-                      "h-8 w-8 transition-transform",
-                      isDragActive ? "text-primary scale-110" : "text-muted-foreground"
-                    )} />
-                  </div>
-                  <h3 className="font-semibold text-lg">
-                    {isDragActive ? "Drop file here" : "Drag & drop a file"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Or click to browse your device
-                  </p>
-                  {file && (
-                    <Badge variant="secondary" className="mt-2 px-3 py-1 shadow-sm">
-                      <FileText className="h-3 w-3 mr-1" /> {file.name}
-                    </Badge>
-                  )}
-                </div>
+              {/* Input Type Selection */}
+              <div className="mb-4">
+                <Tabs 
+                  value={inputType} 
+                  onValueChange={(value) => setInputType(value as "file" | "url")}
+                  className="w-full"
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="file">Upload File</TabsTrigger>
+                    <TabsTrigger value="url">Add URL</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
+
+              {/* File Upload Area */}
+              {inputType === "file" && (
+                <div 
+                  {...getRootProps()} 
+                  className={cn(
+                    "border-2 border-dashed rounded-xl p-6 mb-6 cursor-pointer transition-all",
+                    isDragActive 
+                      ? "border-primary bg-primary/10 shadow-inner" 
+                      : "border-muted-foreground/25 hover:border-primary/50 hover:shadow"
+                  )}
+                >
+                  <input {...getInputProps()} />
+                  <div className="flex flex-col items-center justify-center space-y-2 text-center">
+                    <div className={cn(
+                      "rounded-full p-3 transition-all",
+                      isDragActive ? "bg-primary/20" : "bg-muted"
+                    )}>
+                      <Upload className={cn(
+                        "h-8 w-8 transition-transform",
+                        isDragActive ? "text-primary scale-110" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <h3 className="font-semibold text-lg">
+                      {isDragActive ? "Drop file here" : "Drag & drop a file"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Or click to browse your device
+                    </p>
+                    {file && (
+                      <Badge variant="secondary" className="mt-2 px-3 py-1 shadow-sm">
+                        <FileText className="h-3 w-3 mr-1" /> {file.name}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* URL Input Area */}
+              {inputType === "url" && (
+                <div className="mb-6 space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="url-input">Enter a URL to add</Label>
+                    <Input
+                      id="url-input"
+                      type="url"
+                      placeholder="https://example.com/document.pdf"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className={cn(
+                        !isUrlValid && "border-red-500 focus-visible:ring-red-500"
+                      )}
+                    />
+                    {!isUrlValid && (
+                      <p className="text-sm text-red-500">
+                        Please enter a valid URL
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Add a direct link to a publicly accessible document or webpage
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* File Upload Progress */}
               {isUploading && (
@@ -826,7 +942,11 @@ const [fileError, setFileError] = useState<{
                   <div className="flex justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      <span>Uploading {file?.name}</span>
+                      <span>
+                        {inputType === "file" 
+                          ? `Uploading ${file?.name}` 
+                          : `Processing ${url}`}
+                      </span>
                     </div>
                     <span className="font-medium">{uploadProgress}%</span>
                   </div>
@@ -834,16 +954,17 @@ const [fileError, setFileError] = useState<{
                 </div>
               )}
 
-              {file && !isUploading && (
+              {/* Add Button */}
+              {((inputType === "file" && file) || (inputType === "url" && url)) && !isUploading && (
                 <Button 
-                  onClick={handleAddFile} 
+                  onClick={handleAddContent} 
                   className="mb-6 shadow-sm"
-                  disabled={isUploading}
+                  disabled={isUploading || (inputType === "url" && !isUrlValid)}
                 >
                   {isUploading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
                   ) : (
-                    <>Add File</>
+                    <>Add {inputType === "file" ? "File" : "URL"}</>
                   )}
                 </Button>
               )}
@@ -990,3 +1111,5 @@ const [fileError, setFileError] = useState<{
 };
 
 export default AssistantPage;
+
+
