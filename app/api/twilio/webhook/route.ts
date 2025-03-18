@@ -194,23 +194,37 @@ export async function POST(req: Request) {
   }
 }
 
-// Generate a specific SMS response in TwiML format
+// Modified function to generate SMS response
 function generateSmsResponse(message: string) {
   // Ensure message is not empty
   if (!message || message.trim() === '') {
     message = "I'm sorry, I couldn't generate a response.";
   }
   
-  // Sanitize the message for SMS
-  const sanitizedMessage = sanitizeForSms(message);
+  // Sanitize the message for SMS - but don't strip too aggressively
+  let sanitizedMessage = message;
+  if (sanitizedMessage.length > 1600) {
+    sanitizedMessage = sanitizedMessage.substring(0, 1597) + '...';
+  }
   
+  // Log the exact message we're sending in TwiML
+  logTwilio('Webhook', `Sending SMS with content: ${sanitizedMessage}`);
+  
+  // Create a simple TwiML response - this is the standard format Twilio expects
   const twimlString = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Message>${sanitizedMessage}</Message>
 </Response>`;
   
+  logTwimlResponse(twimlString);
+  
   return new Response(twimlString, {
-    headers: { 'Content-Type': 'text/xml' }
+    headers: { 
+      'Content-Type': 'text/xml',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
   });
 }
 

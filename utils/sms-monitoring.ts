@@ -53,15 +53,18 @@ export function checkSmsErrorPatterns(message: string): { hasErrors: boolean, er
 }
 
 /**
- * Sanitize a message for SMS delivery
+ * Sanitize a message for SMS delivery - Less aggressive version
+ * We need to preserve more characters for proper SMS delivery
  */
 export function sanitizeForSms(message: string): string {
   if (!message) return '';
   
   try {
-    // Remove special characters that might cause issues
+    // Basic sanitization - only remove XML-unsafe characters
     let sanitized = message
-      .replace(/[^\w\s.,?!;:()\-@#']/g, '')  // Remove potentially problematic chars
+      .replace(/&/g, '&amp;')   // XML encoding for &
+      .replace(/</g, '&lt;')    // XML encoding for <
+      .replace(/>/g, '&gt;')    // XML encoding for >
       .trim();
     
     // Truncate if too long
