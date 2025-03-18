@@ -11,15 +11,17 @@ export async function POST(req: Request) {
     // Extract parameters from the URL
     const url = new URL(req.url);
     const assistantId = url.searchParams.get('assistantId');
-    const from = url.searchParams.get('from') || (await req.formData()).get('From') as string;
-    const to = url.searchParams.get('to') || (await req.formData()).get('To') as string;
-    const callSid = (await req.formData()).get('CallSid') as string;
+    
+    // Read the form data once and reuse it
+    const formData = await req.formData();
+    const from = url.searchParams.get('from') || formData.get('From') as string;
+    const to = url.searchParams.get('to') || formData.get('To') as string;
+    const callSid = formData.get('CallSid') as string;
     
     console.log(`Request URL: ${req.url}`);
     console.log(`Query parameters: ${JSON.stringify(Object.fromEntries(url.searchParams))}`);
     logTwilio('VoiceTranscription', 'Query parameters', Object.fromEntries(url.searchParams));
     
-    const formData = await req.formData();
     console.log(`Form data keys: ${Array.from(formData.keys()).join(', ')}`);
     logTwilio('VoiceTranscription', `Form data keys: ${Array.from(formData.keys()).join(', ')}`);
     
