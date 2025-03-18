@@ -210,7 +210,7 @@ function generateSmsResponse(message: string) {
   // Log the exact message we're sending in TwiML
   logTwilio('Webhook', `Sending SMS with content: ${sanitizedMessage}`);
   
-  // Create a simple TwiML response - this is the standard format Twilio expects
+  // Create a simple TwiML response for maximum compatibility with all Twilio clients
   const twimlString = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Message>${sanitizedMessage}</Message>
@@ -220,7 +220,7 @@ function generateSmsResponse(message: string) {
   
   return new Response(twimlString, {
     headers: { 
-      'Content-Type': 'text/xml',
+      'Content-Type': 'application/xml',  // Use application/xml instead of text/xml
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'
