@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { logTwilio, logTwilioError, formatTwilioWebhook, logTwimlResponse } from '@/utils/twilio-logger';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();
@@ -10,6 +11,7 @@ export async function POST(req: Request) {
     const url = new URL(req.url);
     const assistantId = url.searchParams.get('assistantId');
     const token = url.searchParams.get('token'); // Optional verification token
+    const isVoiceParam = url.searchParams.get('isVoice'); // Check explicit voice parameter
     
     console.log(`Request URL: ${req.url}`);
     console.log(`Query parameters: ${JSON.stringify(Object.fromEntries(url.searchParams))}`);
@@ -22,7 +24,9 @@ export async function POST(req: Request) {
     const to = formData.get('To') as string;
     const body = formData.get('Body') as string;
     const callSid = formData.get('CallSid') as string | null; // Check for CallSid to identify voice calls
-    const isVoiceCall = !!callSid;
+    
+    // Determine if this is a voice call - either from CallSid or explicit URL parameter
+    const isVoiceCall = !!callSid || isVoiceParam === 'true';
     
     console.log(`Received ${isVoiceCall ? 'voice call' : 'SMS'} from ${from} to ${to}`);
     if (body) {
@@ -76,6 +80,7 @@ export async function POST(req: Request) {
     // Handle voice calls differently than SMS
     if (isVoiceCall) {
       console.log('Handling as voice call');
+      logTwilio('Webhook', `Handling voice call for assistant ${assistantId}`);
       return handleVoiceCall(assistant, from, to, url.toString(), assistantId);
     }
 
@@ -181,6 +186,7 @@ export async function POST(req: Request) {
 // Handle voice calls with speech recognition
 function handleVoiceCall(assistant: any, caller: string, to: string, baseUrl: string, assistantId: string) {
   console.log(`Generating voice response for caller: ${caller}`);
+  logTwilio('VoiceCall', `Handling voice call from ${caller} to ${to} for assistant: ${assistant.name}`);
   
   try {
     // Parse the base URL to ensure we're using the right domain
@@ -193,23 +199,25 @@ function handleVoiceCall(assistant: any, caller: string, to: string, baseUrl: st
     callbackUrl.searchParams.set('to', to);
     
     console.log(`Setting voice callback URL: ${callbackUrl.toString()}`);
+    logTwilio('VoiceCall', `Setting voice transcription callback URL: ${callbackUrl.toString()}`);
     
-    // Generate TwiML that prompts the user and records their voice
+    // Generate a more natural-sounding greeting that flows directly into listening
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Hello, you've reached ${assistant.name}. How can I help you today?</Say>
-  <Gather input="speech" action="${callbackUrl.toString()}" speechTimeout="auto" language="en-US" enhanced="true" speechModel="phone_call" timeout="5">
-    <Say voice="alice">Please speak after the tone.</Say>
+  <Say voice="alice">Hello, this is ${assistant.name}. How can I help you today?</Say>
+  <Gather input="speech" action="${callbackUrl.toString()}" speechTimeout="auto" language="en-US" enhanced="true" speechModel="phone_call">
   </Gather>
-  <Say voice="alice">I didn't hear anything. Please call again if you'd like to speak with the assistant. Goodbye.</Say>
+  <Say voice="alice">I didn't hear anything. Please call again if you'd like to speak with me. Goodbye.</Say>
 </Response>`;
     
-    console.log(`Voice TwiML response: ${twimlResponse.replace(/\n/g, ' ')}`);
+    logTwilio('VoiceCall', `Generated welcome TwiML for assistant: ${assistant.name}`);
+    logTwimlResponse(twimlResponse);
+    
     return new Response(twimlResponse, {
       headers: { 'Content-Type': 'text/xml' }
     });
   } catch (error) {
-    console.error('Error generating voice TwiML:', error);
+    logTwilioError('VoiceCall', 'Error generating voice TwiML', error);
     // Simplified fallback response if anything fails
     const fallbackTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

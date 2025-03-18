@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import type { Tables } from '@/lib/db.types';
+import { logTwilio, logTwilioError } from '@/utils/twilio-logger';
 
 export async function POST(request: Request) {
   const startTime = new Date();
@@ -313,10 +314,9 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
   }
   
   try {
-    console.log(`[TWILIO][${new Date().toISOString()}] Creating TwiML app for phone number: ${phoneNumber}`);
-    console.log(`[TWILIO][${new Date().toISOString()}] Using webhook URL: ${webhookUrl}`);
-    console.log(`[TWILIO][${new Date().toISOString()}] Using audio URL: ${audioUrl || 'Not provided'}`);
-    console.log(`[TWILIO][${new Date().toISOString()}] Using Twilio account SID: ${accountSid.substring(0, 5)}...`);
+    logTwilio('Assignment', `Creating TwiML app for phone number: ${phoneNumber}`);
+    logTwilio('Assignment', `Using webhook URL: ${webhookUrl}`);
+    logTwilio('Assignment', `Using audio URL: ${audioUrl || 'Not provided'}`);
     
     // Dynamic import of twilio to avoid server-side issues
     const twilio = await import('twilio');
@@ -324,23 +324,23 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
     
     // Format number for Twilio if needed
     const formattedNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    console.log(`[TWILIO][${new Date().toISOString()}] Formatted phone number: ${formattedNumber}`);
+    logTwilio('Assignment', `Formatted phone number: ${formattedNumber}`);
     
     // Find the Twilio phone number
-    console.log(`[TWILIO][${new Date().toISOString()}] Looking up phone number in Twilio account...`);
+    logTwilio('Assignment', `Looking up phone number in Twilio account...`);
     const incomingPhoneNumbers = await client.incomingPhoneNumbers.list({
       phoneNumber: formattedNumber
     });
     
-    console.log(`[TWILIO][${new Date().toISOString()}] Found ${incomingPhoneNumbers.length} matching phone number(s)`);
+    logTwilio('Assignment', `Found ${incomingPhoneNumbers.length} matching phone number(s)`);
     
     if (!incomingPhoneNumbers || incomingPhoneNumbers.length === 0) {
-      console.error(`[TWILIO][${new Date().toISOString()}] No phone number found matching ${formattedNumber}`);
+      logTwilioError('Assignment', `No phone number found matching ${formattedNumber}`);
       throw new Error(`No Twilio number found matching ${phoneNumber}`);
     }
     
     // Log phone number details
-    console.log(`[TWILIO][${new Date().toISOString()}] Phone number details:`, {
+    logTwilio('Assignment', `Phone number details:`, {
       sid: incomingPhoneNumbers[0].sid,
       phoneNumber: incomingPhoneNumbers[0].phoneNumber,
       friendlyName: incomingPhoneNumbers[0].friendlyName,
@@ -351,16 +351,42 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
     
     const incomingPhoneNumberSid = incomingPhoneNumbers[0].sid;
     
-    // Create a new TwiML Application for SMS handling
+    // Create a new TwiML Application for SMS and Voice handling
     const friendlyName = `Communication Handler for ${phoneNumber} (${new Date().toISOString()})`;
-    console.log(`[TWILIO][${new Date().toISOString()}] Creating new TwiML app: ${friendlyName}`);
+    logTwilio('Assignment', `Creating new TwiML app: ${friendlyName}`);
     
-    // Create app with both voice and SMS using the same webhook URL
-    console.log(`[TWILIO][${new Date().toISOString()}] TwiML app creation params:`, {
+    // Make sure the webhook URL has assistantId as a query parameter
+    const webhookUrlObj = new URL(webhookUrl);
+    const assistantId = webhookUrlObj.searchParams.get('assistantId');
+    
+    // If the webhook URL doesn't have assistantId, log a warning
+    if (!assistantId) {
+      logTwilio('Assignment', `Warning: webhook URL does not contain assistantId parameter`);
+    }
+    
+    // Create a direct voice-transcription URL instead of using the webhook route
+    const voiceTranscriptionUrl = new URL('/api/twilio/voice-transcription', webhookUrlObj.origin);
+    
+    // Copy assistantId and any other needed parameters to the voice URL
+    if (assistantId) {
+      voiceTranscriptionUrl.searchParams.set('assistantId', assistantId);
+    }
+    
+    // Add token if present in the original webhook URL
+    const token = webhookUrlObj.searchParams.get('token');
+    if (token) {
+      voiceTranscriptionUrl.searchParams.set('token', token);
+    }
+    
+    logTwilio('Assignment', `Using SMS webhook URL: ${webhookUrl}`);
+    logTwilio('Assignment', `Using Voice transcription URL: ${voiceTranscriptionUrl.toString()}`);
+    
+    // Create app with separate URLs for SMS and Voice
+    logTwilio('Assignment', `TwiML app creation params:`, {
       friendlyName: friendlyName,
       smsUrl: webhookUrl,
       smsMethod: 'POST',
-      voiceUrl: webhookUrl,
+      voiceUrl: voiceTranscriptionUrl.toString(),
       voiceMethod: 'POST'
     });
     
@@ -368,17 +394,17 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
       friendlyName: friendlyName,
       smsUrl: webhookUrl,
       smsMethod: 'POST',
-      voiceUrl: webhookUrl,
+      voiceUrl: voiceTranscriptionUrl.toString(),
       voiceMethod: 'POST'
     });
     
     if (!newTwiMLApp || !newTwiMLApp.sid) {
-      console.error(`[TWILIO][${new Date().toISOString()}] Failed to create TwiML app, no SID returned`);
+      logTwilioError('Assignment', `Failed to create TwiML app, no SID returned`);
       throw new Error('Failed to create TwiML app: No SID returned from Twilio');
     }
     
-    console.log(`[TWILIO][${new Date().toISOString()}] Created TwiML app with SID: ${newTwiMLApp.sid}`);
-    console.log(`[TWILIO][${new Date().toISOString()}] TwiML app details:`, JSON.stringify({
+    logTwilio('Assignment', `Created TwiML app with SID: ${newTwiMLApp.sid}`);
+    logTwilio('Assignment', `TwiML app details:`, {
       sid: newTwiMLApp.sid,
       friendlyName: newTwiMLApp.friendlyName,
       dateCreated: newTwiMLApp.dateCreated,
@@ -386,59 +412,70 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
       smsMethod: newTwiMLApp.smsMethod,
       voiceUrl: newTwiMLApp.voiceUrl,
       voiceMethod: newTwiMLApp.voiceMethod
-    }, null, 2));
+    });
     
-    // Assign the TwiML app to the phone number (no need for separate voice settings)
-    console.log(`[TWILIO][${new Date().toISOString()}] Updating phone number ${formattedNumber} with TwiML app SID: ${newTwiMLApp.sid}`);
+    // Assign the TwiML app to the phone number for both voice and SMS
+    logTwilio('Assignment', `Updating phone number ${formattedNumber} with TwiML app SID: ${newTwiMLApp.sid}`);
     
-    const updateParams: any = {
+    const updateParams: {
+      smsApplicationSid: string,
+      voiceApplicationSid: string,
+      voiceReceiveMode: 'voice' | 'fax' | undefined
+    } = {
       smsApplicationSid: newTwiMLApp.sid,
-      voiceApplicationSid: newTwiMLApp.sid  // Use the same app for voice calls
+      voiceApplicationSid: newTwiMLApp.sid,  // Use the same app for voice calls
+      voiceReceiveMode: 'voice' // Enable voice capabilities
     };
     
-    console.log(`[TWILIO][${new Date().toISOString()}] Phone number update params:`, updateParams);
+    logTwilio('Assignment', `Phone number update params:`, updateParams);
     
     const updatedPhoneNumber = await client.incomingPhoneNumbers(incomingPhoneNumberSid)
       .update(updateParams);
     
     if (!updatedPhoneNumber || updatedPhoneNumber.smsApplicationSid !== newTwiMLApp.sid) {
-      console.error(`[TWILIO][${new Date().toISOString()}] Failed to update phone number with TwiML app SID`);
-      console.log(`[TWILIO][${new Date().toISOString()}] Updated phone number details:`, {
+      logTwilioError('Assignment', `Failed to update phone number with TwiML app SID`);
+      logTwilio('Assignment', `Updated phone number details:`, {
         sid: updatedPhoneNumber?.sid,
         phoneNumber: updatedPhoneNumber?.phoneNumber,
-        smsApplicationSid: updatedPhoneNumber?.smsApplicationSid
+        smsApplicationSid: updatedPhoneNumber?.smsApplicationSid,
+        voiceApplicationSid: updatedPhoneNumber?.voiceApplicationSid
       });
       
       // If the update didn't take, try to clean up
       try {
-        console.log(`[TWILIO][${new Date().toISOString()}] Cleaning up TwiML app due to failed update: ${newTwiMLApp.sid}`);
+        logTwilio('Assignment', `Cleaning up TwiML app due to failed update: ${newTwiMLApp.sid}`);
         await client.applications(newTwiMLApp.sid).remove();
       } catch (cleanupError) {
-        console.error(`[TWILIO][${new Date().toISOString()}] Failed to clean up TwiML app after failed phone update:`, cleanupError);
+        logTwilioError('Assignment', `Failed to clean up TwiML app after failed phone update:`, cleanupError);
       }
       throw new Error('Failed to assign TwiML app to phone number');
     }
     
-    console.log(`[TWILIO][${new Date().toISOString()}] Successfully assigned TwiML app to phone number ${phoneNumber}`);
-    console.log(`[TWILIO][${new Date().toISOString()}] Updated phone number details:`, {
+    logTwilio('Assignment', `Successfully assigned TwiML app to phone number ${phoneNumber}`);
+    logTwilio('Assignment', `Updated phone number details:`, {
       sid: updatedPhoneNumber.sid,
       phoneNumber: updatedPhoneNumber.phoneNumber,
       smsApplicationSid: updatedPhoneNumber.smsApplicationSid,
+      voiceApplicationSid: updatedPhoneNumber.voiceApplicationSid,
       smsUrl: updatedPhoneNumber.smsUrl,
-      smsMethod: updatedPhoneNumber.smsMethod
+      smsMethod: updatedPhoneNumber.smsMethod,
+      voiceUrl: updatedPhoneNumber.voiceUrl,
+      voiceMethod: updatedPhoneNumber.voiceMethod
     });
     
     // Before returning, fetch the TwiML app again to ensure all fields are populated
-    console.log(`[TWILIO][${new Date().toISOString()}] Verifying TwiML app configuration...`);
+    logTwilio('Assignment', `Verifying TwiML app configuration...`);
     const verifiedTwiMLApp = await client.applications(newTwiMLApp.sid).fetch();
     
-    console.log(`[TWILIO][${new Date().toISOString()}] Verified TwiML app details:`, JSON.stringify({
+    logTwilio('Assignment', `Verified TwiML app details:`, {
       sid: verifiedTwiMLApp.sid,
       friendlyName: verifiedTwiMLApp.friendlyName,
       dateCreated: verifiedTwiMLApp.dateCreated,
       smsUrl: verifiedTwiMLApp.smsUrl,
-      smsMethod: verifiedTwiMLApp.smsMethod
-    }, null, 2));
+      smsMethod: verifiedTwiMLApp.smsMethod,
+      voiceUrl: verifiedTwiMLApp.voiceUrl,
+      voiceMethod: verifiedTwiMLApp.voiceMethod
+    });
     
     // Add the phone number details to the returned object, including voice URL
     return {
@@ -447,16 +484,18 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
         sid: updatedPhoneNumber.sid,
         phoneNumber: updatedPhoneNumber.phoneNumber,
         smsApplicationSid: updatedPhoneNumber.smsApplicationSid,
-        voiceUrl: updatedPhoneNumber.voiceUrl || null
-      }
+        voiceApplicationSid: updatedPhoneNumber.voiceApplicationSid,
+        voiceUrl: updatedPhoneNumber.voiceUrl || webhookUrl
+      },
+      incomingPhoneNumbers: [updatedPhoneNumber]
     };
   } catch (error: any) {
-    console.error(`[TWILIO][${new Date().toISOString()}] Error configuring Twilio webhook:`, error);
+    logTwilioError('Assignment', `Error configuring Twilio webhook:`, error);
     if (error.code) {
-      console.error(`[TWILIO][${new Date().toISOString()}] Twilio error code: ${error.code}`);
+      logTwilioError('Assignment', `Twilio error code: ${error.code}`);
     }
     if (error.moreInfo) {
-      console.error(`[TWILIO][${new Date().toISOString()}] Twilio error info: ${error.moreInfo}`);
+      logTwilioError('Assignment', `Twilio error info: ${error.moreInfo}`);
     }
     throw new Error(`Twilio configuration failed: ${error.message}`);
   }
