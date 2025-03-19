@@ -168,7 +168,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
       .eq('id', assistantId);
     
     if (assistantError) {
-      console.error('Error updating assistant:', assistantError);
+      console.error('Error updating concierge:', assistantError);
       
       // Rollback phone number assignment
       await supabase
