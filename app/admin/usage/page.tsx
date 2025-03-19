@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../concierge/Loading';
+import { Loading } from '../../Concierge/Loading';
 import { fetchUsageData } from '../utils/adminUtils';
 import { 
   CircleDollarSign, 

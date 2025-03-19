@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     
     // Validate required fields
     if (!assistantId) {
-      return NextResponse.json({ error: 'Missing concierge id' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing Concierge id' }, { status: 400 });
     }
     
     const supabase = await createClient();
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         .single();
       
       if (assistantError || !assistantData) {
-        console.error('Error fetching concierge:', assistantError);
+        console.error('Error fetching Concierge:', assistantError);
         return NextResponse.json({ error: 'Concierge not found' }, { status: 404 });
       }
       

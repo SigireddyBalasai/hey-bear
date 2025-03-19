@@ -7,8 +7,8 @@ export default function conciergeButton() {
   const router = useRouter();
 
   return (
-    <Button onClick={() => router.push('/concierge')}>
-      Go to concierge
+    <Button onClick={() => router.push('/Concierge')}>
+      Go to Concierge
     </Button>
   );
 }

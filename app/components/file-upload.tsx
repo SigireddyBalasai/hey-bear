@@ -127,7 +127,7 @@ export function ConciergePhoneNumberSelector({
     }
 
     setIsAssigning(true);
-    console.log(`Starting phone number assignment: ${selectedNumber} for concierge: ${assistantId}`);
+    console.log(`Starting phone number assignment: ${selectedNumber} for Concierge: ${assistantId}`);
     
     try {
       // Now attempt the assignment
@@ -263,7 +263,7 @@ export function ConciergePhoneNumberSelector({
               <DialogHeader>
                 <DialogTitle>Assign Phone Number</DialogTitle>
                 <DialogDescription>
-                  Select a phone number to connect to this concierge. This will enable SMS conversations.
+                  Select a phone number to connect to this Concierge. This will enable SMS conversations.
                 </DialogDescription>
               </DialogHeader>
               
@@ -323,7 +323,7 @@ export function ConciergePhoneNumberSelector({
                           placeholder="https://your-webhook-url.com/path"
                         />
                         <p className="text-xs text-muted-foreground">
-                          The webhook URL will receive SMS events for this concierge.
+                          The webhook URL will receive SMS events for this Concierge.
                         </p>
                       </div>
                     </div>
@@ -331,10 +331,10 @@ export function ConciergePhoneNumberSelector({
                     <div className="bg-muted rounded-md p-3 text-sm">
                       <p>When you assign a phone number:</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>Users can interact with the concierge via SMS</li>
+                        <li>Users can interact with the Concierge via SMS</li>
                         <li>SMS messages will be forwarded to your webhook</li>
                         <li>Standard messaging rates may apply to end users</li>
-                        <li>One phone number can only be assigned to one concierge</li>
+                        <li>One phone number can only be assigned to one Concierge</li>
                       </ul>
                     </div>
                   </div>
@@ -364,9 +364,9 @@ export function ConciergePhoneNumberSelector({
       
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
-          <p>This concierge can receive and respond to SMS messages at this number.</p>
+          <p>This Concierge can receive and respond to SMS messages at this number.</p>
         ) : (
-          <p>Assign a phone number to enable SMS interactions with this concierge.</p>
+          <p>Assign a phone number to enable SMS interactions with this Concierge.</p>
         )}
       </div>
     </div>

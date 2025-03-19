@@ -27,7 +27,7 @@ export function SearchAndControls({
       <div className="relative flex-grow">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search concierge..."
+          placeholder="Search Concierge..."
           className="pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -65,7 +65,7 @@ export function SearchAndControls({
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              <span>New concierge</span>
+              <span>New Concierge</span>
             </Button>
           </DialogTrigger>
         </Dialog>

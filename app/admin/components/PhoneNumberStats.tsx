@@ -316,7 +316,7 @@ export function PhoneNumberStats() {
     const headers = [
       'Phone Number', 
       'Assigned', 
-      'concierge', 
+      'Concierge', 
       'Messages Sent', 
       'Messages Received',
       'Total Messages',

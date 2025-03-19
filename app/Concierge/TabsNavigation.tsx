@@ -42,7 +42,7 @@ type TabsNavigationProps = {
     return (
       <Tabs defaultValue="all" className="mb-6" onValueChange={setSelectedTab} value={selectedTab}>
         <TabsList>
-          <TabsTrigger value="all">All concierge</TabsTrigger>
+          <TabsTrigger value="all">All Concierge</TabsTrigger>
           <TabsTrigger value="favorites">Favorites</TabsTrigger>
           <TabsTrigger value="shared">Shared</TabsTrigger>
         </TabsList>

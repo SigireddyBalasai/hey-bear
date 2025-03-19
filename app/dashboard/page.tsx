@@ -10,6 +10,7 @@ import StatCard from './StatCard';
 import PlanUsage from './PlanUsage';
 import InteractionLog from './InteractionLog';
 import { useData } from './DataContext';
+import { createClient } from '@/utils/supabase/client';
 import { 
   Select,
   SelectContent,
@@ -35,15 +36,57 @@ const ConciergeInteractionDashboard = () => {
     fetchInteractions,
     pageSize,
     setPageSize,
-    assistantId // Add assistantId here
+    assistantId
   } = useData();
   
   const [activeTab, setActiveTab] = useState('table');
   const [showFilters, setShowFilters] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [assistantName, setAssistantName] = useState('');
+  
+  const supabase = createClient();
   
   const today = new Date();
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+  // Fetch user data from Supabase
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        console.error('Error fetching user:', error);
+        return;
+      }
+      
+      if (user) {
+        // Use the user's name from their profile data - could be from Google login
+        if (user.user_metadata && user.user_metadata.full_name) {
+          setUserName(user.user_metadata.full_name);
+        } else if (user.user_metadata && user.user_metadata.name) {
+          setUserName(user.user_metadata.name);
+        } else {
+          setUserName('User');
+        }
+        
+        // If assistantId is available, fetch the assistant's name
+        if (assistantId) {
+          const { data, error } = await supabase
+            .from('assistants')
+            .select('name')
+            .eq('id', assistantId)
+            .single();
+            
+          if (data && !error) {
+            setAssistantName(data.name);
+          }
+        }
+      }
+    };
+    
+    fetchUserData();
+  }, [supabase, assistantId]);
 
   // Using API pagination instead of client-side pagination
   useEffect(() => {
@@ -110,17 +153,18 @@ const ConciergeInteractionDashboard = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="mb-6">
-        <Link href="/concierge">
+        <Link href="/Concierge">
           <Button variant="outline" size="sm" className="flex items-center gap-1">
             <ArrowLeft className="h-4 w-4" />
-            Back to concierge
+            Back to Concierge
           </Button>
         </Link>
       </div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Syed's Concierge</h1>
-          {/* Removed phone number */}
+          <h1 className="text-2xl font-bold text-gray-900">
+            {userName ? `${userName}'s${assistantName ? ` ${assistantName}` : ' Concierge'}` : 'My Concierge'}
+          </h1>
         </div>
         <div className="text-right">
           <h2 className="text-xl font-semibold text-gray-800">Interaction Dashboard</h2>
@@ -204,14 +248,14 @@ const ConciergeInteractionDashboard = () => {
         <StatCard 
           title="Total Interactions" 
           value={stats.totalInteractions} 
-          description="Total messages or requests received by your concierge"
+          description="Total messages or requests received by your Concierge"
           loading={isLoading}
         />
         
         <StatCard 
           title="Active Contacts" 
           value={stats.activeContacts} 
-          description="Unique phone numbers that have interacted with your concierge"
+          description="Unique phone numbers that have interacted with your Concierge"
           loading={isLoading}
         />
         
@@ -225,7 +269,7 @@ const ConciergeInteractionDashboard = () => {
         <StatCard 
           title="Average Response Time" 
           value={stats.averageResponseTime} 
-          description="Average time for your concierge to respond to a message"
+          description="Average time for your Concierge to respond to a message"
           loading={isLoading}
         />
       </div>

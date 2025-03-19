@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     
     // Validate required fields
     if (!assistantName) {
-      return NextResponse.json({ error: 'concierge name is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Concierge name is required' }, { status: 400 });
     }
     
     const supabase = await createClient();
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         .eq('assistant_id', assistantName);
         
       if (deleteError) {
-        console.error('Error deleting concierge from database:', deleteError);
+        console.error('Error deleting Concierge from database:', deleteError);
         // We continue since the assistant was deleted from Pinecone already
       }
 
@@ -59,11 +59,11 @@ export async function POST(req: NextRequest) {
         console.error('Error cleaning up chat history:', chatDeleteError);
       }
 
-      return NextResponse.json({ message: `concierge ${assistantName} deleted` });
+      return NextResponse.json({ message: `Concierge ${assistantName} deleted` });
     } catch (apiError) {
-      console.error('Error deleting concierge:', apiError);
+      console.error('Error deleting Concierge:', apiError);
       return NextResponse.json(
-        { error: 'Failed to delete concierge' }, 
+        { error: 'Failed to delete Concierge' }, 
         { status: 500 }
       );
     }

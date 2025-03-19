@@ -55,8 +55,8 @@ export function Header({ user, handleSignOut }: HeaderProps) {
   return (
     <header className="flex justify-between items-center mb-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">concierge</h1>
-        <p className="text-muted-foreground">Manage your AI concierge</p>
+        <h1 className="text-3xl font-bold tracking-tight">Concierge</h1>
+        <p className="text-muted-foreground">Manage your AI Concierge</p>
       </div>
       
       <DropdownMenu>

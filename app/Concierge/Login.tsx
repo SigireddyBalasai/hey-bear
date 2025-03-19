@@ -9,7 +9,7 @@ export function Login() {
       <Card className="w-[350px]">
         <CardHeader>
           <CardTitle>Authentication Required</CardTitle>
-          <CardDescription>Please log in to access your concierge</CardDescription>
+          <CardDescription>Please log in to access your Concierge</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Button asChild size="lg" className="w-full">

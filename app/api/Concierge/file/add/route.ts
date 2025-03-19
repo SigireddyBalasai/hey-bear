@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         .single();
       
       if (assistantError || !assistantData) {
-        console.error('Error fetching concierge:', assistantError);
+        console.error('Error fetching Concierge:', assistantError);
         return NextResponse.json({ error: 'Concierge not found' }, { status: 404 });
       }
       

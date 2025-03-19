@@ -44,7 +44,7 @@ export async function POST(request: Request) {
           from = assistant.assigned_phone_number;
         }
       } catch (error) {
-        console.warn('Failed to get concierge phone number, using default');
+        console.warn('Failed to get Concierge phone number, using default');
       }
     }
     

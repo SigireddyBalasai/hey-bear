@@ -86,17 +86,17 @@ const [fileError, setFileError] = useState<{
           .single();
         
         if (error) {
-          console.error('Error fetching concierge:', error);
-          toast.error("concierge unavailable", {
-            description: "The concierge you tried to access is disabled or doesn't exist"
+          console.error('Error fetching Concierge:', error);
+          toast.error("Concierge unavailable", {
+            description: "The Concierge you tried to access is disabled or doesn't exist"
           });
-          router.push('/concierge');
+          router.push('/Concierge');
           return;
         }
         
         if (!data) {
-          toast.error("concierge not found", {
-            description: "This concierge no longer exists or has been disabled."
+          toast.error("Concierge not found", {
+            description: "This Concierge no longer exists or has been disabled."
           });
           router.push('/dashboard');
           return;
@@ -111,16 +111,16 @@ const [fileError, setFileError] = useState<{
           // Update document title
           document.title = `Chat with ${data.name}`;
         } else {
-          toast.error("concierge not found", {
-            description: "This concierge no longer exists or has been disabled."
+          toast.error("Concierge not found", {
+            description: "This Concierge no longer exists or has been disabled."
           });
           router.push('/dashboard');
           return;
         }
       } catch (error) {
-        console.error('Error loading concierge details:', error);
-        toast.error("concierge error", {
-          description: "Unable to load this concierge. Redirecting to concierge page."
+        console.error('Error loading Concierge details:', error);
+        toast.error("Concierge error", {
+          description: "Unable to load this Concierge. Redirecting to Concierge page."
         });
         router.push('/dashboard');
       }
@@ -141,8 +141,8 @@ const [fileError, setFileError] = useState<{
           .single();
 
         if (error) {
-          console.error("Error fetching concierge:", error);
-          toast.error("Failed to load concierge details.");
+          console.error("Error fetching Concierge:", error);
+          toast.error("Failed to load Concierge details.");
         }
 
         if (data) {
@@ -153,7 +153,7 @@ const [fileError, setFileError] = useState<{
         }
       } catch (error) {
         console.error("Unexpected error:", error);
-        toast.error("Failed to load concierge details due to an unexpected error.");
+        toast.error("Failed to load Concierge details due to an unexpected error.");
       } finally {
         setIsLoading(false);
       }
@@ -213,7 +213,7 @@ const [fileError, setFileError] = useState<{
         const isInitialLoad = isLoading;
         if (isInitialLoad) setIsLoading(true);
         
-        const res = await fetch('/api/concierge/file/list', {
+        const res = await fetch('/api/Concierge/file/list', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -261,7 +261,7 @@ const [fileError, setFileError] = useState<{
         } else {
           console.error("Error fetching files:", data.error);
           toast("Error fetching files",{
-            description: data.error || "Could not retrieve files for this concierge",
+            description: data.error || "Could not retrieve files for this Concierge",
           });
           setIsChatDisabled(true);
           setFileList({ files: [] });
@@ -328,7 +328,7 @@ const [fileError, setFileError] = useState<{
       setChatHistory([...chatHistory, userMessage]);
       setMessage('');
       
-      const res = await fetch('/api/concierge/chat', {
+      const res = await fetch('/api/Concierge/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -345,7 +345,7 @@ const [fileError, setFileError] = useState<{
         ]);
       } else {
         toast("Failed to get response", {
-          description: data.error || "The concierge couldn't process your request",
+          description: data.error || "The Concierge couldn't process your request",
         });
       }
     } catch (error) {
@@ -381,7 +381,7 @@ const [fileError, setFileError] = useState<{
       formData.append('pinecone_name', pinecone_name);
       formData.append('file', file);
       
-      const res = await fetch('/api/concierge/file/add', {
+      const res = await fetch('/api/Concierge/file/add', {
         method: 'POST',
         body: formData,
       });
@@ -392,7 +392,7 @@ const [fileError, setFileError] = useState<{
       const data = await res.json();
       if (res.ok) {
         toast("File uploaded successfully!",{
-          description: `${file.name} has been added to the concierge.`,
+          description: `${file.name} has been added to the Concierge.`,
         });
         setFile(null);
         await fetchFiles(); // Refresh files list
@@ -436,7 +436,7 @@ const [fileError, setFileError] = useState<{
         });
       }, 100);
       
-      const res = await fetch('/api/concierge/file/add-url', {
+      const res = await fetch('/api/Concierge/file/add-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -452,7 +452,7 @@ const [fileError, setFileError] = useState<{
       const data = await res.json();
       if (res.ok) {
         toast("URL added successfully!",{
-          description: `${url} has been added to the concierge.`,
+          description: `${url} has been added to the Concierge.`,
         });
         setUrl('');
         await fetchFiles(); // Refresh files list
@@ -494,7 +494,7 @@ const [fileError, setFileError] = useState<{
     setDeletingFileIds(prev => [...prev, fileId]);
     
     try {
-      const res = await fetch('/api/concierge/file/delete', {
+      const res = await fetch('/api/Concierge/file/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -574,7 +574,7 @@ const [fileError, setFileError] = useState<{
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-lg">Loading concierge...</p>
+          <p className="text-lg">Loading Concierge...</p>
         </div>
       </div>
     );
@@ -587,7 +587,7 @@ const [fileError, setFileError] = useState<{
         <Card className="w-[350px]">
           <CardHeader>
             <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>Please log in to continue using this concierge</CardDescription>
+            <CardDescription>Please log in to continue using this Concierge</CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => router.push('/sign-in')}>
@@ -614,7 +614,7 @@ const [fileError, setFileError] = useState<{
             if (activeTab === "files") {
               setActiveTab("chat");
             } else {
-              router.push('/concierge'); // Navigate to assistants page from chat tab
+              router.push('/Concierge'); // Navigate to assistants page from chat tab
             }
           }}
           className="hover:bg-muted"
@@ -647,7 +647,7 @@ const [fileError, setFileError] = useState<{
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {activeTab === "chat" ? "Manage concierge Files" : "Return to Chat"}
+              {activeTab === "chat" ? "Manage Concierge Files" : "Return to Chat"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -672,7 +672,7 @@ const [fileError, setFileError] = useState<{
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8 ring-2 ring-primary/10">
-                  <AvatarImage src="/bot-avatar.png" alt="concierge" />
+                  <AvatarImage src="/bot-avatar.png" alt="Concierge" />
                   <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
                 </Avatar>
                 <div>
@@ -700,7 +700,7 @@ const [fileError, setFileError] = useState<{
                   </h3>
                   <p className="text-muted-foreground max-w-md mt-2">
                     {!fileList?.files?.length 
-                      ? "This concierge needs document files to work. Please add at least one file."
+                      ? "This Concierge needs document files to work. Please add at least one file."
                       : "Ask me anything about the documents you've provided. I'm here to help!"}
                   </p>
                   {!fileList?.files?.length && (

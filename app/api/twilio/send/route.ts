@@ -21,12 +21,12 @@ export async function POST(req: Request) {
       .single();
     
     if (assistantError || !assistant) {
-      console.error('concierge not found:', assistantId, assistantError);
+      console.error('Concierge not found:', assistantId, assistantError);
       return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
     }
     
     if (!assistant.assigned_phone_number) {
-      return NextResponse.json({ error: 'This concierge does not have an assigned phone number' }, { status: 400 });
+      return NextResponse.json({ error: 'This Concierge does not have an assigned phone number' }, { status: 400 });
     }
     
     // Initialize Twilio client

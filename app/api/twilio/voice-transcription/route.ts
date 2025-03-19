@@ -113,7 +113,7 @@ export async function POST(req: Request) {
       try {
         // Get the base URL from the incoming request
         const baseUrl = new URL(req.url);
-        const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/concierge/chat`;
+        const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/Concierge/chat`;
         
         // Create a simplified message for voice interactions
         const systemMessage = "You are responding to a voice call. Keep your response concise, conversational, and under 150 words. Avoid using special characters or symbols that might be difficult to pronounce.";

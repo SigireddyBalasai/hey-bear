@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       .eq('id', assistantId);
     
     if (updateAssistantError) {
-      console.error(`[${new Date().toISOString()}] Phone Number Unassignment - Update concierge error:`, updateAssistantError);
+      console.error(`[${new Date().toISOString()}] Phone Number Unassignment - Update Concierge error:`, updateAssistantError);
       try {
         await supabase
           .from('phonenumbers')
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
       }
       
       return NextResponse.json(
-        { error: 'Failed to update concierge record' }, 
+        { error: 'Failed to update Concierge record' }, 
         { status: 500 }
       );
     }

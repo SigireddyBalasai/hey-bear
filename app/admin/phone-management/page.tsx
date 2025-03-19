@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../concierge/Loading';
+import { Loading } from '../../Concierge/Loading';
 import { AdminSidebar } from '../AdminSidebar';
 import { AdminHeader } from '../AdminHeader';
 import { Button } from '@/components/ui/button';

@@ -141,7 +141,7 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
         <Tabs defaultValue="summary">
           <TabsList className="grid grid-cols-3 mb-4">
             <TabsTrigger value="summary">Usage Summary</TabsTrigger>
-            <TabsTrigger value="concierge">concierge</TabsTrigger>
+            <TabsTrigger value="Concierge">Concierge</TabsTrigger>
             <TabsTrigger value="history">Activity History</TabsTrigger>
           </TabsList>
           
@@ -184,7 +184,7 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
             </Card>
           </TabsContent>
           
-          <TabsContent value="concierge">
+          <TabsContent value="Concierge">
             <Card>
               <CardHeader>
                 <CardTitle>User's concierges</CardTitle>
@@ -196,7 +196,7 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
                 <Shield className="mx-auto h-16 w-16 text-muted-foreground/30 mb-4" />
                 <p className="text-lg font-medium">No concierges data available</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                concierge usage data will appear here when available
+                Concierge usage data will appear here when available
                 </p>
               </CardContent>
               <CardFooter className="border-t pt-4">

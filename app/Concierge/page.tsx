@@ -26,6 +26,13 @@ export default function AssistantsPage() {
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [newAssistantName, setNewAssistantName] = useState('');
   const [newAssistantDescription, setNewAssistantDescription] = useState('');
+  // New fields for assistant creation
+  const [conciergeName, setConciergeName] = useState('');
+  const [conciergePersonality, setConciergePersonality] = useState('Business Casual');
+  const [businessName, setBusinessName] = useState('');
+  const [sharePhoneNumber, setSharePhoneNumber] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -76,7 +83,7 @@ export default function AssistantsPage() {
         .eq('user_id', userData.id);
       
       if (assistantsError) {
-        console.error('Error fetching concierge:', assistantsError);
+        console.error('Error fetching Concierge:', assistantsError);
         return;
       }
       
@@ -116,7 +123,7 @@ export default function AssistantsPage() {
   const handleCreateAssistant = async () => {
     if (!newAssistantName.trim()) {
       toast("Name required", {
-        description: "Please provide a name for your concierge",
+        description: "Please provide a name for your Concierge",
       });
       return;
     }
@@ -124,15 +131,34 @@ export default function AssistantsPage() {
     try {
       setIsCreating(true);
       
-      // Send request to our backend API
-      const response = await fetch('/api/concierge/create', {
+      // Create a structured params object that includes all the new fields
+      const assistantParams = {
+        description: newAssistantDescription,
+        conciergeName: conciergeName || newAssistantName, // Default to assistant name if not provided
+        conciergePersonality: conciergePersonality,
+        businessName: businessName,
+        sharePhoneNumber: sharePhoneNumber,
+        phoneNumber: sharePhoneNumber ? phoneNumber : null,
+        // Include a system prompt that utilizes these parameters
+        systemPrompt: generateSystemPrompt({
+          conciergeName: conciergeName || newAssistantName,
+          conciergePersonality: conciergePersonality,
+          businessName: businessName,
+          description: newAssistantDescription,
+          sharePhoneNumber: sharePhoneNumber,
+          phoneNumber: sharePhoneNumber ? phoneNumber : null,
+        }),
+      };
+      
+      // Send request to our backend API with the structured params
+      const response = await fetch('/api/Concierge/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           assistantName: newAssistantName,
-          description: newAssistantDescription,
+          params: assistantParams,
         }),
       });
       
@@ -145,10 +171,15 @@ export default function AssistantsPage() {
       // Reset form fields and close dialog
       setNewAssistantName('');
       setNewAssistantDescription('');
+      setConciergeName('');
+      setConciergePersonality('Business Casual');
+      setBusinessName('');
+      setSharePhoneNumber(false);
+      setPhoneNumber('');
       setCreateDialogOpen(false);
       
       // Show success toast
-      toast("concierge created", {
+      toast("Concierge created", {
         description: `${newAssistantName} has been created successfully`,
       });
       
@@ -156,13 +187,50 @@ export default function AssistantsPage() {
       await fetchAssistants();
       
     } catch (error: any) {
-      console.error('Error creating concierge:', error);
+      console.error('Error creating Concierge:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while creating the concierge",
+        description: error.message || "Something went wrong while creating the Concierge",
       });
     } finally {
       setIsCreating(false);
     }
+  };
+
+  // Helper function to generate a system prompt based on Concierge parameters
+  const generateSystemPrompt = ({
+    conciergeName,
+    conciergePersonality,
+    businessName,
+    description,
+    sharePhoneNumber,
+    phoneNumber,
+  }: {
+    conciergeName: string;
+    conciergePersonality: string;
+    businessName: string;
+    description: string;
+    sharePhoneNumber: boolean;
+    phoneNumber: string | null;
+  }) => {
+    let prompt = `You are ${conciergeName}, an AI Concierge`;
+    
+    if (businessName) {
+      prompt += ` for ${businessName}`;
+    }
+    
+    prompt += `. Your communication style is ${conciergePersonality.toLowerCase()}.`;
+    
+    if (description) {
+      prompt += `\n\nYour primary function: ${description}`;
+    }
+    
+    if (sharePhoneNumber && phoneNumber) {
+      prompt += `\n\nWhen someone asks for contact information or how to reach ${businessName || 'us'} directly, provide this phone number: ${phoneNumber}.`;
+    }
+    
+    prompt += `\n\nAlways be helpful, accurate, and respond in a ${conciergePersonality.toLowerCase()} tone. If you don't know something, admit it rather than making up information.`;
+    
+    return prompt;
   };
 
   // Handle deleting an assistant
@@ -173,7 +241,7 @@ export default function AssistantsPage() {
       
       if (!assistantToDelete) {
         toast("Error", {
-          description: "concierge not found",
+          description: "Concierge not found",
         });
         return;
       }
@@ -191,13 +259,13 @@ export default function AssistantsPage() {
       // Update local state
       setAssistants(assistants.filter(a => a.id !== assistantId));
       
-      toast("concierge deleted", {
+      toast("Concierge deleted", {
         description: `${assistantToDelete.name} has been removed`,
       });
     } catch (error: any) {
-      console.error('Error deleting concierge:', error);
+      console.error('Error deleting Concierge:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while deleting the concierge",
+        description: error.message || "Something went wrong while deleting the Concierge",
       });
     }
   };
@@ -274,7 +342,7 @@ export default function AssistantsPage() {
     } catch (error: any) {
       console.error('Error toggling star:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while updating the concierge",
+        description: error.message || "Something went wrong while updating the Concierge",
       });
     }
   };
@@ -315,6 +383,16 @@ export default function AssistantsPage() {
         setNewAssistantName={setNewAssistantName}
         newAssistantDescription={newAssistantDescription}
         setNewAssistantDescription={setNewAssistantDescription}
+        conciergeName={conciergeName}
+        setConciergeName={setConciergeName}
+        conciergePersonality={conciergePersonality}
+        setConciergePersonality={setConciergePersonality}
+        businessName={businessName}
+        setBusinessName={setBusinessName}
+        sharePhoneNumber={sharePhoneNumber}
+        setSharePhoneNumber={setSharePhoneNumber}
+        phoneNumber={phoneNumber}
+        setPhoneNumber={setPhoneNumber}
         handleCreateAssistant={handleCreateAssistant}
         isCreating={isCreating}
       />
