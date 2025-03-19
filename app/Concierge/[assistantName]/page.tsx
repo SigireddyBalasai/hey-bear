@@ -640,7 +640,7 @@ const [fileError, setFileError] = useState<{
                 className="shadow-sm hover:bg-accent"
               >
                 {activeTab === "chat" ? (
-                  <><Paperclip className="h-4 w-4 mr-2" /> Manage Files</>
+                  <><Paperclip className="h-4 w-4 mr-2" /> Manage Concierge Knowledge</>
                 ) : (
                   <><Bot className="h-4 w-4 mr-2" /> Back to Chat</>
                 )}
@@ -850,7 +850,7 @@ const [fileError, setFileError] = useState<{
         <TabsContent value="files" className="flex-1 flex flex-col space-y-4 mt-0">
           <Card className="flex-1 flex flex-col border-muted shadow-lg">
             <CardHeader className="border-b">
-              <CardTitle>Manage Files</CardTitle>
+              <CardTitle>Manage Concierge Knowledge</CardTitle>
               <CardDescription>
                 Add or remove files for {displayName} to use in conversations
               </CardDescription>
