@@ -187,7 +187,7 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
           <TabsContent value="Concierge">
             <Card>
               <CardHeader>
-                <CardTitle>User's concierges</CardTitle>
+                <CardTitle>Concierge Overview</CardTitle>
                 <CardDescription>
                 concierges created by this user
                 </CardDescription>
