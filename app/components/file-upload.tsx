@@ -127,7 +127,7 @@ export function ConciergePhoneNumberSelector({
     }
 
     setIsAssigning(true);
-    console.log(`Starting phone number assignment: ${selectedNumber} for assistant: ${assistantId}`);
+    console.log(`Starting phone number assignment: ${selectedNumber} for concierge: ${assistantId}`);
     
     try {
       // Now attempt the assignment
@@ -263,7 +263,7 @@ export function ConciergePhoneNumberSelector({
               <DialogHeader>
                 <DialogTitle>Assign Phone Number</DialogTitle>
                 <DialogDescription>
-                  Select a phone number to connect to this assistant. This will enable SMS conversations.
+                  Select a phone number to connect to this concierge. This will enable SMS conversations.
                 </DialogDescription>
               </DialogHeader>
               
@@ -323,7 +323,7 @@ export function ConciergePhoneNumberSelector({
                           placeholder="https://your-webhook-url.com/path"
                         />
                         <p className="text-xs text-muted-foreground">
-                          The webhook URL will receive SMS events for this assistant.
+                          The webhook URL will receive SMS events for this concierge.
                         </p>
                       </div>
                     </div>
@@ -334,7 +334,7 @@ export function ConciergePhoneNumberSelector({
                         <li>Users can interact with the concierge via SMS</li>
                         <li>SMS messages will be forwarded to your webhook</li>
                         <li>Standard messaging rates may apply to end users</li>
-                        <li>One phone number can only be assigned to one assistant</li>
+                        <li>One phone number can only be assigned to one concierge</li>
                       </ul>
                     </div>
                   </div>

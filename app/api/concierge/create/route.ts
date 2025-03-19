@@ -125,11 +125,11 @@ export async function POST(req: NextRequest) {
         } catch (pineconeError: any) {
           // If the assistant already exists, retry with a new name
           if (pineconeError.message && pineconeError.message.includes('ALREADY_EXISTS')) {
-            console.log('Assistant already exists in Pinecone, generating new name');
+            console.log('concierge already exists in Pinecone, generating new name');
             attempts++;
             
             if (attempts >= MAX_ATTEMPTS) {
-              throw new Error('Failed to create assistant after multiple attempts. Please try again later.');
+              throw new Error('Failed to create concierge after multiple attempts. Please try again later.');
             }
             
             // Generate a new name for the next attempt
@@ -160,8 +160,8 @@ export async function POST(req: NextRequest) {
       const { error } = await supabase.from('assistants').insert(assistantData);
 
       if (error) {
-        console.error('Error saving assistant to Supabase:', error);
-        return NextResponse.json({ error: 'Failed to save assistant to database' }, { status: 500 });
+        console.error('Error saving concierge to Supabase:', error);
+        return NextResponse.json({ error: 'Failed to save concierge to database' }, { status: 500 });
       }
 
       return NextResponse.json({ 

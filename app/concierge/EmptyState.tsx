@@ -14,11 +14,11 @@ export function EmptyState({ searchQuery, setSearchQuery, setCreateDialogOpen }:
       <div className="bg-muted rounded-full p-4 mb-4">
         <Bot className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="text-xl font-semibold mb-2">No assistants found</h3>
+      <h3 className="text-xl font-semibold mb-2">No concierge found</h3>
       <p className="text-muted-foreground max-w-md mb-6">
         {searchQuery ?
-          `No assistants match your search for "${searchQuery}"` :
-          "You don't have any assistants yet. Create your first one to get started."}
+          `No concierge match your search for "${searchQuery}"` :
+          "You don't have any concierge yet. Create your first one to get started."}
       </p>
       {searchQuery ? (
         <Button variant="outline" onClick={() => setSearchQuery('')}>
@@ -27,7 +27,7 @@ export function EmptyState({ searchQuery, setSearchQuery, setCreateDialogOpen }:
       ) : (
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Create Assistant
+          Create concierge
         </Button>
       )}
     </div>

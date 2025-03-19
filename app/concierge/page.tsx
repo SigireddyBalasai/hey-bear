@@ -76,7 +76,7 @@ export default function AssistantsPage() {
         .eq('user_id', userData.id);
       
       if (assistantsError) {
-        console.error('Error fetching assistants:', assistantsError);
+        console.error('Error fetching concierge:', assistantsError);
         return;
       }
       
@@ -98,7 +98,7 @@ export default function AssistantsPage() {
         setAssistants([]);
       }
     } catch (error) {
-      console.error('Error in fetchAssistants:', error);
+      console.error('Error in fetchconcierge:', error);
       toast("Connection error", {
         description: "Failed to connect to the server",
       });
@@ -116,7 +116,7 @@ export default function AssistantsPage() {
   const handleCreateAssistant = async () => {
     if (!newAssistantName.trim()) {
       toast("Name required", {
-        description: "Please provide a name for your assistant",
+        description: "Please provide a name for your concierge",
       });
       return;
     }
@@ -148,7 +148,7 @@ export default function AssistantsPage() {
       setCreateDialogOpen(false);
       
       // Show success toast
-      toast("Assistant created", {
+      toast("concierge created", {
         description: `${newAssistantName} has been created successfully`,
       });
       
@@ -156,9 +156,9 @@ export default function AssistantsPage() {
       await fetchAssistants();
       
     } catch (error: any) {
-      console.error('Error creating assistant:', error);
+      console.error('Error creating concierge:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while creating the assistant",
+        description: error.message || "Something went wrong while creating the concierge",
       });
     } finally {
       setIsCreating(false);
@@ -173,7 +173,7 @@ export default function AssistantsPage() {
       
       if (!assistantToDelete) {
         toast("Error", {
-          description: "Assistant not found",
+          description: "concierge not found",
         });
         return;
       }
@@ -191,13 +191,13 @@ export default function AssistantsPage() {
       // Update local state
       setAssistants(assistants.filter(a => a.id !== assistantId));
       
-      toast("Assistant deleted", {
+      toast("concierge deleted", {
         description: `${assistantToDelete.name} has been removed`,
       });
     } catch (error: any) {
-      console.error('Error deleting assistant:', error);
+      console.error('Error deleting concierge:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while deleting the assistant",
+        description: error.message || "Something went wrong while deleting the concierge",
       });
     }
   };
@@ -274,7 +274,7 @@ export default function AssistantsPage() {
     } catch (error: any) {
       console.error('Error toggling star:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while updating the assistant",
+        description: error.message || "Something went wrong while updating the concierge",
       });
     }
   };

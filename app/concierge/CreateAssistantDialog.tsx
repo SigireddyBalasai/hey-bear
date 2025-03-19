@@ -31,9 +31,9 @@ export function CreateAssistantDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create New Assistant</DialogTitle>
+          <DialogTitle>Create New concierge</DialogTitle>
           <DialogDescription>
-            Give your assistant a name and description
+            Give your concierge a name and description
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -43,7 +43,7 @@ export function CreateAssistantDialog({
             </label>
             <Input
               id="name"
-              placeholder="e.g., Research Assistant"
+              placeholder="e.g., Research concierge"
               value={newAssistantName}
               onChange={(e) => setNewAssistantName(e.target.value)}
             />
@@ -54,7 +54,7 @@ export function CreateAssistantDialog({
             </label>
             <Textarea
               id="description"
-              placeholder="What can this assistant help with?"
+              placeholder="What can this concierge help with?"
               value={newAssistantDescription}
               onChange={(e) => setNewAssistantDescription(e.target.value)}
               className="min-h-[100px]"

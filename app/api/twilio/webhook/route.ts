@@ -39,8 +39,8 @@ export async function POST(req: Request) {
     }
     
     if (!assistantId) {
-      console.log(`No assistantId provided, cannot process request`);
-      return generateSmsResponse('Assistant ID is required');
+      console.log(`No concierge provided, cannot process request`);
+      return generateSmsResponse('concierge ID is required');
     }
     
     console.log(`Using assistantId from URL param: ${assistantId}`);
@@ -67,14 +67,14 @@ export async function POST(req: Request) {
       .single();
     
     if (error || !assistant) {
-      console.error('Error fetching assistant by ID:', error);
-      return generateSmsResponse('Assistant not found');
+      console.error('Error fetching concierge by ID:', error);
+      return generateSmsResponse('concierge not found');
     }
     
-    console.log(`Found assistant: ${assistant.name} (ID: ${assistant.id})`);
+    console.log(`Found concierge: ${assistant.name} (ID: ${assistant.id})`);
     
     // Handle SMS message
-    logTwilio('Webhook', `Processing SMS message for assistant ${assistantId}`);
+    logTwilio('Webhook', `Processing SMS message for concierge ${assistantId}`);
     
     try {
       // Get the base URL from the incoming request
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       const baseUrl = new URL(req.url);
       const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/concierge/chat`;
       
-      console.log(`Calling assistant chat API at: ${apiUrl}`);
+      console.log(`Calling concierges chat API at: ${apiUrl}`);
       logTwilio('Webhook', `Calling chat API with message: ${body.substring(0, 30)}${body.length > 30 ? '...' : ''}`);
       
       const chatPayload = {

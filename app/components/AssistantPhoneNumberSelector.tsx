@@ -206,7 +206,7 @@ export function AssistantPhoneNumberSelector({
               <DialogHeader>
                 <DialogTitle>Assign Phone Number</DialogTitle>
                 <DialogDescription>
-                  Select a phone number to connect to this assistant. This will enable SMS conversations.
+                  Select a phone number to connect to this concierge. This will enable SMS conversations.
                 </DialogDescription>
               </DialogHeader>
               
@@ -248,10 +248,10 @@ export function AssistantPhoneNumberSelector({
                     <div className="bg-muted rounded-md p-3 text-sm">
                       <p>When you assign a phone number:</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>Users can interact with the assistant via SMS</li>
+                        <li>Users can interact with the concierge via SMS</li>
                         <li>SMS messages will be forwarded to your webhook</li>
                         <li>Standard messaging rates may apply to end users</li>
-                        <li>One phone number can only be assigned to one assistant</li>
+                        <li>One phone number can only be assigned to one concierge</li>
                       </ul>
                     </div>
                   </div>
@@ -281,9 +281,9 @@ export function AssistantPhoneNumberSelector({
       
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
-          <p>This assistant can receive and respond to SMS messages at this number.</p>
+          <p>This concierge can receive and respond to SMS messages at this number.</p>
         ) : (
-          <p>Assign a phone number to enable SMS interactions with this assistant.</p>
+          <p>Assign a phone number to enable SMS interactions with this concierge.</p>
         )}
       </div>
     </div>

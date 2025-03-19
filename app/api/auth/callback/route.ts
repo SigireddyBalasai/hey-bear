@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') || '/assistants';
+  const next = searchParams.get('next') || '/concierge';
   
   if (code) {
     const supabase = await createClient();

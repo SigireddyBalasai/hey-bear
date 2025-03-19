@@ -235,7 +235,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
           </Button>
         </CardTitle>
         <CardDescription>
-          Manage Twilio phone numbers for your assistants
+          Manage Twilio phone numbers for your concierges
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -251,20 +251,20 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
           <TabsContent value="assigned">
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground mb-2">
-                These phone numbers are currently assigned to assistants.
+                These phone numbers are currently assigned to concierge.
               </div>
               
               {isLoading ? (
                 <div className="py-8 text-center">Loading assigned numbers...</div>
               ) : assignedNumbers.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
-                  No phone numbers are currently assigned to any assistants.
+                  No phone numbers are currently assigned to any concierge.
                 </div>
               ) : (
                 <div className="rounded-md border">
                   <div className="grid grid-cols-3 px-4 py-3 bg-muted font-medium">
                     <div>Phone Number</div>
-                    <div>Assigned Assistant</div>
+                    <div>Assigned concierge</div>
                     <div className="text-right">Actions</div>
                   </div>
                   <div className="divide-y">
@@ -300,7 +300,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
           <TabsContent value="available">
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground mb-2">
-                These phone numbers are available for assignment to assistants.
+                These phone numbers are available for assignment to concierge.
               </div>
               
               <div className="flex justify-between mb-4">
@@ -319,7 +319,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
                     <DialogHeader>
                       <DialogTitle>Assign Phone Number</DialogTitle>
                       <DialogDescription>
-                        Select a phone number and an assistant to connect them.
+                        Select a phone number and an concierge to connect them.
                       </DialogDescription>
                     </DialogHeader>
                     
@@ -344,7 +344,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
                         <Label htmlFor="assistant">Assistant</Label>
                         <Select value={selectedAssistantId} onValueChange={setSelectedAssistantId}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select an assistant" />
+                            <SelectValue placeholder="Select an concierge" />
                           </SelectTrigger>
                           <SelectContent>
                             {assistants.map(assistant => (
@@ -412,7 +412,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
               )}
               
               <div className="mt-4 text-sm text-muted-foreground">
-                <p>Need to assign numbers? Make sure you have assistants without assigned phone numbers available.</p>
+                <p>Need to assign numbers? Make sure you have concierge without assigned phone numbers available.</p>
               </div>
             </div>
           </TabsContent>

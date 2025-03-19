@@ -53,11 +53,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Concierge not found' }, { status: 404 });
     }
     const { pinecone_name, name: assistantName } = assistantData;
-    console.log(`Found assistant: name=${assistantName}, pinecone_name=${pinecone_name}`);
+    console.log(`Found concierge: name=${assistantName}, pinecone_name=${pinecone_name}`);
     
     if (!pinecone_name) {
-      console.error('Invalid assistant configuration: missing Pinecone name');
-      return NextResponse.json({ error: 'Invalid assistant configuration: missing Pinecone name' }, { status: 500 });
+      console.error('Invalid concierge configuration: missing Pinecone name');
+      return NextResponse.json({ error: 'Invalid concierge configuration: missing Pinecone name' }, { status: 500 });
     }
 
     // Handle Pinecone assistant
@@ -69,11 +69,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
       }
 
-      console.log(`Creating Pinecone assistant with name: ${pinecone_name}`);
+      console.log(`Creating Pinecone concierge with name: ${pinecone_name}`);
       const assistant = pinecone.Assistant(pinecone_name);
       if (!assistant) {
-        console.error('Failed to create Pinecone assistant');
-        return NextResponse.json({ error: 'Failed to create assistant' }, { status: 500 });
+        console.error('Failed to create Pinecone concierge');
+        return NextResponse.json({ error: 'Failed to create concierge' }, { status: 500 });
       }
 
       // Prepare chat messages with optional system override
@@ -85,18 +85,18 @@ export async function POST(req: NextRequest) {
       
       messages.push({ role: 'user', content: message });
       
-      console.log('Sending message to assistant for processing...');
+      console.log('Sending message to concierge for processing...');
       console.log(`Messages: ${JSON.stringify(messages)}`);
 
       // Try sending the message with detailed error logging
       let response;
       try {
         response = await assistant.chat({ messages });
-        console.log('Received response from assistant');
+        console.log('Received response from concierge');
       } catch (assistantError: unknown) {
         console.error('Error from Pinecone assistant chat:', assistantError);
         const errorMessage = assistantError instanceof Error ? assistantError.message : String(assistantError);
-        throw new Error(`Failed to get response from assistant: ${errorMessage}`);
+        throw new Error(`Failed to get response from concierge: ${errorMessage}`);
       }
       
       // Record the response timestamp
@@ -105,12 +105,12 @@ export async function POST(req: NextRequest) {
       console.log(`Response time: ${responseDuration}ms`);
       
       if (!response || !response.message) {
-        console.error('Assistant returned no response');
-        return NextResponse.json({ error: 'Assistant returned no response' }, { status: 500 });
+        console.error('concierge returned no response');
+        return NextResponse.json({ error: 'concierge returned no response' }, { status: 500 });
       }
 
       // Log the response content
-      console.log(`Assistant response: "${response.message?.content?.substring(0, 100)}${(response.message?.content?.length || 0) > 100 ? '...' : ''}"`);
+      console.log(`concierge response: "${response.message?.content?.substring(0, 100)}${(response.message?.content?.length || 0) > 100 ? '...' : ''}"`);
 
       // Extract token usage and cost information from the response if available
       const tokenCount = response.usage?.totalTokens || 0
@@ -158,12 +158,12 @@ export async function POST(req: NextRequest) {
         .eq('id', assistantId);
 
       if (usageError) {
-        console.error('Error updating assistant usage:', usageError);
+        console.error('Error updating concierge usage:', usageError);
       } else {
-        console.log('Successfully updated assistant usage statistics');
+        console.log('Successfully updated concierge usage statistics');
       }
 
-      console.log(`[${responseTimestamp.toISOString()}] Assistant chat API completed successfully`);
+      console.log(`[${responseTimestamp.toISOString()}] concierge chat API completed successfully`);
       return NextResponse.json({ 
         response: response.message?.content || '',
         tokens: tokenCount,
@@ -175,9 +175,9 @@ export async function POST(req: NextRequest) {
         }
       });
     } catch (assistantError) {
-      console.error('Error interacting with assistant:', assistantError);
+      console.error('Error interacting with concierge:', assistantError);
       return NextResponse.json(
-        { error: 'Failed to process request with the assistant' }, 
+        { error: 'Failed to process request with the concierge' }, 
         { status: 500 }
       );
     }

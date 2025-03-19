@@ -86,17 +86,17 @@ const [fileError, setFileError] = useState<{
           .single();
         
         if (error) {
-          console.error('Error fetching assistant:', error);
-          toast.error("Assistant unavailable", {
-            description: "The assistant you tried to access is disabled or doesn't exist"
+          console.error('Error fetching concierge:', error);
+          toast.error("concierge unavailable", {
+            description: "The concierge you tried to access is disabled or doesn't exist"
           });
-          router.push('/assistants');
+          router.push('/concierge');
           return;
         }
         
         if (!data) {
-          toast.error("Assistant not found", {
-            description: "This assistant no longer exists or has been disabled."
+          toast.error("concierge not found", {
+            description: "This concierge no longer exists or has been disabled."
           });
           router.push('/dashboard');
           return;
@@ -111,16 +111,16 @@ const [fileError, setFileError] = useState<{
           // Update document title
           document.title = `Chat with ${data.name}`;
         } else {
-          toast.error("Assistant not found", {
-            description: "This assistant no longer exists or has been disabled."
+          toast.error("concierge not found", {
+            description: "This concierge no longer exists or has been disabled."
           });
           router.push('/dashboard');
           return;
         }
       } catch (error) {
-        console.error('Error loading assistant details:', error);
-        toast.error("Assistant error", {
-          description: "Unable to load this assistant. Redirecting to assistants page."
+        console.error('Error loading concierge details:', error);
+        toast.error("concierge error", {
+          description: "Unable to load this concierge. Redirecting to concierge page."
         });
         router.push('/dashboard');
       }
@@ -141,8 +141,8 @@ const [fileError, setFileError] = useState<{
           .single();
 
         if (error) {
-          console.error("Error fetching assistant:", error);
-          toast.error("Failed to load assistant details.");
+          console.error("Error fetching concierge:", error);
+          toast.error("Failed to load concierge details.");
         }
 
         if (data) {
@@ -153,7 +153,7 @@ const [fileError, setFileError] = useState<{
         }
       } catch (error) {
         console.error("Unexpected error:", error);
-        toast.error("Failed to load assistant details due to an unexpected error.");
+        toast.error("Failed to load concierge details due to an unexpected error.");
       } finally {
         setIsLoading(false);
       }
@@ -205,7 +205,6 @@ const [fileError, setFileError] = useState<{
   // Fetch files for the assistant
   const fetchFiles = async () => {
     if (!assistantId || !pinecone_name) {
-      // If we don't have valid assistant details, don't try to fetch files
       return;
     }
     
@@ -346,7 +345,7 @@ const [fileError, setFileError] = useState<{
         ]);
       } else {
         toast("Failed to get response", {
-          description: data.error || "The assistant couldn't process your request",
+          description: data.error || "The concierge couldn't process your request",
         });
       }
     } catch (error) {
@@ -453,7 +452,7 @@ const [fileError, setFileError] = useState<{
       const data = await res.json();
       if (res.ok) {
         toast("URL added successfully!",{
-          description: `${url} has been added to the assistant.`,
+          description: `${url} has been added to the concierge.`,
         });
         setUrl('');
         await fetchFiles(); // Refresh files list
@@ -575,7 +574,7 @@ const [fileError, setFileError] = useState<{
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-lg">Loading assistant...</p>
+          <p className="text-lg">Loading concierge...</p>
         </div>
       </div>
     );
@@ -588,7 +587,7 @@ const [fileError, setFileError] = useState<{
         <Card className="w-[350px]">
           <CardHeader>
             <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>Please log in to continue using this assistant</CardDescription>
+            <CardDescription>Please log in to continue using this concierge</CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => router.push('/sign-in')}>
@@ -615,7 +614,7 @@ const [fileError, setFileError] = useState<{
             if (activeTab === "files") {
               setActiveTab("chat");
             } else {
-              router.push('/assistants'); // Navigate to assistants page from chat tab
+              router.push('/concierge'); // Navigate to assistants page from chat tab
             }
           }}
           className="hover:bg-muted"
@@ -648,7 +647,7 @@ const [fileError, setFileError] = useState<{
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {activeTab === "chat" ? "Manage Assistant Files" : "Return to Chat"}
+              {activeTab === "chat" ? "Manage concierge Files" : "Return to Chat"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -673,7 +672,7 @@ const [fileError, setFileError] = useState<{
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8 ring-2 ring-primary/10">
-                  <AvatarImage src="/bot-avatar.png" alt="Assistant" />
+                  <AvatarImage src="/bot-avatar.png" alt="concierge" />
                   <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
                 </Avatar>
                 <div>
@@ -701,7 +700,7 @@ const [fileError, setFileError] = useState<{
                   </h3>
                   <p className="text-muted-foreground max-w-md mt-2">
                     {!fileList?.files?.length 
-                      ? "This assistant needs document files to work. Please add at least one file."
+                      ? "This concierge needs document files to work. Please add at least one file."
                       : "Ask me anything about the documents you've provided. I'm here to help!"}
                   </p>
                   {!fileList?.files?.length && (

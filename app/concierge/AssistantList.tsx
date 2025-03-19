@@ -73,7 +73,7 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {assistant.is_starred ? "Unstar" : "Star"} assistant
+                  {assistant.is_starred ? "Unstar" : "Star"} concierge
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -86,7 +86,7 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
         
         <div className="flex items-center gap-2 flex-shrink-0">
           <Badge variant="outline" className="hidden md:flex items-center">
-            <Bot className="mr-1 h-3 w-3" /> Assistant
+            <Bot className="mr-1 h-3 w-3" /> concierge
           </Badge>
           
           <p className="text-xs text-muted-foreground hidden lg:block">
@@ -101,7 +101,7 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                Delete assistant
+                Delete concierge
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -109,7 +109,7 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href={`/assistants/${assistant.id}`}>
+                <Link href={`/concierge/${assistant.id}`}>
                   <Button size="sm">
                     Open <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>

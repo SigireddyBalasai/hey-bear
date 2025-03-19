@@ -64,18 +64,18 @@ export async function POST(request: Request) {
       .single();
     
     if (assistantError || !assistantData) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Assistant not found`);
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - concierge not found`);
       return NextResponse.json(
-        { error: 'Assistant not found' }, 
+        { error: 'concierge not found' }, 
         { status: 404 }
       );
     }
     
     // Check if assistant already has a phone number
     if (assistantData.assigned_phone_number) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Assistant already has a phone number`);
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - concierge already has a phone number`);
       return NextResponse.json(
-        { error: 'Assistant already has a phone number assigned' }, 
+        { error: 'concierge already has a phone number assigned' }, 
         { status: 400 }
       );
     }
@@ -182,7 +182,7 @@ export async function POST(request: Request) {
       .eq('id', assistantId);
     
     if (updateAssistantError) {
-      console.error(`[${new Date().toISOString()}] Phone Number Assignment - Update assistant error:`, updateAssistantError);
+      console.error(`[${new Date().toISOString()}] Phone Number Assignment - Update concierge error:`, updateAssistantError);
       
       // Revert phone number assignment
       try {
@@ -207,7 +207,7 @@ export async function POST(request: Request) {
       }
       
       return NextResponse.json(
-        { error: 'Failed to update assistant record' }, 
+        { error: 'Failed to update concierge record' }, 
         { status: 500 }
       );
     }
@@ -361,7 +361,7 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
     
     // If the webhook URL doesn't have assistantId, log a warning
     if (!assistantId) {
-      logTwilio('Assignment', `Warning: webhook URL does not contain assistantId parameter`);
+      logTwilio('Assignment', `Warning: webhook URL does not contain concierge parameter`);
     }
     
     // Create a direct voice-transcription URL instead of using the webhook route

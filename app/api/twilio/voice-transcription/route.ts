@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       
       // Validate required parameters
       if (!assistantId) {
-        logTwilioError('VoiceTranscription', 'Missing assistantId parameter for initial voice call');
+        logTwilioError('VoiceTranscription', 'Missing conciergeId parameter for initial voice call');
         return generateBasicVoiceResponse("I'm sorry, but this call is not properly configured. Please try again later.");
       }
       

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     
     // Validate required fields
     if (!assistantName) {
-      return NextResponse.json({ error: 'Assistant name is required' }, { status: 400 });
+      return NextResponse.json({ error: 'concierge name is required' }, { status: 400 });
     }
     
     const supabase = await createClient();
@@ -59,11 +59,11 @@ export async function POST(req: NextRequest) {
         console.error('Error cleaning up chat history:', chatDeleteError);
       }
 
-      return NextResponse.json({ message: `Assistant ${assistantName} deleted` });
+      return NextResponse.json({ message: `concierge ${assistantName} deleted` });
     } catch (apiError) {
-      console.error('Error deleting assistant:', apiError);
+      console.error('Error deleting concierge:', apiError);
       return NextResponse.json(
-        { error: 'Failed to delete assistant' }, 
+        { error: 'Failed to delete concierge' }, 
         { status: 500 }
       );
     }

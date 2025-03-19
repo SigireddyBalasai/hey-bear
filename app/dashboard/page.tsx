@@ -110,10 +110,10 @@ const ConciergeInteractionDashboard = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="mb-6">
-        <Link href="/assistants">
+        <Link href="/concierge">
           <Button variant="outline" size="sm" className="flex items-center gap-1">
             <ArrowLeft className="h-4 w-4" />
-            Back to Assistants
+            Back to concierge
           </Button>
         </Link>
       </div>

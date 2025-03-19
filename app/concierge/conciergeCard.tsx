@@ -119,7 +119,7 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Link href={`/assistants/${assistant.id}`} className="w-full">
+              <Link href={`/concierge/${assistant.id}`} className="w-full">
                 <Button className="w-full">
                   Open Assistant
                 </Button>

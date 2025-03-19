@@ -540,7 +540,7 @@ export default function UsersPage() {
               <div>
                 <p className="font-medium text-amber-800">Warning</p>
                 <p className="text-sm text-amber-700">
-                  Deleting this user will remove all their assistants, conversations, and associated data.
+                  Deleting this user will remove all their concierge, conversations, and associated data.
                 </p>
               </div>
             </div>

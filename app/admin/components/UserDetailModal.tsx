@@ -141,7 +141,7 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
         <Tabs defaultValue="summary">
           <TabsList className="grid grid-cols-3 mb-4">
             <TabsTrigger value="summary">Usage Summary</TabsTrigger>
-            <TabsTrigger value="assistants">Assistants</TabsTrigger>
+            <TabsTrigger value="concierge">concierge</TabsTrigger>
             <TabsTrigger value="history">Activity History</TabsTrigger>
           </TabsList>
           
@@ -184,24 +184,24 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
             </Card>
           </TabsContent>
           
-          <TabsContent value="assistants">
+          <TabsContent value="concierge">
             <Card>
               <CardHeader>
-                <CardTitle>User's Assistants</CardTitle>
+                <CardTitle>User's concierges</CardTitle>
                 <CardDescription>
-                  Assistants created by this user
+                concierges created by this user
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center py-10">
                 <Shield className="mx-auto h-16 w-16 text-muted-foreground/30 mb-4" />
-                <p className="text-lg font-medium">No assistants data available</p>
+                <p className="text-lg font-medium">No concierges data available</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Assistant usage data will appear here when available
+                concierge usage data will appear here when available
                 </p>
               </CardContent>
               <CardFooter className="border-t pt-4">
                 <Button variant="outline" size="sm" className="ml-auto">
-                  View All Assistants
+                  View All concierges
                 </Button>
               </CardFooter>
             </Card>
