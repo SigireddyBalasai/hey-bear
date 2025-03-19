@@ -110,7 +110,7 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
       <CardContent className="flex-1">
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline" className="flex items-center">
-            <Bot className="mr-1 h-3 w-3" /> Assistant
+            <Bot className="mr-1 h-3 w-3" /> Concierge
           </Badge>
         </div>
       </CardContent>

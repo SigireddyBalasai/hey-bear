@@ -22,7 +22,7 @@ import { useDropzone } from "react-dropzone";
 import { FileStatusBadge } from "@/components/ui/file-status-badge";
 import { ProcessingFileIndicator } from "@/components/processing-file-indicator";
 import { FileErrorDialog } from "@/components/ui/file-error-dialog";
-import { AssistantPhoneNumberSelector } from '../AssistantPhoneNumberSelector';
+import { ConciergePhoneNumberSelector } from '../AssistantPhoneNumberSelector';
 
 // Replace the constant date with a function to ensure consistency on the client side
 const getCurrentTimestamp = () => {
@@ -261,11 +261,11 @@ const [fileError, setFileError] = useState<{
           setIsChatDisabled(readyFiles?.length === 0);
         } else {
           console.error("Error fetching files:", data.error);
+          toast("Error fetching files",{
+            description: data.error || "Could not retrieve files for this concierge",
+          });
           setIsChatDisabled(true);
           setFileList({ files: [] });
-          toast("Error fetching files",{
-            description: data.error || "Could not retrieve files for this assistant",
-          });
         }
       } catch (error) {
         console.error("Failed to fetch files:", error);
@@ -393,7 +393,7 @@ const [fileError, setFileError] = useState<{
       const data = await res.json();
       if (res.ok) {
         toast("File uploaded successfully!",{
-          description: `${file.name} has been added to the assistant.`,
+          description: `${file.name} has been added to the concierge.`,
         });
         setFile(null);
         await fetchFiles(); // Refresh files list
@@ -837,7 +837,7 @@ const [fileError, setFileError] = useState<{
           {/* Phone Number Assignment Section */}
           <Card className="border-muted shadow-sm">
             <CardContent className="p-4">
-              <AssistantPhoneNumberSelector 
+              <ConciergePhoneNumberSelector 
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
@@ -1077,7 +1077,7 @@ const [fileError, setFileError] = useState<{
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4">
-              <AssistantPhoneNumberSelector 
+              <ConciergePhoneNumberSelector 
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
