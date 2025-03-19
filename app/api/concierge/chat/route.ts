@@ -9,7 +9,7 @@ type Assistant = Tables<'assistants'>
 export async function POST(req: NextRequest) {
   // Record the request timestamp
   const requestTimestamp = new Date();
-  console.log(`[${requestTimestamp.toISOString()}] Assistant chat API called`);
+  console.log(`[${requestTimestamp.toISOString()}] Concierge chat API called`);
   
   try {
     // Validate request body
@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
       .single();
     
     if (assistantError || !assistantData) {
-      console.error('Error fetching assistant:', assistantError);
-      return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
+      console.error('Error fetching concierge:', assistantError);
+      return NextResponse.json({ error: 'Concierge not found' }, { status: 404 });
     }
     const { pinecone_name, name: assistantName } = assistantData;
     console.log(`Found assistant: name=${assistantName}, pinecone_name=${pinecone_name}`);

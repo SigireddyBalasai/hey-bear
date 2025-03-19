@@ -22,7 +22,7 @@ import { useDropzone } from "react-dropzone";
 import { FileStatusBadge } from "@/components/ui/file-status-badge";
 import { ProcessingFileIndicator } from "@/components/processing-file-indicator";
 import { FileErrorDialog } from "@/components/ui/file-error-dialog";
-import { ConciergePhoneNumberSelector } from '../AssistantPhoneNumberSelector';
+import { AssistantPhoneNumberSelector } from '@/app/components/AssistantPhoneNumberSelector';
 
 // Replace the constant date with a function to ensure consistency on the client side
 const getCurrentTimestamp = () => {
@@ -214,7 +214,7 @@ const [fileError, setFileError] = useState<{
         const isInitialLoad = isLoading;
         if (isInitialLoad) setIsLoading(true);
         
-        const res = await fetch('/api/assistant/file/list', {
+        const res = await fetch('/api/concierge/file/list', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -329,7 +329,7 @@ const [fileError, setFileError] = useState<{
       setChatHistory([...chatHistory, userMessage]);
       setMessage('');
       
-      const res = await fetch('/api/assistant/chat', {
+      const res = await fetch('/api/concierge/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -382,7 +382,7 @@ const [fileError, setFileError] = useState<{
       formData.append('pinecone_name', pinecone_name);
       formData.append('file', file);
       
-      const res = await fetch('/api/assistant/file/add', {
+      const res = await fetch('/api/concierge/file/add', {
         method: 'POST',
         body: formData,
       });
@@ -437,7 +437,7 @@ const [fileError, setFileError] = useState<{
         });
       }, 100);
       
-      const res = await fetch('/api/assistant/file/add-url', {
+      const res = await fetch('/api/concierge/file/add-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -495,7 +495,7 @@ const [fileError, setFileError] = useState<{
     setDeletingFileIds(prev => [...prev, fileId]);
     
     try {
-      const res = await fetch('/api/assistant/file/delete', {
+      const res = await fetch('/api/concierge/file/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -837,11 +837,11 @@ const [fileError, setFileError] = useState<{
           {/* Phone Number Assignment Section */}
           <Card className="border-muted shadow-sm">
             <CardContent className="p-4">
-              <ConciergePhoneNumberSelector 
+              <AssistantPhoneNumberSelector 
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
-                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/api/twilio/webhook?assistantId=${assistantId}`}
+                // webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/api/twilio/webhook?assistantId=${assistantId}`}
               />
             </CardContent>
           </Card>
@@ -1077,11 +1077,11 @@ const [fileError, setFileError] = useState<{
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4">
-              <ConciergePhoneNumberSelector 
+              <AssistantPhoneNumberSelector 
                 assistantId={assistantId}
                 onAssigned={handlePhoneNumberAssigned}
                 currentPhoneNumber={assignedPhoneNumber}
-                webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/api/twilio/webhook?assistantId=${assistantId}`}
+                // webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/api/twilio/webhook?assistantId=${assistantId}`}
               />
             </CardContent>
           </Card>

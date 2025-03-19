@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
         if (assistantError || !assistant) {
             return NextResponse.json(
-                { error: 'Assistant not found or you do not have permission to modify it' },
+                { error: 'Concierge not found or you do not have permission to modify it' },
                 { status: 404 }
             );
         }

@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
         .single();
       
       if (assistantError || !assistantData) {
-        console.error('Error fetching assistant:', assistantError);
-        return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
+        console.error('Error fetching concierge:', assistantError);
+        return NextResponse.json({ error: 'Concierge not found' }, { status: 404 });
       }
       
       assistantPineconeName = assistantData.pinecone_name;

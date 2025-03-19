@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       // Get the base URL from the incoming request
       // This ensures we use the same host that received the webhook
       const baseUrl = new URL(req.url);
-      const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/assistant/chat`;
+      const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/concierge/chat`;
       
       console.log(`Calling assistant chat API at: ${apiUrl}`);
       logTwilio('Webhook', `Calling chat API with message: ${body.substring(0, 30)}${body.length > 30 ? '...' : ''}`);

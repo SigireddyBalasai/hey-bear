@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         .eq('assistant_id', assistantName);
         
       if (deleteError) {
-        console.error('Error deleting assistant from database:', deleteError);
+        console.error('Error deleting concierge from database:', deleteError);
         // We continue since the assistant was deleted from Pinecone already
       }
 

@@ -1,5 +1,5 @@
 "use client";
-import { AssistantCard } from './AssistantCard';
+import { AssistantCard } from './conciergeCard';
 import { AssistantList } from './AssistantList';
 import { CreateAssistantDialog } from './CreateAssistantDialog';
 import { EmptyState } from './EmptyState';
@@ -125,7 +125,7 @@ export default function AssistantsPage() {
       setIsCreating(true);
       
       // Send request to our backend API
-      const response = await fetch('/api/assistant/create', {
+      const response = await fetch('/api/concierge/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
