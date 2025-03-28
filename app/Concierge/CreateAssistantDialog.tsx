@@ -127,7 +127,7 @@ export function CreateAssistantDialog({
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a personality style" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[200px] overflow-y-auto">
                 {personalityOptions.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
