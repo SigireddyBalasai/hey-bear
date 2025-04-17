@@ -29,7 +29,7 @@ import {
   UserRoundCog,
   AlertCircle
 } from "lucide-react";
-import { UserDetailModal } from './UserDetailModal';
+// import { UserDetailModal } from './UserDetailModal';
 import {
   Avatar,
   AvatarFallback,
@@ -328,12 +328,6 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
           </div>
         </div>
       )}
-      
-      <UserDetailModal 
-        isOpen={detailModalOpen} 
-        onClose={() => setDetailModalOpen(false)} 
-        userData={selectedUser} 
-      />
     </div>
   );
 }

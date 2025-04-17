@@ -52,7 +52,6 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
     setIsLoading(true);
     
     try {
-      // First get the assistant associated with this number
       const { data: assistantData, error: assistantError } = await supabase
         .from('assistants')
         .select('id, name, user_id, params')
@@ -152,14 +151,14 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
           <DialogDescription>
             {assistant ? (
               <div className="flex items-center gap-1">
-                <span>Connected to assistant:</span>
+                <span>Connected to Concierge:</span>
                 <Badge variant="secondary" className="ml-1">
                   <Bot className="h-3 w-3 mr-1" />
                   {assistant.name}
                 </Badge>
               </div>
             ) : (
-              <span>No assistant connected to this phone number</span>
+              <span>No Concierge connected to this phone number</span>
             )}
           </DialogDescription>
         </DialogHeader>

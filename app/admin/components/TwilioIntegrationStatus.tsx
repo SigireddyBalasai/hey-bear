@@ -92,7 +92,7 @@ export function TwilioIntegrationStatus() {
                     : status === 'warning'
                     ? numbers.total === 0
                       ? 'No phone numbers added to the system'
-                      : 'No phone numbers assigned to assistants'
+                      : 'No phone numbers assigned to Concierge'
                     : status === 'error'
                     ? 'Failed to check integration status'
                     : 'Checking integration status...'}

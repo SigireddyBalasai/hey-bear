@@ -1,5 +1,3 @@
-
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -69,7 +67,7 @@ CREATE OR REPLACE FUNCTION "public"."assign_phone_number"("p_assistant_id" "uuid
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-  -- Update assistant with assigned phone number
+  -- Update Concierge with assigned phone number
   UPDATE public.assistants
   SET assigned_phone_number = p_phone_number
   WHERE id = p_assistant_id;

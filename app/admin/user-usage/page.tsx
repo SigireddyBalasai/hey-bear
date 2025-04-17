@@ -4,45 +4,22 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../assistants/Loading';
+import { Loading } from '../../Concierge/Loading';
 import { 
-  Users, 
-  Clock, 
+  Users,
   BarChart3, 
   Scroll, 
   FileSpreadsheet, 
   Zap,
-  Search,
   Filter,
   Download,
-  Calendar
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminSidebar } from '../AdminSidebar';
 import { AdminHeader } from '../AdminHeader';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { UserUsageTable } from '../UserUsageTable';
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export default function UserUsagePage() {
   const [user, setUser] = useState<any>(null);
@@ -52,7 +29,7 @@ export default function UserUsagePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-    to: new Date()
+    to: new Date(Date.now()+ 24 * 60 * 60 * 1000)
   });
   
   const router = useRouter();
@@ -91,7 +68,7 @@ export default function UserUsagePage() {
         setIsAdmin(true);
         
         // Fetch usage data
-        await fetchUsageData();
+        // await fetchUsageData();
         
       } catch (error) {
         console.error('Error in checking admin status:', error);
@@ -122,10 +99,10 @@ export default function UserUsagePage() {
           token_usage,
           cost_estimate,
           date
-        `)
-        .gte('date', fromDate)
-        .lte('date', toDate)
-        .order('date', { ascending: false });
+        `);
+        // .gte('date', fromDate) // Removing date filters for now
+        // .lte('date', toDate)
+        // .order('date', { ascending: false });
       
       if (usageError) throw usageError;
       

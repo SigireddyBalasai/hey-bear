@@ -1,271 +1,234 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/utils/supabase/server-admin';
-import twilio from 'twilio';
-
-// Constants and types
-const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || 'webhook-token-123456';
-type TwiMLResponse = { message: string; isVoice?: boolean; logId?: string };
+import { createClient } from '@/utils/supabase/server';
+import { logTwilio, logTwilioError, formatTwilioWebhook, logTwimlResponse } from '@/utils/twilio-logger';
+import { sanitizeForSms, logIncomingSms } from '@/utils/sms-monitoring';
 
 export async function POST(req: Request) {
-  const startTime = new Date();
-  const logId = Math.random().toString(36).substring(7);
-  const logger = createLogger(logId);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] Twilio webhook received`);
+  logTwilio('Webhook', 'SMS webhook received');
   
   try {
-    logger.info('Webhook received');
-    
     // Parse and validate request
     const url = new URL(req.url);
-    const formData = await req.formData();
-    const requestData = Object.fromEntries(formData.entries());
-    
-    logger.debug('Request data:', { url: url.toString(), formData: requestData });
-
-    // Validate Twilio signature
-    if (!await validateTwilioRequest(req, url, requestData)) {
-      logger.error('Invalid Twilio signature');
-      return sendTwiMLResponse({ message: 'Unauthorized', logId });
-    }
-
-    // Extract assistant ID and validate request
     const assistantId = url.searchParams.get('assistantId');
+    const token = url.searchParams.get('token'); // Optional verification token
+    
+    console.log(`Request URL: ${req.url}`);
+    console.log(`Query parameters: ${JSON.stringify(Object.fromEntries(url.searchParams))}`);
+    
+    const formData = await req.formData();
+    console.log(`Form data keys: ${Array.from(formData.keys()).join(', ')}`);
+    
+    // Extract data from Twilio webhook
+    const from = formData.get('From') as string;
+    const to = formData.get('To') as string;
+    const body = formData.get('Body') as string;
+    
+    // Log information about received SMS
+    console.log(`Received SMS from ${from} to ${to}`);
+    if (body) {
+      console.log(`Message content: "${body.substring(0, 100)}${body.length > 100 ? '...' : ''}"`);
+      logIncomingSms(from, to, body);
+    }
+    
+    // Optional token verification - can be enabled in a production environment
+    if (process.env.VERIFY_WEBHOOK_TOKEN === 'true' && token !== process.env.WEBHOOK_TOKEN) {
+      console.error('Invalid webhook token');
+      return generateSmsResponse('Unauthorized webhook access');
+    }
+    
     if (!assistantId) {
-      logger.error('Missing assistantId');
-      return sendTwiMLResponse({ message: 'Missing assistant ID', logId });
+      console.log(`No Concierge provided, cannot process request`);
+      return generateSmsResponse('Concierge ID is required');
     }
-
-    // Extract message data
-    const { from, to, body, isVoice } = extractMessageData(formData);
-    if (!isValidMessageData(from, to, body, isVoice)) {
-      logger.error('Invalid message data');
-      return sendTwiMLResponse({ message: 'Invalid message data', logId });
+    
+    console.log(`Using assistantId from URL param: ${assistantId}`);
+    
+    if (!from || !to || !body) {
+      console.error('Missing required information:', { from: !!from, to: !!to, body: !!body });
+      return generateSmsResponse('Missing required information');
     }
-
+    
+    const supabase = await createClient();
+    console.log('Supabase client created');
+    
     // Get assistant details
-    const assistant = await getAssistantDetails(assistantId);
-    if (!assistant) {
-      logger.error('Assistant not found');
-      return sendTwiMLResponse({ message: 'Assistant not found', logId });
-    }
-
-    // Handle voice calls differently
-    if (isVoice) {
-      return handleVoiceCall(assistant, from, logId);
-    }
-
-    // Process message and get AI response
-    const aiResponse = await processMessage({
-      assistant,
-      message: body,
-      from,
-      to,
-      logId,
-      logger
-    });
-
-    logger.info('Request completed successfully');
-    return sendTwiMLResponse({ 
-      message: aiResponse,
-      logId 
-    });
-
-  } catch (error) {
-    logger.error('Webhook error:', error);
-    return sendTwiMLResponse({ 
-      message: 'An error occurred processing your message',
-      logId
-    });
-  }
-}
-
-// Helper functions
-function createLogger(logId: string) {
-  return {
-    info: (msg: string, data?: any) => console.log(`[${new Date().toISOString()}][${logId}] ${msg}`, data || ''),
-    error: (msg: string, data?: any) => console.error(`[${new Date().toISOString()}][${logId}] ${msg}`, data || ''),
-    debug: (msg: string, data?: any) => console.debug(`[${new Date().toISOString()}][${logId}] ${msg}`, data || '')
-  };
-}
-
-async function validateTwilioRequest(req: Request, url: URL, formData: any): Promise<boolean> {
-  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-  if (!twilioAuthToken) return true; // Skip validation if no auth token (development)
-
-  const twilioSignature = req.headers.get('x-twilio-signature') || '';
-  return twilio.validateRequest(
-    twilioAuthToken,
-    twilioSignature,
-    url.toString(),
-    formData
-  );
-}
-
-function extractMessageData(formData: FormData) {
-  return {
-    from: formData.get('From') as string,
-    to: formData.get('To') as string,
-    body: formData.get('Body') as string,
-    isVoice: !!formData.get('CallSid')
-  };
-}
-
-function isValidMessageData(from?: string, to?: string, body?: string, isVoice?: boolean): boolean {
-  return !!(from && to && (body || isVoice));
-}
-
-async function getAssistantDetails(assistantId: string) {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from('assistants')
-    .select('id, name, user_id, assigned_phone_number')
-    .eq('id', assistantId)
-    .single();
+    console.log(`Fetching assistant with ID: ${assistantId}`);
+    const { data: assistant, error } = await supabase
+      .from('assistants')
+      .select(`
+        id,
+        name,
+        user_id,
+        assigned_phone_number
+      `)
+      .eq('id', assistantId)
+      .single();
     
-  if (error || !data) return null;
-  return data;
-}
-
-function sendTwiMLResponse({ message, isVoice, logId }: TwiMLResponse): Response {
-  const escapedMessage = message
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-
-  const twiml = isVoice
-    ? `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="alice">${escapedMessage}</Say>
-</Response>`
-    : `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>${escapedMessage}</Message>
-</Response>`;
-
-  return new Response(twiml, {
-    headers: {
-      'Content-Type': 'text/xml; charset=utf-8',
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'X-Response-ID': logId || 'unknown'
+    if (error || !assistant) {
+      console.error('Error fetching Concierge by ID:', error);
+      return generateSmsResponse('Concierge not found');
     }
-  });
-}
-
-async function processMessage({ 
-  assistant, 
-  message, 
-  from, 
-  to, 
-  logId,
-  logger 
-}: {
-  assistant: any;
-  message: string;
-  from: string;
-  to: string;
-  logId: string;
-  logger: any;
-}) {
-  // Get base URL from environment or request URL
-  const getBaseUrl = () => {
-    // First try VERCEL_URL (available in Vercel deployments)
-    if (process.env.VERCEL_URL) {
-      return `https://${process.env.VERCEL_URL}`;
-    }
-    // Then try custom APP_URL
-    if (process.env.NEXT_PUBLIC_APP_URL) {
-      return process.env.NEXT_PUBLIC_APP_URL;
-    }
-    // Fallback to localhost only in development
-    if (process.env.NODE_ENV === 'development') {
-      return 'http://localhost:3000';
-    }
-    // If nothing else works, throw error
-    throw new Error('No valid base URL found');
-  };
-
-  try {
-    const baseUrl = getBaseUrl();
-    const apiUrl = `${baseUrl}/api/assistant/chat/public`;
     
-    logger.debug('Using base URL:', baseUrl);
-    logger.debug('Calling chat API:', { apiUrl, message });
+    console.log(`Found Concierge: ${assistant.name} (ID: ${assistant.id})`);
     
-    const chatResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Webhook-Token': WEBHOOK_TOKEN
-      },
-      body: JSON.stringify({
+    // Handle SMS message
+    logTwilio('Webhook', `Processing SMS message for Concierge ${assistantId}`);
+    
+    try {
+      // Get the base URL from the incoming request
+      // This ensures we use the same host that received the webhook
+      const baseUrl = new URL(req.url);
+      const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/Concierge/chat`;
+      
+      console.log(`Calling concierges chat API at: ${apiUrl}`);
+      logTwilio('Webhook', `Calling chat API with message: ${body.substring(0, 30)}${body.length > 30 ? '...' : ''}`);
+      
+      const chatPayload = {
         assistantId: assistant.id,
-        message,
+        message: body,
         systemOverride: `You are responding to an SMS message. Keep your response concise.`,
-        userPhone: from,
-        userId: assistant.user_id
-      })
-    });
+        userPhone: from
+      };
+      
+      console.log(`Request payload: ${JSON.stringify(chatPayload)}`);
+      
+      // Send the request to the chat endpoint using the current host
+      const chatStartTime = Date.now();
+      const chatResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(chatPayload),
+        cache: 'no-store' // Ensure we don't get cached responses
+      });
+      const chatEndTime = Date.now();
+      
+      console.log(`Chat API response time: ${chatEndTime - chatStartTime}ms`);
+      console.log(`Chat API response status: ${chatResponse.status}`);
 
-    if (!chatResponse.ok) {
-      logger.error('Chat API error:', { status: chatResponse.status });
-      throw new Error('Failed to get AI response');
+      if (!chatResponse.ok) {
+        const errorText = await chatResponse.text().catch(() => 'No error details');
+        console.error(`Chat API error response: ${errorText}`);
+        logTwilioError('Webhook', `Chat API error: ${chatResponse.status}`, { errorText });
+        throw new Error(`Chat API error: ${chatResponse.status}`);
+      }
+
+      const responseData = await chatResponse.json();
+      console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
+      const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
+      console.log(`AI response: "${aiResponse.substring(0, 100)}${aiResponse.length > 100 ? '...' : ''}"`);
+      logTwilio('Webhook', `AI generated SMS response: ${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}`);
+      
+      // Record the interaction
+      console.log('Saving interaction to database');
+      const { error: insertError } = await supabase
+        .from('interactions')
+        .insert({
+          user_id: assistant.user_id,
+          assistant_id: assistant.id,
+          request: body,
+          response: aiResponse,
+          chat: JSON.stringify({ from, to, body }),
+          interaction_time: new Date().toISOString(),
+          token_usage: responseData.tokens || null,
+          input_tokens: responseData.usage?.promptTokens || null,
+          output_tokens: responseData.usage?.completionTokens || null,
+          cost_estimate: responseData.cost || null,
+          duration: responseData.timing?.responseDuration || null
+        });
+      
+      if (insertError) {
+        console.error('Error saving interaction:', insertError);
+        logTwilioError('Webhook', 'Failed to save interaction to database', insertError);
+      } else {
+        console.log('Interaction saved successfully');
+      }
+      
+      // Generate TwiML response with proper content
+      console.log('Generating TwiML response for SMS');
+      const twimlString = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${sanitizeForSms(aiResponse)}</Message>
+</Response>`;
+      logTwimlResponse(twimlString);
+      
+      return new Response(twimlString, {
+        headers: { 'Content-Type': 'text/xml' }
+      });
+      
+    } catch (aiError) {
+      console.error('Error calling assistant chat API:', aiError);
+      logTwilioError('Webhook', 'Error in assistant chat flow', aiError);
+      
+      // Fallback response
+      const fallbackResponse = "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
+      console.log(`Using fallback response: "${fallbackResponse}"`);
+      
+      // Record error interaction
+      console.log('Recording error interaction');
+      try {
+        await supabase
+          .from('interactions')
+          .insert({
+            user_id: assistant.user_id,
+            assistant_id: assistant.id,
+            request: body,
+            response: fallbackResponse,
+            chat: JSON.stringify({ from, to, body }),
+            interaction_time: new Date().toISOString(),
+            is_error: true
+          });
+      } catch (dbError) {
+        console.error('Failed to save error interaction:', dbError);
+      }
+      
+      return generateSmsResponse(fallbackResponse);
     }
-
-    const responseData = await chatResponse.json();
-    logger.debug('Chat API response:', responseData);
-
-    // Record interaction in database
-    await recordInteraction({
-      assistant,
-      message,
-      response: responseData,
-      from,
-      to
-    });
-
-    return responseData.response || "I'm sorry, I couldn't generate a response.";
   } catch (error) {
-    logger.error('Chat API error:', error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to get AI response: ${errorMessage}`);
+    console.error('Error processing Twilio webhook:', error);
+    logTwilioError('Webhook', 'Unhandled error in webhook processor', error);
+    return generateSmsResponse('Sorry, we encountered an error processing your message. Please try again later.');
   }
 }
 
-async function recordInteraction({ 
-  assistant, 
-  message, 
-  response, 
-  from, 
-  to 
-}: {
-  assistant: any;
-  message: string;
-  response: any;
-  from: string;
-  to: string;
-}) {
-  const supabase = createServiceClient();
+// Modified function to generate SMS response
+function generateSmsResponse(message: string) {
+  // Ensure message is not empty
+  if (!message || message.trim() === '') {
+    message = "I'm sorry, I couldn't generate a response.";
+  }
   
-  await supabase.from('interactions').insert({
-    user_id: assistant.user_id,
-    assistant_id: assistant.id,
-    request: message,
-    response: response.response || '',
-    chat: JSON.stringify({ from, to, body: message }),
-    interaction_time: new Date().toISOString(),
-    token_usage: response.tokens || null,
-    input_tokens: response.usage?.promptTokens || null,
-    output_tokens: response.usage?.completionTokens || null,
-    cost_estimate: response.cost || null,
-    duration: response.timing?.responseDuration || null
+  // Sanitize the message for SMS - but don't strip too aggressively
+  let sanitizedMessage = message;
+  if (sanitizedMessage.length > 1600) {
+    sanitizedMessage = sanitizedMessage.substring(0, 1597) + '...';
+  }
+  
+  // Log the exact message we're sending in TwiML
+  logTwilio('Webhook', `Sending SMS with content: ${sanitizedMessage}`);
+  
+  // Create a simple TwiML response for maximum compatibility with all Twilio clients
+  const twimlString = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${sanitizedMessage}</Message>
+</Response>`;
+  
+  logTwimlResponse(twimlString);
+  
+  return new Response(twimlString, {
+    headers: { 
+      'Content-Type': 'application/xml',  // Use application/xml instead of text/xml
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
   });
 }
 
-function handleVoiceCall(assistant: any, caller: string, logId: string) {
-  return sendTwiMLResponse({
-    message: `Hello, you've reached the ${assistant.name} assistant. This assistant communicates via text messages. Please send an SMS to this number instead of calling.`,
-    isVoice: true,
-    logId
-  });
+// Simplified sanitize message function for back-compatibility
+function sanitizeMessage(message: string): string {
+  return sanitizeForSms(message);
 }

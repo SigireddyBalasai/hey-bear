@@ -85,9 +85,6 @@ export function AdminSidebar() {
     { href: '/admin', icon: <Home size={18} />, label: 'Overview' },
     { href: '/admin/users', icon: <Users size={18} />, label: 'Users', badge: isLoading ? '...' : userCount || 0 },
     { href: '/admin/usage', icon: <BarChart3 size={18} />, label: 'Usage Analytics' },
-    { href: '/admin/conversations', icon: <MessageSquare size={18} />, label: 'Conversations' },
-    { href: '/admin/billing', icon: <CreditCard size={18} />, label: 'Billing' },
-    { href: '/admin/settings', icon: <Settings size={18} />, label: 'Settings' },
     { href: '/admin/phone-management', icon: <Phone size={18} />, label: 'Phone Numbers' },
   ];
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../assistants/Loading';
+import { Loading } from '../../Concierge/Loading';
 import { 
   Edit,
   Trash2,
@@ -540,7 +540,7 @@ export default function UsersPage() {
               <div>
                 <p className="font-medium text-amber-800">Warning</p>
                 <p className="text-sm text-amber-700">
-                  Deleting this user will remove all their assistants, conversations, and associated data.
+                  Deleting this user will remove all their Concierge, conversations, and associated data.
                 </p>
               </div>
             </div>
