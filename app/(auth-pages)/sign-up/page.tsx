@@ -32,6 +32,7 @@ export default async function Signup(props: {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Email/Password signup form */}
           <form className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -69,18 +70,21 @@ export default async function Signup(props: {
             </SubmitButton>
             
             <FormMessage message={searchParams} />
-            
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-muted-foreground/30"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
+          </form>
+          
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-muted-foreground/30"></div>
             </div>
-            
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
+          
+          {/* Separate Google sign-in form */}
+          <form>
             <SubmitButton 
               variant="outline"
               formAction={signInWithGoogleAction} 
