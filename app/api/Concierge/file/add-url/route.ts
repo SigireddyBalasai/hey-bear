@@ -1,12 +1,11 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import FirecrawlApp from '@mendable/firecrawl-js';
 import { v4 as uuidv4 } from 'uuid';
 import { getPineconeClient } from '@/lib/pinecone';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ScrapeResponse } from '@mendable/firecrawl-js';
+
 
 
 export const maxDuration = 60;
@@ -60,30 +59,54 @@ export async function POST(req: NextRequest) {
 
         // Crawl the URL content
         console.log(`Starting to crawl URL: ${url}`);
-        const app = new FirecrawlApp({ apiKey: FIRECRAWL_API_KEY });
-        const crawlResult = await app.scrapeUrl(url);
-        
-        // Check crawl results
-        if (crawlResult.error) {
-            console.error('Error crawling URL:', crawlResult.error);
+        const crawlResponse = await fetch('http://34.30.131.11:11235/crawl', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ urls: url, priority: 10 }),
+        });
+
+        if (!crawlResponse.ok) {
+            const errorData = await crawlResponse.json();
+            console.error('Error initiating crawl:', errorData);
             return NextResponse.json(
-                { 
-                    error: 'Failed to crawl the URL',
-                    message: crawlResult.error || 'The URL could not be accessed properly.'
+                {
+                    error: 'Failed to initiate crawl',
+                    message: errorData?.detail || `HTTP error! status: ${crawlResponse.status}`,
                 },
                 { status: 400 }
             );
         }
 
-        // Type narrowing - we now know it's a successful ScrapeResponse
-        const successResult = crawlResult as ScrapeResponse<any, never>;
-        
-        if (!successResult.markdown) {
-            console.error('Failed to extract content from URL:', url);
+        const { task_id } = await crawlResponse.json();
+        console.log(`Crawl task initiated with task ID: ${task_id}`);
+
+        let taskResult;
+        let status = 'pending';
+        while (status !== 'completed') {
+            const taskResponse = await fetch(`http://34.30.131.11:11235/task/${task_id}`);
+            if (!taskResponse.ok) {
+                const errorData = await taskResponse.json();
+                console.error('Error fetching task status:', errorData);
+                return NextResponse.json(
+                    { error: 'Failed to fetch task status', message: errorData?.detail || `HTTP error! status: ${taskResponse.status}` },
+                    { status: 500 }
+                );
+            }
+            taskResult = await taskResponse.json();
+            status = taskResult.status;
+            if (status !== 'completed') {
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+            }
+        }
+
+        if (!taskResult?.result?.markdown) {
+            console.error('Failed to extract content or empty markdown:', taskResult);
             return NextResponse.json(
-                { 
-                    error: 'Failed to extract content from the URL',
-                    message: 'The URL could not be crawled or returned empty content. Please verify the URL is accessible.'
+                {
+                    error: 'Failed to extract content from the URL or received empty content',
+                    message: 'The crawl task completed, but no markdown content was found in the result.',
                 },
                 { status: 400 }
             );
@@ -105,7 +128,7 @@ export async function POST(req: NextRequest) {
         
         try {
             // Write content to temporary file and upload to Pinecone
-            fs.writeFileSync(tempFilePath, successResult.markdown);
+            fs.writeFileSync(tempFilePath, taskResult.result.markdown);
 
             const pineconeAssistant = pinecone.Assistant(pinecone_name);
             const uploadResult = await pineconeAssistant.uploadFile({
