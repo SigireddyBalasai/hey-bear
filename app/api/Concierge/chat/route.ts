@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
 import { Tables } from '@/lib/db.types';
+import { checkAssistantSubscription } from '@/utils/subscriptions';
 
 // Define table types for better type safety
 type Interactions = Tables<'interactions'>
@@ -36,6 +37,20 @@ export async function POST(req: NextRequest) {
     if (!assistantId || !message) {
       console.error(`Missing required fields: assistantId=${!!assistantId}, message=${!!message}`);
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    
+    // Check if the assistant has an active subscription
+    const subscriptionCheck = await checkAssistantSubscription(assistantId);
+    if (!subscriptionCheck.isActive) {
+      console.error(`Subscription check failed: ${subscriptionCheck.error}`, subscriptionCheck);
+      return NextResponse.json({ 
+        error: 'Subscription required', 
+        details: 'This assistant requires an active subscription to use chat functionality',
+        subscription: {
+          status: subscriptionCheck.status || 'inactive',
+          plan: subscriptionCheck.plan
+        }
+      }, { status: 402 }); // 402 Payment Required
     }
     
     const supabase = await createClient();

@@ -16,8 +16,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tables } from '@/lib/db.types';
 import { UserCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Phone } from 'lucide-react';
-
+import { Phone, CreditCard } from 'lucide-react';
+import { SUBSCRIPTION_PLANS, getSubscriptionPlanDetails } from '@/lib/stripe';
+import {Button} from "@/components/ui/button"
 
 type Assistant = Tables<'assistants'>
 
@@ -32,6 +33,8 @@ export default function AssistantsPage() {
   const [businessName, setBusinessName] = useState('');
   const [sharePhoneNumber, setSharePhoneNumber] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  // Subscription plan state - Initialize with 'personal' as default
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(SUBSCRIPTION_PLANS.PERSONAL.id ?? null);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -128,8 +131,27 @@ export default function AssistantsPage() {
       return;
     }
     
+    if (!selectedPlan) {
+      toast("Subscription plan required", {
+        description: "Please select a subscription plan for your Concierge",
+      });
+      return;
+    }
+    
     try {
       setIsCreating(true);
+      
+      // Get the plan details based on the selected price ID
+      const planDetails = getSubscriptionPlanDetails(selectedPlan!);
+      if (!planDetails) {
+        toast("Invalid plan", { description: "Selected subscription plan is invalid." });
+        return;
+      }
+      // Determine plan type key for subscription (e.g., 'personal' or 'business')
+      const planKey = Object.keys(SUBSCRIPTION_PLANS).find(key =>
+        SUBSCRIPTION_PLANS[key as keyof typeof SUBSCRIPTION_PLANS].id === selectedPlan
+      ) as keyof typeof SUBSCRIPTION_PLANS;
+      const planType = planKey.toLowerCase();
       
       // Create a structured params object that includes all the new fields
       const assistantParams = {
@@ -139,6 +161,12 @@ export default function AssistantsPage() {
         businessName: businessName,
         sharePhoneNumber: sharePhoneNumber,
         phoneNumber: sharePhoneNumber ? phoneNumber : null,
+        // Subscription information
+        subscription: {
+          plan: planType,
+          planId: planDetails.id,
+          price: planDetails.price
+        },
         // Include a system prompt that utilizes these parameters
         systemPrompt: generateSystemPrompt({
           conciergeName: conciergeName || newAssistantName,
@@ -168,6 +196,27 @@ export default function AssistantsPage() {
         throw new Error(data.error || 'Failed to create assistant');
       }
       
+      // Create subscription for the bot in Stripe
+      const subscriptionResponse = await fetch('/api/subscriptions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assistantId: data.assistantId,
+          planId: planDetails.id,
+        }),
+      });
+      
+      const subscriptionData = await subscriptionResponse.json();
+      
+      if (!subscriptionResponse.ok) {
+        // If subscription creation fails, we should ideally delete the assistant
+        toast("Subscription error", {
+          description: subscriptionData.error || "Failed to create subscription, but bot was created",
+        });
+      }
+      
       // Reset form fields and close dialog
       setNewAssistantName('');
       setNewAssistantDescription('');
@@ -176,11 +225,12 @@ export default function AssistantsPage() {
       setBusinessName('');
       setSharePhoneNumber(false);
       setPhoneNumber('');
+      setSelectedPlan(SUBSCRIPTION_PLANS.PERSONAL.id ?? null);
       setCreateDialogOpen(false);
       
       // Show success toast
       toast("Concierge created", {
-        description: `${newAssistantName} has been created successfully`,
+        description: `${newAssistantName} has been created successfully with the ${planDetails.name} plan`,
       });
       
       // Fetch the updated list of assistants
@@ -256,6 +306,17 @@ export default function AssistantsPage() {
         throw error;
       }
       
+      // Cancel subscription if it exists
+      await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assistantId: assistantId,
+        }),
+      });
+      
       // Update local state
       setAssistants(assistants.filter(a => a.id !== assistantId));
       
@@ -296,6 +357,16 @@ export default function AssistantsPage() {
       return matchesSearch;
     }
   });
+
+  // Helper function for type checking params.subscription
+  const hasSubscriptionPlan = (params: any): params is { subscription: { plan: string } } => {
+    return typeof params === 'object' && 
+           params !== null && 
+           'subscription' in params && 
+           typeof params.subscription === 'object' &&
+           params.subscription !== null &&
+           'plan' in params.subscription;
+  };
 
   // Generate avatar initials from assistant name
   const getInitials = (name: string) => {
@@ -351,19 +422,31 @@ export default function AssistantsPage() {
   if (isLoading) {
     return <Loading />;
   }
-
-  // Display login page if not authenticated
+  
+  // Display login if not authenticated
   if (!user) {
     return <Login />;
   }
 
-  // The rest of the component remains largely the same
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      {/* Header section */}
-      <Header user={user} handleSignOut={handleSignOut} />
-
-      {/* Search and controls bar */}
+    <div className="container py-6 space-y-6">
+      <Header 
+        user={user} 
+        handleSignOut={handleSignOut}
+      />
+      
+      <div className="flex justify-between items-center">
+        <TabsNavigation
+          selectedTab={selectedTab}
+          setSelectedTab={setSelectedTab}
+        />
+        <div className="flex space-x-2">
+          <Button onClick={() => setCreateDialogOpen(true)} className="whitespace-nowrap">
+            New Concierge
+          </Button>
+        </div>
+      </div>
+      
       <SearchAndControls
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -372,12 +455,9 @@ export default function AssistantsPage() {
         createDialogOpen={createDialogOpen}
         setCreateDialogOpen={setCreateDialogOpen}
       />
-
-      {/* Tab navigation for filtering (can be extended in future) */}
-      <TabsNavigation selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
-
-      <CreateAssistantDialog
-        open={createDialogOpen}
+      
+      <CreateAssistantDialog 
+        open={createDialogOpen} 
         setOpen={setCreateDialogOpen}
         newAssistantName={newAssistantName}
         setNewAssistantName={setNewAssistantName}
@@ -393,6 +473,8 @@ export default function AssistantsPage() {
         setSharePhoneNumber={setSharePhoneNumber}
         phoneNumber={phoneNumber}
         setPhoneNumber={setPhoneNumber}
+        selectedPlan={selectedPlan}
+        setSelectedPlan={setSelectedPlan}
         handleCreateAssistant={handleCreateAssistant}
         isCreating={isCreating}
       />
@@ -446,6 +528,11 @@ export default function AssistantsPage() {
                       SMS
                     </Badge>
                   )}
+                  {hasSubscriptionPlan(assistant.params) && (
+                    <Badge variant="outline" className="ml-2 gap-1" color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}>
+                      {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
+                    </Badge>
+                  )}
                 </motion.div>
               ))}
             </motion.div>
@@ -472,12 +559,19 @@ export default function AssistantsPage() {
                     handleDeleteAssistant={handleDeleteAssistant}
                     handleToggleStar={handleToggleStar}
                   />
-                  {assistant.assigned_phone_number && (
-                    <Badge variant="outline" className="ml-2 gap-1">
-                      <Phone className="h-3 w-3" />
-                      SMS
-                    </Badge>
-                  )}
+                  <div className="flex gap-2 ml-2 mt-1">
+                    {assistant.assigned_phone_number && (
+                      <Badge variant="outline" className="gap-1">
+                        <Phone className="h-3 w-3" />
+                        SMS
+                      </Badge>
+                    )}
+                    {hasSubscriptionPlan(assistant.params) && (
+                      <Badge variant="outline" className="gap-1" color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}>
+                        {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
+                      </Badge>
+                    )}
+                  </div>
                 </motion.div>
               ))}
             </motion.div>

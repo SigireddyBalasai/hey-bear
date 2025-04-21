@@ -20,6 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RefreshCw } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import PlanSelectionCard from "@/app/components/PlanSelectionCard";
 
 interface CreateAssistantDialogProps {
   open: boolean;
@@ -38,6 +40,8 @@ interface CreateAssistantDialogProps {
   setSharePhoneNumber: (share: boolean) => void;
   phoneNumber: string;
   setPhoneNumber: (number: string) => void;
+  selectedPlan: string | null;
+  setSelectedPlan: (plan: string) => void;
   handleCreateAssistant: () => void;
   isCreating: boolean;
 }
@@ -59,6 +63,8 @@ export function CreateAssistantDialog({
   setSharePhoneNumber,
   phoneNumber,
   setPhoneNumber,
+  selectedPlan,
+  setSelectedPlan,
   handleCreateAssistant,
   isCreating,
 }: CreateAssistantDialogProps) {
@@ -74,7 +80,7 @@ export function CreateAssistantDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Concierge</DialogTitle>
           <DialogDescription>
@@ -202,13 +208,21 @@ export function CreateAssistantDialog({
               </div>
             )}
           </div>
+          
+          <Separator className="my-4" />
+          
+          {/* Subscription Plan Selection */}
+          <PlanSelectionCard
+            selectedPlan={selectedPlan}
+            onSelectPlan={setSelectedPlan}
+          />
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreateAssistant} disabled={isCreating || !newAssistantName.trim()}>
+          <Button onClick={handleCreateAssistant} disabled={isCreating || !newAssistantName.trim() || !selectedPlan}>
             {isCreating ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
