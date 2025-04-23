@@ -98,7 +98,21 @@ const [fileError, setFileError] = useState<{
           toast.error("Concierge not found", {
             description: "This Concierge no longer exists or has been disabled."
           });
-          router.push('/dashboard');
+          router.push('/Concierge');
+          return;
+        }
+        
+        // Check if the assistant is pending (payment not completed)
+        const isPending = typeof data.params === 'object' && 
+                         data.params !== null &&
+                         'pending' in data.params &&
+                         data.params.pending === true;
+        
+        if (isPending) {
+          toast.error("Payment required", {
+            description: "This Concierge requires payment to be activated. Please complete checkout."
+          });
+          router.push('/Concierge');
           return;
         }
         

@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Cancel the subscription in Stripe
-    await stripe.subscriptions.cancel(subscriptionId, {
+    await stripe?.subscriptions.cancel(subscriptionId, {
       prorate: true,
     });
     

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { getPineconeClient } from '@/lib/pinecone';
 import { TablesInsert } from '@/lib/db.types';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
     }
     
-    const { assistantName, description } = body;
+    const { assistantName, description, params, plan } = body;
     
     // Validate required fields
     if (!assistantName) {
@@ -90,84 +89,47 @@ export async function POST(req: NextRequest) {
       
       const userId = userData.id;
       const assistantId = uuidv4();
+      const pendingAssistantId = uuidv4();
       
       // Generate unique Pinecone name with valid format
-      let pinecone_name = generatePineconeName(assistantName);
+      const pinecone_name = generatePineconeName(assistantName);
       console.log(`Generated Pinecone name: ${pinecone_name}`);
-      
-      // Create assistant in Pinecone
-      const pinecone = getPineconeClient();
-      if (!pinecone) {
-        return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
-      }
-      
-      let pineconeResult;
-      let attempts = 0;
-      const MAX_ATTEMPTS = 3;
-      
-      // Try creating assistant with retries for name conflicts
-      while (attempts < MAX_ATTEMPTS) {
-        try {
-          // Try to create the assistant in Pinecone using the generated name
-          pineconeResult = await pinecone.createAssistant({
-            name: pinecone_name,
-            metadata: { 
-              owner: user.id,
-              description: description || 'No description provided',
-              created_at: new Date().toISOString(),
-              display_name: assistantName
-            },
-          });
-          
-          // Successfully created, exit the loop
-          break;
-          
-        } catch (pineconeError: any) {
-          // If the assistant already exists, retry with a new name
-          if (pineconeError.message && pineconeError.message.includes('ALREADY_EXISTS')) {
-            console.log('Concierge already exists in Pinecone, generating new name');
-            attempts++;
-            
-            if (attempts >= MAX_ATTEMPTS) {
-              throw new Error('Failed to create Concierge after multiple attempts. Please try again later.');
-            }
-            
-            // Generate a new name for the next attempt
-            pinecone_name = generatePineconeName(assistantName + `-${attempts}`);
-            console.log(`Retry #${attempts} with name: ${pinecone_name}`);
-          } else {
-            // For other errors, stop and return the error
-            console.error('Pinecone error:', pineconeError);
-            throw pineconeError;
-          }
-        }
-      }
 
-      // Insert into assistants table with valid UUID and pinecone_name
-      const assistantData: TablesInsert<'assistants'> = {
-        id: assistantId,
+      // Create a pending assistant record that will be fulfilled after payment is confirmed
+      const pendingAssistantData = {
+        id: pendingAssistantId,
         user_id: userId,
         name: assistantName,
-        pinecone_name: pinecone_name,
         created_at: new Date().toISOString(),
         params: {
+          ...params,
           description: description || 'No description provided',
-          is_active: true,
+          systemPrompt: params?.systemPrompt,
+          plan: plan || 'personal',
+          is_active: false,
           createdAt: new Date().toISOString()
-        }
+        },
+        plan_id: plan === 'business' ? 
+          process.env.STRIPE_BUSINESS_PLAN_ID : 
+          process.env.STRIPE_PERSONAL_PLAN_ID
       };
 
-      const { error } = await supabase.from('assistants').insert(assistantData);
+      // Insert into pending_assistants table
+      const { error: pendingError } = await supabase
+        .from('pending_assistants')
+        .insert(pendingAssistantData);
 
-      if (error) {
-        console.error('Error saving Concierge to Supabase:', error);
-        return NextResponse.json({ error: 'Failed to save Concierge to database' }, { status: 500 });
+      if (pendingError) {
+        console.error('Error saving pending Concierge to Supabase:', pendingError);
+        return NextResponse.json({ error: 'Failed to save pending Concierge to database' }, { status: 500 });
       }
 
+      // No longer creating an entry in the assistants table until payment is confirmed
+
       return NextResponse.json({ 
-        message: `Assistant ${assistantName} created`,
-        assistantId: assistantId,
-        pinecone_name: pinecone_name
+        message: `Assistant ${assistantName} created as pending`,
+        assistantId: pendingAssistantId, // Use pendingAssistantId as the main ID now
+        pendingAssistantId: pendingAssistantId
       });
     } catch (apiError: any) {
       console.error('Error creating assistant:', apiError);

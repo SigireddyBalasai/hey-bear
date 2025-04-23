@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { TablesInsert } from '@/lib/db.types';
+import { v4 as uuidv4 } from 'uuid';
 import { stripe } from '@/lib/stripe';
 import { headers } from 'next/headers';
-
-// Type definition for user data
-interface UserData {
-  id: string;
-  auth_user_id: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  last_active: string | null;
-  is_admin: boolean | null;
-  plan_id: string | null;
-  metadata?: { stripe_customer_id?: string; full_name?: string };
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,15 +13,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
     }
     
-    const { assistantId, planId } = body;
+    const { assistantName, description, params, plan } = body;
     
     // Validate required fields
-    if (!assistantId || !planId) {
+    if (!assistantName || !plan) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    
+
     const supabase = await createClient();
-    const header = await headers();
+    const header = await headers()
     const origin = header.get('origin') || 'http://localhost:3000';
 
     // Check user authentication
@@ -43,34 +33,45 @@ export async function POST(req: NextRequest) {
     }
 
     // Get the user record from users table
-    const { data: userData, error: userDataError } = await supabase
+    const { data: userData, error: userFetchError } = await supabase
       .from('users')
       .select('*')
       .eq('auth_user_id', user.id)
       .single();
       
-    if (userDataError || !userData) {
-      console.error('Error fetching user data:', userDataError);
+    if (userFetchError || !userData) {
+      console.error('Error fetching user record:', userFetchError);
       return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
     }
-    
-    // Fetch the pending assistant directly from pending_assistants table
-    const { data: pendingAssistant, error: pendingError } = await supabase
+
+    // Generate a unique ID for the pending assistant
+    const pendingAssistantId = uuidv4();
+
+    // Store pending assistant in the database
+    const pendingAssistantData: TablesInsert<'pending_assistants'> = {
+      id: pendingAssistantId,
+      user_id: userData.id,
+      name: assistantName,
+      params: {
+        description: description || 'No description provided',
+        ...params,
+        plan: plan
+      },
+      created_at: new Date().toISOString(),
+      plan_id: plan === 'business' ? 
+        process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PLAN_ID || process.env.STRIPE_BUSINESS_PLAN_ID :
+        process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PLAN_ID || process.env.STRIPE_PERSONAL_PLAN_ID
+    };
+
+    const { error: insertError } = await supabase
       .from('pending_assistants')
-      .select('*')
-      .eq('id', assistantId)
-      .single();
-    
-    if (pendingError || !pendingAssistant) {
-      console.error('Error fetching pending assistant:', pendingError);
-      return NextResponse.json({ error: 'Pending assistant not found' }, { status: 404 });
+      .insert(pendingAssistantData);
+
+    if (insertError) {
+      console.error('Error creating pending assistant:', insertError);
+      return NextResponse.json({ error: 'Failed to create pending assistant' }, { status: 500 });
     }
-    
-    // Ensure the assistant belongs to the authenticated user
-    if (pendingAssistant.user_id !== userData.id) {
-      return NextResponse.json({ error: 'Unauthorized: You do not own this assistant' }, { status: 403 });
-    }
-    
+
     // Create a new customer in Stripe or use existing one
     let customerId;
     
@@ -104,19 +105,36 @@ export async function POST(req: NextRequest) {
     }
     
     // Get plan details to determine price
-    const { getSubscriptionPlanDetails } = await import('@/lib/stripe');
-    const planDetails = getSubscriptionPlanDetails(planId);
+const { getSubscriptionPlanDetails } = await import('@/lib/stripe');
+    const planDetails = getSubscriptionPlanDetails(pendingAssistantData.plan_id || undefined);
     const priceInCents = planDetails ? Math.round(planDetails.price * 100) : 1000;
     
+    // Ensure stripe is initialized
+    if (!stripe) {
+      throw new Error('Stripe is not initialized');
+    }
+
+    // Ensure customer ID is valid
+    if (!customerId || typeof customerId !== 'string') {
+      throw new Error('Failed to create or retrieve Stripe customer ID');
+    }
+
+    // Ensure we have a valid customer ID string
+    if (!customerId) {
+      throw new Error('Invalid customer ID');
+    }
+    
     // Create a checkout session with the product ID
-    const session = await stripe?.checkout.sessions.create({
+    // Since we've already validated customerId is not null or undefined 
+    // and is a string type, we can use it directly
+    
+    const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
         {
-          quantity:1,
           price_data: {
             currency: 'usd',
-            product: planId,
+            product: pendingAssistantData.plan_id || "",
             unit_amount: priceInCents,
             recurring: {
               interval: 'month'
@@ -125,50 +143,39 @@ export async function POST(req: NextRequest) {
         }
       ],
       mode: 'subscription',
-      success_url: `${origin}/Concierge?success=true&session_id={CHECKOUT_SESSION_ID}&assistant_id=${assistantId}`,
-      cancel_url: `${origin}/Concierge?canceled=true&assistant_id=${assistantId}`,
+      success_url: `${origin}/Concierge?success=true&session_id={CHECKOUT_SESSION_ID}&pending_assistant_id=${pendingAssistantId}`,
+      cancel_url: `${origin}/Concierge?canceled=true&pending_assistant_id=${pendingAssistantId}`,
       metadata: {
-        pendingAssistantId: assistantId,
+        pendingAssistantId: pendingAssistantId,
         userId: userData.id
       },
       subscription_data: {
         metadata: {
-          pendingAssistantId: assistantId,
+          pendingAssistantId: pendingAssistantId,
           userId: userData.id
         }
       }
     });
     
-    // Update the pending assistant with the checkout session information
-    const { error: updateError } = await supabase
+    // Update the pending assistant with checkout session details
+    await supabase
       .from('pending_assistants')
       .update({
-        params: {
-          ...(typeof pendingAssistant.params === 'object' && pendingAssistant.params !== null ? pendingAssistant.params : {}),
-          checkout: {
-            sessionId: session?.id,
-            createdAt: new Date().toISOString(),
-            status: 'pending'
-          }
-        }
+        checkout_session_id: session?.id
       })
-      .eq('id', assistantId);
-      
-    if (updateError) {
-      console.error('Error updating pending assistant:', updateError);
-      return NextResponse.json({ error: 'Failed to update pending assistant with checkout data' }, { status: 500 });
-    }
+      .eq('id', pendingAssistantId);
 
-    // Return the checkout URL to redirect the user
-    return NextResponse.json({ 
+    // Return success with checkout URL
+    return NextResponse.json({
       success: true,
+      pendingAssistantId,
       checkoutUrl: session?.url,
       sessionId: session?.id
     });
   } catch (error: any) {
-    console.error('Checkout creation error:', error);
+    console.error('Error creating pending assistant:', error);
     return NextResponse.json({ 
-      error: 'Failed to create checkout session',
+      error: 'Failed to create pending assistant',
       details: error.message 
     }, { status: 500 });
   }

@@ -1,15 +1,52 @@
 import Stripe from 'stripe';
 
-// Initialize Stripe client
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-03-31.basil', // Use the latest API version
-});
+// Check if we're on the client side
+const isClient = typeof window !== 'undefined';
 
-// Define subscription plans
+// Server-side Stripe instance (for API routes)
+let stripe: Stripe | undefined;
+if (!isClient) {
+  // Only initialize on the server
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2025-03-31.basil',
+  });
+}
+
+// Export server-side Stripe in a way that it's not bundled for client
+export { stripe };
+
+// Client-side Stripe instance and utilities
+let stripePromise: Promise<Stripe | null>;
+
+// Get the Stripe publishable key for client-side usage
+export const getStripePublishableKey = (): string => {
+  return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+};
+
+// Initialize Stripe on the client side
+export const getStripe = (): Promise<Stripe | null> => {
+  if (!stripePromise) {
+    const publishableKey = getStripePublishableKey();
+    
+    if (!publishableKey) {
+      console.error('Stripe publishable key is missing');
+      return Promise.resolve(null);
+    }
+    
+    stripePromise = Promise.resolve(
+      new Stripe(publishableKey, {
+        apiVersion: '2025-03-31.basil',
+      })
+    );
+  }
+  return stripePromise;
+};
+
+// Define subscription plans using NEXT_PUBLIC_ environment variables for client access
 export const SUBSCRIPTION_PLANS = {
   PERSONAL: {
     name: 'Personal',
-    id: process.env.STRIPE_PERSONAL_PLAN_ID,
+    id: process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PLAN_ID || process.env.STRIPE_PERSONAL_PLAN_ID,
     price: 13.99,
     features: [
       'Basic chat capabilities',
@@ -21,7 +58,7 @@ export const SUBSCRIPTION_PLANS = {
   },
   BUSINESS: {
     name: 'Business',
-    id: process.env.STRIPE_BUSINESS_PLAN_ID,
+    id: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PLAN_ID || process.env.STRIPE_BUSINESS_PLAN_ID,
     price: 34.99,
     features: [
       'Advanced chat capabilities',

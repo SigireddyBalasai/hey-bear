@@ -43,7 +43,18 @@ export default function AssistantsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState('all');
   
+  // Add state to track checkout status
+  const [checkoutStatus, setCheckoutStatus] = useState<'success' | 'canceled' | null>(null);
+  const [checkoutAssistantId, setCheckoutAssistantId] = useState<string | null>(null);
   const router = useRouter();
+  
+  // Function to get URL parameters
+  const getUrlParameter = (name: string) => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  };
+
   const supabase = createClient();
 
   // Function to fetch assistants
@@ -117,6 +128,78 @@ export default function AssistantsPage() {
     }
   };
 
+  // Check for Stripe redirect parameters on component mount
+  useEffect(() => {
+    const success = getUrlParameter('success');
+    const canceled = getUrlParameter('canceled');
+    const assistantId = getUrlParameter('assistant_id');
+    
+    if (success === 'true' && assistantId) {
+      setCheckoutStatus('success');
+      setCheckoutAssistantId(assistantId);
+      
+      // Remove query params from URL without page reload
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Show success message
+      toast("Subscription successful", {
+        description: "Your Concierge has been successfully activated!",
+      });
+      
+      // Fetch the updated list of assistants to reflect the change
+      fetchAssistants();
+    } else if (canceled === 'true' && assistantId) {
+      setCheckoutStatus('canceled');
+      setCheckoutAssistantId(assistantId);
+      
+      // Remove query params from URL without page reload
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Show canceled message
+      toast("Checkout canceled", {
+        description: "Your payment was not completed. The Concierge will remain inactive.",
+      });
+      
+      // Fetch the updated list of assistants to reflect the change
+      fetchAssistants();
+    }
+  }, []);
+  
+  // Effect to handle return from Stripe checkout
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const success = queryParams.get('success');
+    const canceled = queryParams.get('canceled');
+    const assistantId = queryParams.get('assistant_id');
+    const sessionId = queryParams.get('session_id');
+
+    if (success === 'true' && assistantId) {
+      toast.success("Payment successful", {
+        description: "Your Concierge has been activated with your subscription plan",
+      });
+      
+      // Clear URL parameters to avoid showing the message again on refresh
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      // Fetch assistants to update the list with the new subscription status
+      fetchAssistants();
+    }
+
+    if (canceled === 'true' && assistantId) {
+      toast("Payment canceled", {
+        description: "You can complete the payment later to activate your Concierge",
+      });
+      
+      // Clear URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      // Fetch assistants to ensure list is up to date
+      fetchAssistants();
+    }
+  }, []);
+  
   // Fetch user and assistants data on component mount
   useEffect(() => {
     fetchAssistants();
@@ -160,25 +243,17 @@ export default function AssistantsPage() {
         conciergePersonality: conciergePersonality,
         businessName: businessName,
         sharePhoneNumber: sharePhoneNumber,
-        phoneNumber: sharePhoneNumber ? phoneNumber : null,
-        // Subscription information
-        subscription: {
-          plan: planType,
-          planId: planDetails.id,
-          price: planDetails.price
-        },
-        // Include a system prompt that utilizes these parameters
+        phoneNumber: phoneNumber,
         systemPrompt: generateSystemPrompt({
           conciergeName: conciergeName || newAssistantName,
-          conciergePersonality: conciergePersonality,
-          businessName: businessName,
+          conciergePersonality,
+          businessName,
           description: newAssistantDescription,
-          sharePhoneNumber: sharePhoneNumber,
-          phoneNumber: sharePhoneNumber ? phoneNumber : null,
-        }),
+          sharePhoneNumber,
+          phoneNumber,
+        })
       };
       
-      // Send request to our backend API with the structured params
       const response = await fetch('/api/Concierge/create', {
         method: 'POST',
         headers: {
@@ -186,7 +261,9 @@ export default function AssistantsPage() {
         },
         body: JSON.stringify({
           assistantName: newAssistantName,
+          description: newAssistantDescription,
           params: assistantParams,
+          plan: planType,
         }),
       });
       
@@ -196,8 +273,8 @@ export default function AssistantsPage() {
         throw new Error(data.error || 'Failed to create assistant');
       }
       
-      // Create subscription for the bot in Stripe
-      const subscriptionResponse = await fetch('/api/subscriptions/create', {
+      // Create checkout session for the bot in Stripe
+      const checkoutResponse = await fetch('/api/subscriptions/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -208,13 +285,10 @@ export default function AssistantsPage() {
         }),
       });
       
-      const subscriptionData = await subscriptionResponse.json();
+      const checkoutData = await checkoutResponse.json();
       
-      if (!subscriptionResponse.ok) {
-        // If subscription creation fails, we should ideally delete the assistant
-        toast("Subscription error", {
-          description: subscriptionData.error || "Failed to create subscription, but bot was created",
-        });
+      if (!checkoutResponse.ok) {
+        throw new Error(checkoutData.error || "Failed to create subscription checkout");
       }
       
       // Reset form fields and close dialog
@@ -228,13 +302,17 @@ export default function AssistantsPage() {
       setSelectedPlan(SUBSCRIPTION_PLANS.PERSONAL.id ?? null);
       setCreateDialogOpen(false);
       
-      // Show success toast
-      toast("Concierge created", {
-        description: `${newAssistantName} has been created successfully with the ${planDetails.name} plan`,
+      // Show loading toast
+      toast("Redirecting to checkout", {
+        description: "Please complete the payment process to activate your Concierge",
       });
       
-      // Fetch the updated list of assistants
-      await fetchAssistants();
+      // Redirect to Stripe Checkout
+      if (checkoutData.checkoutUrl) {
+        window.location.href = checkoutData.checkoutUrl;
+      } else {
+        throw new Error("No checkout URL provided");
+      }
       
     } catch (error: any) {
       console.error('Error creating Concierge:', error);
@@ -340,6 +418,16 @@ export default function AssistantsPage() {
 
   // Filter assistants based on search query and selected tab
   const filteredAssistants = assistants.filter(assistant => {
+    // First check if the assistant has pending status - if so, exclude it
+    const isPending = typeof assistant.params === 'object' && 
+                      assistant.params !== null &&
+                      'pending' in assistant.params &&
+                      assistant.params.pending === true;
+    
+    if (isPending) {
+      return false; // Skip pending assistants that haven't been paid for
+    }
+    
     const matchesSearch = assistant.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (typeof assistant.params === 'object' && 
                             assistant.params !== null &&
