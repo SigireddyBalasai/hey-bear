@@ -160,12 +160,7 @@ const ConciergeInteractionDashboard = () => {
           </Button>
         </Link>
       </div>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {userName ? `${userName}'s${assistantName ? ` ${assistantName}` : ' Concierge'}` : 'My Concierge'}
-          </h1>
-        </div>
+      <div className="flex justify-end items-center mb-6">
         <div className="text-right">
           <h2 className="text-xl font-semibold text-gray-800">Interaction Dashboard</h2>
           <p className="text-gray-500">{dateRange}</p>

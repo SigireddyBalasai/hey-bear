@@ -654,7 +654,7 @@ const [fileError, setFileError] = useState<{
                 className="shadow-sm hover:bg-accent"
               >
                 {activeTab === "chat" ? (
-                  <><Paperclip className="h-4 w-4 mr-2" /> Manage No-Show Knowledge</>
+                  <><Paperclip className="h-4 w-4 mr-2" /> Manage Knowledge</>
                 ) : (
                   <><Bot className="h-4 w-4 mr-2" /> Back to Chat</>
                 )}
@@ -710,11 +710,11 @@ const [fileError, setFileError] = useState<{
                     <Bot className="h-8 w-8 text-primary" />
                   </div>
                   <h3 className="font-semibold text-lg">
-                    {!fileList?.files?.length ? "Add Files to Start" : "Start a conversation"}
+                    {!fileList?.files?.length ? "Add Files or links to Start" : "Start a conversation"}
                   </h3>
                   <p className="text-muted-foreground max-w-md mt-2">
                     {!fileList?.files?.length 
-                      ? "This No-Show needs document files to work. Please add at least one file."
+                      ? "This No-Show needs document files to work. Please add at least one file or link. Your noshow won’t work otherwise."
                       : "Ask me anything about the documents you've provided. I'm here to help!"}
                   </p>
                   {!fileList?.files?.length && (
@@ -724,7 +724,7 @@ const [fileError, setFileError] = useState<{
                       onClick={() => setActiveTab("files")}
                     >
                       <Paperclip className="h-4 w-4 mr-2" />
-                      Add Files
+                      Add
                     </Button>
                   )}
                 </div>
@@ -864,9 +864,9 @@ const [fileError, setFileError] = useState<{
         <TabsContent value="files" className="flex-1 flex flex-col space-y-4 mt-0">
           <Card className="flex-1 flex flex-col border-muted shadow-lg">
             <CardHeader className="border-b">
-              <CardTitle>Manage No-Show Knowledge</CardTitle>
+              <CardTitle>Manage Knowledge</CardTitle>
               <CardDescription>
-                Add or remove files for {displayName} to use in conversations
+                Add or remove files for or links to use in conversations
               </CardDescription>
             </CardHeader>
             
@@ -985,7 +985,7 @@ const [fileError, setFileError] = useState<{
               {/* File List */}
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">Current Files</h3>
+                  <h3 className="font-medium">Current links</h3>
                   {(fileList?.files?.length ?? 0) > 0 && (
                     <Badge variant="outline">
                       {fileList?.files?.length} file{fileList?.files?.length !== 1 ? 's' : ''}

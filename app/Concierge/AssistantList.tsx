@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Bot, Star, Trash, ArrowRight } from "lucide-react";
+import { Bot, Star, Trash, ArrowRight, Phone, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tables } from '@/lib/db.types';
 import Link from 'next/link';
@@ -88,6 +88,29 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
           <Badge variant="outline" className="hidden md:flex items-center">
             <Bot className="mr-1 h-3 w-3" /> No-Show 
           </Badge>
+          
+          {assistant.assigned_phone_number && (
+            <Badge variant="outline" className="hidden md:flex items-center gap-1">
+              <Phone className="h-3 w-3" />
+              SMS
+            </Badge>
+          )}
+          
+          {typeof assistant.params === 'object' && 
+           assistant.params !== null && 
+           'subscription' in assistant.params && 
+           typeof assistant.params.subscription === 'object' &&
+           assistant.params.subscription !== null &&
+           'plan' in assistant.params.subscription && (
+            <Badge 
+              variant="outline" 
+              className="hidden md:flex items-center gap-1" 
+              color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}
+            >
+              <CreditCard className="h-3 w-3" />
+              {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
+            </Badge>
+          )}
           
           <p className="text-xs text-muted-foreground hidden lg:block">
             Created {createdAt}

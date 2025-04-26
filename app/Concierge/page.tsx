@@ -528,11 +528,11 @@ export default function AssistantsPage() {
           selectedTab={selectedTab}
           setSelectedTab={setSelectedTab}
         />
-        <div className="flex space-x-2">
+        {/* <div className="flex space-x-2">
           <Button onClick={() => setCreateDialogOpen(true)} className="whitespace-nowrap">
             New No-Shows
           </Button>
-        </div>
+        </div> */}
       </div>
       
       <SearchAndControls
@@ -610,17 +610,6 @@ export default function AssistantsPage() {
                     handleDeleteAssistant={handleDeleteAssistant}
                     handleToggleStar={handleToggleStar}
                   />
-                  {assistant.assigned_phone_number && (
-                    <Badge variant="outline" className="ml-2 gap-1">
-                      <Phone className="h-3 w-3" />
-                      SMS
-                    </Badge>
-                  )}
-                  {hasSubscriptionPlan(assistant.params) && (
-                    <Badge variant="outline" className="ml-2 gap-1" color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}>
-                      {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
-                    </Badge>
-                  )}
                 </motion.div>
               ))}
             </motion.div>
@@ -647,19 +636,6 @@ export default function AssistantsPage() {
                     handleDeleteAssistant={handleDeleteAssistant}
                     handleToggleStar={handleToggleStar}
                   />
-                  <div className="flex gap-2 ml-2 mt-1">
-                    {assistant.assigned_phone_number && (
-                      <Badge variant="outline" className="gap-1">
-                        <Phone className="h-3 w-3" />
-                        SMS
-                      </Badge>
-                    )}
-                    {hasSubscriptionPlan(assistant.params) && (
-                      <Badge variant="outline" className="gap-1" color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}>
-                        {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
-                      </Badge>
-                    )}
-                  </div>
                 </motion.div>
               ))}
             </motion.div>

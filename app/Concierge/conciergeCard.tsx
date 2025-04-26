@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Bot, Star, Trash } from "lucide-react";
+import { MoreHorizontal, Bot, Star, Trash, Phone, CreditCard } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -43,34 +43,7 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="space-y-2">
-        <div className="flex items-start justify-between">
-          <Avatar className={cn("h-12 w-12", getAvatarColor(assistant.name))}>
-            <AvatarFallback>{getInitials(assistant.name)}</AvatarFallback>
-          </Avatar>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem 
-                onClick={() => handleDeleteAssistant(assistant.id)}
-                className="text-red-600 focus:text-red-600 dark:focus:text-red-400 cursor-pointer"
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-                Created: {createdAt}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        
-        <div>
+        <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
             {assistant.name}
             <TooltipProvider>
@@ -101,10 +74,30 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
               </Tooltip>
             </TooltipProvider>
           </CardTitle>
-          <CardDescription className="line-clamp-2 mt-1">
-            {description}
-          </CardDescription>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={() => handleDeleteAssistant(assistant.id)}
+                className="text-red-600 focus:text-red-600 dark:focus:text-red-400 cursor-pointer"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                Created: {createdAt}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+        <CardDescription className="line-clamp-2 mt-1">
+          {description}
+        </CardDescription>
       </CardHeader>
       
       <CardContent className="flex-1">
@@ -112,6 +105,27 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
           <Badge variant="outline" className="flex items-center">
             <Bot className="mr-1 h-3 w-3" /> No-Show 
           </Badge>
+          {assistant.assigned_phone_number && (
+            <Badge variant="outline" className="gap-1 flex items-center">
+              <Phone className="h-3 w-3" />
+              SMS
+            </Badge>
+          )}
+          {typeof assistant.params === 'object' && 
+           assistant.params !== null && 
+           'subscription' in assistant.params && 
+           typeof assistant.params.subscription === 'object' &&
+           assistant.params.subscription !== null &&
+           'plan' in assistant.params.subscription && (
+            <Badge 
+              variant="outline" 
+              className="gap-1 flex items-center" 
+              color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}
+            >
+              <CreditCard className="h-3 w-3" />
+              {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
+            </Badge>
+          )}
         </div>
       </CardContent>
       
@@ -121,7 +135,7 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
             <TooltipTrigger asChild>
               <Link href={`/Concierge/${assistant.id}`} className="w-full">
                 <Button className="w-full">
-                  Open Assistant
+                  Open and Edit
                 </Button>
               </Link>
             </TooltipTrigger>
