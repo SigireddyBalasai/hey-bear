@@ -67,7 +67,7 @@ CREATE OR REPLACE FUNCTION "public"."assign_phone_number"("p_assistant_id" "uuid
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-  -- Update Concierge with assigned phone number
+  -- Update No-Show with assigned phone number
   UPDATE public.assistants
   SET assigned_phone_number = p_phone_number
   WHERE id = p_assistant_id;

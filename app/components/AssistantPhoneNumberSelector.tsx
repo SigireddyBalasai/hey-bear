@@ -214,7 +214,7 @@ export function AssistantPhoneNumberSelector({
               <DialogHeader>
                 <DialogTitle>Assign Phone Number</DialogTitle>
                 <DialogDescription>
-                  Choose a country to automatically assign a phone number to this assistant.
+                  Choose a country to automatically assign a phone number to this No-Shows.
                 </DialogDescription>
               </DialogHeader>
               
@@ -260,7 +260,7 @@ export function AssistantPhoneNumberSelector({
                       <li>A number will be automatically selected from the chosen country</li>
                       <li>The number will be set up to receive SMS messages</li>
                       <li>Standard messaging rates may apply to end users</li>
-                      <li>One phone number can only be assigned to one assistant</li>
+                      <li>One phone number can only be assigned to one No-Shows</li>
                     </ul>
                   </div>
                 </div>
@@ -289,9 +289,9 @@ export function AssistantPhoneNumberSelector({
       
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
-          <p>This assistant can receive and respond to SMS messages at this phone number. <span className="text-xs text-muted-foreground">({getCountryFromNumber(currentPhoneNumber)})</span></p>
+          <p>This No-Shows can receive and respond to SMS messages at this phone number. <span className="text-xs text-muted-foreground">({getCountryFromNumber(currentPhoneNumber)})</span></p>
         ) : (
-          <p>Assign a phone number to enable SMS interactions with this assistant.</p>
+          <p>Assign a phone number to enable SMS interactions with this No-Shows.</p>
         )}
       </div>
     </div>

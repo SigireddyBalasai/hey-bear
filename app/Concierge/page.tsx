@@ -97,7 +97,7 @@ export default function AssistantsPage() {
         .eq('user_id', userData.id);
       
       if (assistantsError) {
-        console.error('Error fetching Concierge:', assistantsError);
+        console.error('Error fetching No-Show :', assistantsError);
         return;
       }
       
@@ -143,7 +143,7 @@ export default function AssistantsPage() {
       
       // Show success message
       toast("Subscription successful", {
-        description: "Your Concierge has been successfully activated!",
+        description: "Your No-Show has been successfully activated!",
       });
       
       // Fetch the updated list of assistants to reflect the change
@@ -157,7 +157,7 @@ export default function AssistantsPage() {
       
       // Show canceled message
       toast("Checkout canceled", {
-        description: "Your payment was not completed. The Concierge will remain inactive.",
+        description: "Your payment was not completed. The No-Show will remain inactive.",
       });
       
       // Fetch the updated list of assistants to reflect the change
@@ -175,7 +175,7 @@ export default function AssistantsPage() {
 
     if (success === 'true' && assistantId) {
       toast.success("Payment successful", {
-        description: "Your Concierge has been activated with your subscription plan",
+        description: "Your No-Show has been activated with your subscription plan",
       });
       
       // Clear URL parameters to avoid showing the message again on refresh
@@ -188,7 +188,7 @@ export default function AssistantsPage() {
 
     if (canceled === 'true' && assistantId) {
       toast("Payment canceled", {
-        description: "You can complete the payment later to activate your Concierge",
+        description: "You can complete the payment later to activate your No-Show ",
       });
       
       // Clear URL parameters
@@ -209,14 +209,14 @@ export default function AssistantsPage() {
   const handleCreateAssistant = async () => {
     if (!newAssistantName.trim()) {
       toast("Name required", {
-        description: "Please provide a name for your Concierge",
+        description: "Please provide a name for your No-Show ",
       });
       return;
     }
     
     if (!selectedPlan) {
       toast("Subscription plan required", {
-        description: "Please select a subscription plan for your Concierge",
+        description: "Please select a subscription plan for your No-Show ",
       });
       return;
     }
@@ -304,7 +304,7 @@ export default function AssistantsPage() {
       
       // Show loading toast
       toast("Redirecting to checkout", {
-        description: "Please complete the payment process to activate your Concierge",
+        description: "Please complete the payment process to activate your No-Show ",
       });
       
       // Redirect to Stripe Checkout
@@ -315,16 +315,16 @@ export default function AssistantsPage() {
       }
       
     } catch (error: any) {
-      console.error('Error creating Concierge:', error);
+      console.error('Error creating No-Show :', error);
       toast("Error", {
-        description: error.message || "Something went wrong while creating the Concierge",
+        description: error.message || "Something went wrong while creating the No-Show ",
       });
     } finally {
       setIsCreating(false);
     }
   };
 
-  // Helper function to generate a system prompt based on Concierge parameters
+  // Helper function to generate a system prompt based on No-Show parameters
   const generateSystemPrompt = ({
     conciergeName,
     conciergePersonality,
@@ -369,7 +369,7 @@ export default function AssistantsPage() {
       
       if (!assistantToDelete) {
         toast("Error", {
-          description: "Concierge not found",
+          description: "No-Show not found",
         });
         return;
       }
@@ -398,13 +398,13 @@ export default function AssistantsPage() {
       // Update local state
       setAssistants(assistants.filter(a => a.id !== assistantId));
       
-      toast("Concierge deleted", {
+      toast("No-Show deleted", {
         description: `${assistantToDelete.name} has been removed`,
       });
     } catch (error: any) {
-      console.error('Error deleting Concierge:', error);
+      console.error('Error deleting No-Show:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while deleting the Concierge",
+        description: error.message || "Something went wrong while deleting the No-Show",
       });
     }
   };
@@ -501,7 +501,7 @@ export default function AssistantsPage() {
     } catch (error: any) {
       console.error('Error toggling star:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while updating the Concierge",
+        description: error.message || "Something went wrong while updating the No-Show",
       });
     }
   };
@@ -530,7 +530,7 @@ export default function AssistantsPage() {
         />
         <div className="flex space-x-2">
           <Button onClick={() => setCreateDialogOpen(true)} className="whitespace-nowrap">
-            New Concierge
+            New No-Shows
           </Button>
         </div>
       </div>

@@ -151,14 +151,14 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
           <DialogDescription>
             {assistant ? (
               <div className="flex items-center gap-1">
-                <span>Connected to Concierge:</span>
+                <span>Connected to No-Show:</span>
                 <Badge variant="secondary" className="ml-1">
                   <Bot className="h-3 w-3 mr-1" />
                   {assistant.name}
                 </Badge>
               </div>
             ) : (
-              <span>No Concierge connected to this phone number</span>
+              <span>No No-Shows connected to this phone number</span>
             )}
           </DialogDescription>
         </DialogHeader>

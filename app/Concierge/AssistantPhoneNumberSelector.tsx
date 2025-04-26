@@ -220,13 +220,13 @@ export function AssistantPhoneNumberSelector({
   const unassignPhoneNumber = async () => {
     if (!currentPhoneNumber) return;
     if (!assistantId) {
-      toast.error('Invalid Concierge ID');
+      toast.error('Invalid No-Show ID');
       return;
     }
     
     setIsAssigning(true);
     try {
-      console.log(`Unassigning Twilio number: ${currentPhoneNumber} from Concierge: ${assistantId}`);
+      console.log(`Unassigning Twilio number: ${currentPhoneNumber} from No-Show : ${assistantId}`);
       const response = await fetch('/api/phone-numbers/unassign', {
         method: 'POST',
         headers: {
@@ -290,7 +290,7 @@ export function AssistantPhoneNumberSelector({
               <DialogHeader>
                 <DialogTitle>Assign Phone Number</DialogTitle>
                 <DialogDescription>
-                  Select a phone number to connect to this Concierge. This will enable SMS conversations.
+                  Select a phone number to connect to this No-Show  This will enable SMS conversations.
                 </DialogDescription>
               </DialogHeader>
               
@@ -350,7 +350,7 @@ export function AssistantPhoneNumberSelector({
                           placeholder="https://your-webhook-url.com/path"
                         />
                         <p className="text-xs text-muted-foreground">
-                          The webhook URL will handle both SMS messages and voice calls for this Concierge.
+                          The webhook URL will handle both SMS messages and voice calls for this No-Show 
                         </p>
                       </div>
                     </div>
@@ -358,11 +358,11 @@ export function AssistantPhoneNumberSelector({
                     <div className="bg-muted rounded-md p-3 text-sm">
                       <p>When you assign a phone number:</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>Users can interact with the Concierge via SMS</li>
+                        <li>Users can interact with the No-Show via SMS</li>
                         <li>Voice callers will be prompted to use SMS instead</li>
                         <li>SMS messages will be forwarded to your webhook</li>
                         <li>Standard messaging rates may apply to end users</li>
-                        <li>One phone number can only be assigned to one Concierge</li>
+                        <li>One phone number can only be assigned to one No-Show </li>
                       </ul>
                     </div>
                   </div>
@@ -411,9 +411,9 @@ export function AssistantPhoneNumberSelector({
       
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
-          <p>This Concierge can receive and respond to SMS messages via Twilio at this number.</p>
+          <p>This No-Show can receive and respond to SMS messages via Twilio at this number.</p>
         ) : (
-          <p>Assign a Twilio phone number to enable SMS interactions with this Concierge.</p>
+          <p>Assign a Twilio phone number to enable SMS interactions with this No-Show </p>
         )}
       </div>
     </div>

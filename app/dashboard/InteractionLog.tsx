@@ -42,7 +42,7 @@ const InteractionLog: React.FC<InteractionLogProps> = ({
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Interaction Log</CardTitle>
-            <CardDescription>Detailed insights into how your Concierge is interacting with others</CardDescription>
+            <CardDescription>Detailed insights into how your No-Shows is interacting with others</CardDescription>
           </div>
           <Tabs defaultValue="table" value={activeTab} onValueChange={setActiveTab} className="w-auto">
             <TabsList>
@@ -68,7 +68,7 @@ const InteractionLog: React.FC<InteractionLogProps> = ({
                     <TableHead>Date</TableHead>
                     <TableHead>Phone Number</TableHead>
                     <TableHead>Message/Request</TableHead>
-                    <TableHead>Concierge Response</TableHead>
+                    <TableHead>No-Show Response</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Response Time</TableHead>
                   </TableRow>

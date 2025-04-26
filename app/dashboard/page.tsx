@@ -156,7 +156,7 @@ const ConciergeInteractionDashboard = () => {
         <Link href="/Concierge">
           <Button variant="outline" size="sm" className="flex items-center gap-1">
             <ArrowLeft className="h-4 w-4" />
-            Back to Concierge
+            My No-Shows
           </Button>
         </Link>
       </div>
@@ -248,28 +248,28 @@ const ConciergeInteractionDashboard = () => {
         <StatCard 
           title="Total Interactions" 
           value={stats.totalInteractions} 
-          description="Total messages or requests received by your Concierge"
+          description="Total messages or requests received by your No-Shows"
           loading={isLoading}
         />
         
         <StatCard 
           title="Active Contacts" 
           value={stats.activeContacts} 
-          description="Unique phone numbers that have interacted with your Concierge"
+          description="Unique phone numbers that have interacted with your No-Shows"
           loading={isLoading}
         />
         
         <StatCard 
           title="Interactions Per Contact" 
           value={stats.interactionsPerContact.toFixed(1)} 
-          description="Average interactions per unique contact"
+          description="Average number of interactions per unique contact"
           loading={isLoading}
         />
         
         <StatCard 
           title="Average Response Time" 
           value={stats.averageResponseTime} 
-          description="Average time for your Concierge to respond to a message"
+          description="Average time for your No-Shows to respond to a message"
           loading={isLoading}
         />
       </div>

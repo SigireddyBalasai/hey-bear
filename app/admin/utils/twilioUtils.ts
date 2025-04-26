@@ -23,7 +23,7 @@ export async function fetchAvailablePhoneNumbers() {
 }
 
 /**
- * Fetch all assigned phone numbers with their associated Concierge
+ * Fetch all assigned phone numbers with their associated No-Shows
  */
 export async function fetchAssignedPhoneNumbers() {
   try {
@@ -168,7 +168,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
       .eq('id', assistantId);
     
     if (assistantError) {
-      console.error('Error updating Concierge:', assistantError);
+      console.error('Error updating No-Shows:', assistantError);
       
       // Rollback phone number assignment
       await supabase
@@ -189,7 +189,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
 }
 
 /**
- * Unassign a phone number from an Concierge
+ * Unassign a phone number from a No-Shows
  */
 export async function unassignPhoneNumber(phoneNumber: string) {
   try {
@@ -226,11 +226,11 @@ export async function unassignPhoneNumber(phoneNumber: string) {
       .eq('assigned_phone_number', phoneNumber);
     
     if (assistantError) {
-      console.error('Error finding Concierge:', assistantError);
+      console.error('Error finding No-Shows:', assistantError);
       throw assistantError;
     }
     
-    // Clear assigned phone number from Concierge
+    // Clear assigned phone number from No-Shows
     if (assistants && assistants.length > 0) {
       const { error: clearError } = await supabase
         .from('assistants')
@@ -238,7 +238,7 @@ export async function unassignPhoneNumber(phoneNumber: string) {
         .eq('assigned_phone_number', phoneNumber);
       
       if (clearError) {
-        console.error('Error clearing phone number from concierges:', clearError);
+        console.error('Error clearing phone number from No-Shows:', clearError);
         throw clearError;
       }
     }

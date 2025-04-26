@@ -61,7 +61,7 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
           .eq('user_id', userData.id);
         
         if (assistantsError) {
-          console.error('Error fetching Concierge:', assistantsError);
+          console.error('Error fetching No-Show :', assistantsError);
           return;
         }
         
@@ -117,11 +117,11 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="all" id="Concierge-all" />
-                <Label htmlFor="Concierge-all">All Concierge</Label>
+                <Label htmlFor="Concierge-all">All No-Shows</Label>
               </div>
               
               {isLoading ? (
-                <div className="text-sm text-muted-foreground">Loading Concierge...</div>
+                <div className="text-sm text-muted-foreground">Loading No-Shows...</div>
               ) : assistants.length > 0 ? (
                 assistants.map(assistant => (
                   <div key={assistant.id} className="flex items-center space-x-2">
@@ -130,7 +130,7 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
                   </div>
                 ))
               ) : (
-                <div className="text-sm text-muted-foreground">No Concierge found</div>
+                <div className="text-sm text-muted-foreground">No No-Show found</div>
               )}
             </RadioGroup>
           </div>

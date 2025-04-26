@@ -11,7 +11,7 @@ type Assistant = Tables<'assistants'>
 export async function POST(req: NextRequest) {
   // Record the request timestamp
   const requestTimestamp = new Date();
-  console.log(`[${requestTimestamp.toISOString()}] Concierge chat API called`);
+  console.log(`[${requestTimestamp.toISOString()}] No-Show chat API called`);
   
   try {
     // Validate request body
@@ -65,15 +65,15 @@ export async function POST(req: NextRequest) {
       .single();
     
     if (assistantError || !assistantData) {
-      console.error('Error fetching Concierge:', assistantError);
-      return NextResponse.json({ error: 'Concierge not found' }, { status: 404 });
+      console.error('Error fetching No-Show:', assistantError);
+      return NextResponse.json({ error: 'No-Show not found' }, { status: 404 });
     }
     const { pinecone_name, name: assistantName } = assistantData;
-    console.log(`Found Concierge: name=${assistantName}, pinecone_name=${pinecone_name}`);
+    console.log(`Found No-Show: name=${assistantName}, pinecone_name=${pinecone_name}`);
     
     if (!pinecone_name) {
-      console.error('Invalid Concierge configuration: missing Pinecone name');
-      return NextResponse.json({ error: 'Invalid Concierge configuration: missing Pinecone name' }, { status: 500 });
+      console.error('Invalid No-Show configuration: missing Pinecone name');
+      return NextResponse.json({ error: 'Invalid No-Show configuration: missing Pinecone name' }, { status: 500 });
     }
 
     // Handle Pinecone assistant
@@ -85,11 +85,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
       }
 
-      console.log(`Creating Pinecone Concierge with name: ${pinecone_name}`);
+      console.log(`Creating Pinecone No-Show with name: ${pinecone_name}`);
       const assistant = pinecone.Assistant(pinecone_name);
       if (!assistant) {
-        console.error('Failed to create Pinecone Concierge');
-        return NextResponse.json({ error: 'Failed to create Concierge' }, { status: 500 });
+        console.error('Failed to create Pinecone No-Show');
+        return NextResponse.json({ error: 'Failed to create No-Show' }, { status: 500 });
       }
 
       // Prepare chat messages with optional system override
@@ -101,18 +101,18 @@ export async function POST(req: NextRequest) {
       
       messages.push({ role: 'user', content: message });
       
-      console.log('Sending message to Concierge for processing...');
+      console.log('Sending message to No-Show for processing...');
       console.log(`Messages: ${JSON.stringify(messages)}`);
 
       // Try sending the message with detailed error logging
       let response;
       try {
         response = await assistant.chat({ messages });
-        console.log('Received response from Concierge');
+        console.log('Received response from No-Show');
       } catch (assistantError: unknown) {
         console.error('Error from Pinecone assistant chat:', assistantError);
         const errorMessage = assistantError instanceof Error ? assistantError.message : String(assistantError);
-        throw new Error(`Failed to get response from Concierge: ${errorMessage}`);
+        throw new Error(`Failed to get response from No-Show: ${errorMessage}`);
       }
       
       // Record the response timestamp
@@ -121,12 +121,12 @@ export async function POST(req: NextRequest) {
       console.log(`Response time: ${responseDuration}ms`);
       
       if (!response || !response.message) {
-        console.error('Concierge returned no response');
-        return NextResponse.json({ error: 'Concierge returned no response' }, { status: 500 });
+        console.error('No-Show returned no response');
+        return NextResponse.json({ error: 'No-Show returned no response' }, { status: 500 });
       }
 
       // Log the response content
-      console.log(`Concierge response: "${response.message?.content?.substring(0, 100)}${(response.message?.content?.length || 0) > 100 ? '...' : ''}"`);
+      console.log(`No-Show response: "${response.message?.content?.substring(0, 100)}${(response.message?.content?.length || 0) > 100 ? '...' : ''}"`);
 
       // Extract token usage and cost information from the response if available
       const tokenCount = response.usage?.totalTokens || 0
@@ -174,12 +174,12 @@ export async function POST(req: NextRequest) {
         .eq('id', assistantId);
 
       if (usageError) {
-        console.error('Error updating Concierge usage:', usageError);
+        console.error('Error updating No-Show usage:', usageError);
       } else {
-        console.log('Successfully updated Concierge usage statistics');
+        console.log('Successfully updated No-Show usage statistics');
       }
 
-      console.log(`[${responseTimestamp.toISOString()}] Concierge chat API completed successfully`);
+      console.log(`[${responseTimestamp.toISOString()}] No-Show chat API completed successfully`);
       return NextResponse.json({ 
         response: response.message?.content || '',
         tokens: tokenCount,
@@ -191,9 +191,9 @@ export async function POST(req: NextRequest) {
         }
       });
     } catch (assistantError) {
-      console.error('Error interacting with Concierge:', assistantError);
+      console.error('Error interacting with No-Show:', assistantError);
       return NextResponse.json(
-        { error: 'Failed to process request with the Concierge' }, 
+        { error: 'Failed to process request with the No-Show' }, 
         { status: 500 }
       );
     }

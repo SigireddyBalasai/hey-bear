@@ -38,13 +38,13 @@ export async function POST(req: NextRequest) {
         .single();
       
       if (assistantError || !assistantData) {
-        console.error('Error fetching Concierge:', assistantError);
-        return NextResponse.json({ error: 'Concierge not found' }, { status: 404 });
+        console.error('Error fetching No-Show:', assistantError);
+        return NextResponse.json({ error: 'No-Show not found' }, { status: 404 });
       }
       
       assistantPineconeName = assistantData.pinecone_name;
       if (!assistantPineconeName) {
-        return NextResponse.json({ error: 'Invalid Concierge configuration' }, { status: 500 });
+        return NextResponse.json({ error: 'Invalid No-Show configuration' }, { status: 500 });
       }
     }
     

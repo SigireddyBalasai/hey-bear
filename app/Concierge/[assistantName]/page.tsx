@@ -86,17 +86,17 @@ const [fileError, setFileError] = useState<{
           .single();
         
         if (error) {
-          console.error('Error fetching Concierge:', error);
-          toast.error("Concierge unavailable", {
-            description: "The Concierge you tried to access is disabled or doesn't exist"
+          console.error('Error fetching No-Show:', error);
+          toast.error("No-Show unavailable", {
+            description: "The No-Show you tried to access is disabled or doesn't exist"
           });
           router.push('/Concierge');
           return;
         }
         
         if (!data) {
-          toast.error("Concierge not found", {
-            description: "This Concierge no longer exists or has been disabled."
+          toast.error("No-Show not found", {
+            description: "This No-Show no longer exists or has been disabled."
           });
           router.push('/Concierge');
           return;
@@ -110,7 +110,7 @@ const [fileError, setFileError] = useState<{
         
         if (isPending) {
           toast.error("Payment required", {
-            description: "This Concierge requires payment to be activated. Please complete checkout."
+            description: "This No-Show requires payment to be activated. Please complete checkout."
           });
           router.push('/Concierge');
           return;
@@ -125,16 +125,16 @@ const [fileError, setFileError] = useState<{
           // Update document title
           document.title = `Chat with ${data.name}`;
         } else {
-          toast.error("Concierge not found", {
-            description: "This Concierge no longer exists or has been disabled."
+          toast.error("No-Show not found", {
+            description: "This No-Show no longer exists or has been disabled."
           });
           router.push('/dashboard');
           return;
         }
       } catch (error) {
-        console.error('Error loading Concierge details:', error);
-        toast.error("Concierge error", {
-          description: "Unable to load this Concierge. Redirecting to Concierge page."
+        console.error('Error loading No-Show details:', error);
+        toast.error("No-Show error", {
+          description: "Unable to load this No-Show. Redirecting to No-Show page."
         });
         router.push('/dashboard');
       }
@@ -155,8 +155,8 @@ const [fileError, setFileError] = useState<{
           .single();
 
         if (error) {
-          console.error("Error fetching Concierge:", error);
-          toast.error("Failed to load Concierge details.");
+          console.error("Error fetching No-Show:", error);
+          toast.error("Failed to load No-Show details.");
         }
 
         if (data) {
@@ -167,7 +167,7 @@ const [fileError, setFileError] = useState<{
         }
       } catch (error) {
         console.error("Unexpected error:", error);
-        toast.error("Failed to load Concierge details due to an unexpected error.");
+        toast.error("Failed to load No-Show details due to an unexpected error.");
       } finally {
         setIsLoading(false);
       }
@@ -275,7 +275,7 @@ const [fileError, setFileError] = useState<{
         } else {
           console.error("Error fetching files:", data.error);
           toast("Error fetching files",{
-            description: data.error || "Could not retrieve files for this Concierge",
+            description: data.error || "Could not retrieve files for this No-Show ",
           });
           setIsChatDisabled(true);
           setFileList({ files: [] });
@@ -359,7 +359,7 @@ const [fileError, setFileError] = useState<{
         ]);
       } else {
         toast("Failed to get response", {
-          description: data.error || "The Concierge couldn't process your request",
+          description: data.error || "The No-Show couldn't process your request",
         });
       }
     } catch (error) {
@@ -406,7 +406,7 @@ const [fileError, setFileError] = useState<{
       const data = await res.json();
       if (res.ok) {
         toast("File uploaded successfully!",{
-          description: `${file.name} has been added to the Concierge.`,
+          description: `${file.name} has been added to the No-Show `,
         });
         setFile(null);
         await fetchFiles(); // Refresh files list
@@ -466,7 +466,7 @@ const [fileError, setFileError] = useState<{
       const data = await res.json();
       if (res.ok) {
         toast("URL added successfully!",{
-          description: `${url} has been added to the Concierge.`,
+          description: `${url} has been added to the No-Show `,
         });
         setUrl('');
         await fetchFiles(); // Refresh files list
@@ -588,7 +588,7 @@ const [fileError, setFileError] = useState<{
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-lg">Loading Concierge...</p>
+          <p className="text-lg">Loading No-Show ..</p>
         </div>
       </div>
     );
@@ -601,7 +601,7 @@ const [fileError, setFileError] = useState<{
         <Card className="w-[350px]">
           <CardHeader>
             <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>Please log in to continue using this Concierge</CardDescription>
+            <CardDescription>Please log in to continue using this No-Show </CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => router.push('/sign-in')}>
@@ -654,14 +654,14 @@ const [fileError, setFileError] = useState<{
                 className="shadow-sm hover:bg-accent"
               >
                 {activeTab === "chat" ? (
-                  <><Paperclip className="h-4 w-4 mr-2" /> Manage Concierge Knowledge</>
+                  <><Paperclip className="h-4 w-4 mr-2" /> Manage No-Show Knowledge</>
                 ) : (
                   <><Bot className="h-4 w-4 mr-2" /> Back to Chat</>
                 )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {activeTab === "chat" ? "Manage Concierge Files" : "Return to Chat"}
+              {activeTab === "chat" ? "Manage No-Show Files" : "Return to Chat"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -714,7 +714,7 @@ const [fileError, setFileError] = useState<{
                   </h3>
                   <p className="text-muted-foreground max-w-md mt-2">
                     {!fileList?.files?.length 
-                      ? "This Concierge needs document files to work. Please add at least one file."
+                      ? "This No-Show needs document files to work. Please add at least one file."
                       : "Ask me anything about the documents you've provided. I'm here to help!"}
                   </p>
                   {!fileList?.files?.length && (
@@ -864,7 +864,7 @@ const [fileError, setFileError] = useState<{
         <TabsContent value="files" className="flex-1 flex flex-col space-y-4 mt-0">
           <Card className="flex-1 flex flex-col border-muted shadow-lg">
             <CardHeader className="border-b">
-              <CardTitle>Manage Concierge Knowledge</CardTitle>
+              <CardTitle>Manage No-Show Knowledge</CardTitle>
               <CardDescription>
                 Add or remove files for {displayName} to use in conversations
               </CardDescription>

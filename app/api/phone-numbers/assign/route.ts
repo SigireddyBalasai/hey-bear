@@ -212,18 +212,18 @@ export async function POST(request: Request) {
       .single();
     
     if (assistantError || !assistantData) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Concierge not found`);
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - No-Show not found`);
       return NextResponse.json(
-        { error: 'Concierge not found' }, 
+        { error: 'No-Show not found' }, 
         { status: 404 }
       );
     }
     
     // Check if assistant already has a phone number
     if (assistantData.assigned_phone_number) {
-      console.log(`[${new Date().toISOString()}] Phone Number Assignment - Concierge already has a phone number`);
+      console.log(`[${new Date().toISOString()}] Phone Number Assignment - No-Show already has a phone number`);
       return NextResponse.json(
-        { error: 'Concierge already has a phone number assigned' }, 
+        { error: 'No-Shows already has a phone number assigned' }, 
         { status: 400 }
       );
     }
@@ -374,7 +374,7 @@ export async function POST(request: Request) {
       .eq('id', assistantId);
     
     if (updateAssistantError) {
-      console.error(`[${new Date().toISOString()}] Phone Number Assignment - Update Concierge error:`, updateAssistantError);
+      console.error(`[${new Date().toISOString()}] Phone Number Assignment - Update No-Show error:`, updateAssistantError);
       
       // Revert phone number assignment
       try {
@@ -399,7 +399,7 @@ export async function POST(request: Request) {
       }
       
       return NextResponse.json(
-        { error: 'Failed to update Concierge record' }, 
+        { error: 'Failed to update No-Show record' }, 
         { status: 500 }
       );
     }
@@ -637,7 +637,7 @@ async function createAndConfigureTwilioTwiMLApp(phoneNumber: string, webhookUrl:
     const assistantId = webhookUrlObj.searchParams.get('assistantId');
     
     if (!assistantId) {
-      logTwilioError('Assignment', `Warning: webhook URL does not contain Concierge parameter`);
+      logTwilioError('Assignment', `Warning: webhook URL does not contain No-Show parameter`);
     }
     
     // Create a voice transcription URL instead of using the webhook route

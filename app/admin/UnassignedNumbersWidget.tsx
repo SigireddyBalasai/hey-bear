@@ -60,7 +60,7 @@ export function UnassignedNumbersWidget() {
           <div className="py-6 text-center">
             <AlertTriangle className="h-8 w-8 mx-auto mb-3 text-amber-500/70" />
             <p className="text-sm text-muted-foreground">No unassigned numbers available.</p>
-            <p className="text-xs text-muted-foreground mt-1">Purchase new numbers to assign to Concierge.</p>
+            <p className="text-xs text-muted-foreground mt-1">Purchase new numbers to assign to No-shows.</p>
           </div>
         ) : (
           <div className="space-y-2">
