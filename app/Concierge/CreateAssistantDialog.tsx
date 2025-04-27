@@ -84,7 +84,7 @@ export function CreateAssistantDialog({
         <DialogHeader>
           <DialogTitle>Create New No-show</DialogTitle>
           <DialogDescription>
-            Create a new AI No-show to help with your tasks.
+            Create a new No-show to help with your tasks.
           </DialogDescription>
         </DialogHeader>
 

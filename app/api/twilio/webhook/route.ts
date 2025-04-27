@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { logTwilio, logTwilioError, formatTwilioWebhook, logTwimlResponse } from '@/utils/twilio-logger';
 import { sanitizeForSms, logIncomingSms } from '@/utils/sms-monitoring';
+import { trackUsage, isLimitReached, UsageType } from '@/utils/usage-limits';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();
@@ -70,8 +71,22 @@ export async function POST(req: Request) {
       console.error('Error fetching No-Show by ID:', error);
       return generateSmsResponse('No-Show not found');
     }
-    
+
     console.log(`Found No-Show: ${assistant.name} (ID: ${assistant.id})`);
+    
+    // Check if message limit has been reached
+    const isLimitExceeded = await isLimitReached(assistantId, UsageType.MESSAGE_RECEIVED);
+    if (isLimitExceeded) {
+      console.log(`Message limit reached for No-Show ${assistant.name}`);
+      return generateSmsResponse(
+        "I'm sorry, this No-Show has reached its monthly message limit. " +
+        "Please upgrade your plan or wait until next month to continue the conversation."
+      );
+    }
+    
+    // Track the incoming message
+    await trackUsage(assistantId, UsageType.MESSAGE_RECEIVED);
+    console.log(`Tracked incoming message for No-Show ${assistant.name}`);
     
     // Handle SMS message
     logTwilio('Webhook', `Processing SMS message for No-Show ${assistantId}`);
@@ -121,6 +136,10 @@ export async function POST(req: Request) {
       const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
       console.log(`AI response: "${aiResponse.substring(0, 100)}${aiResponse.length > 100 ? '...' : ''}"`);
       logTwilio('Webhook', `AI generated SMS response: ${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}`);
+      
+      // Track the outgoing message
+      await trackUsage(assistantId, UsageType.MESSAGE_SENT);
+      console.log(`Tracked outgoing message for No-Show ${assistant.name}`);
       
       // Record the interaction
       console.log('Saving interaction to database');

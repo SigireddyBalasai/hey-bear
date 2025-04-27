@@ -17,12 +17,12 @@ export default function PlanSelectionCard({ selectedPlan, onSelectPlan }: PlanSe
   const plans = [
     {
       ...SUBSCRIPTION_PLANS.PERSONAL,
-      description: "Perfect for personal use and individual projects",
+      description: "Perfect for individuals",
       badge: null
     },
     {
       ...SUBSCRIPTION_PLANS.BUSINESS,
-      description: "For professionals and businesses who need more capabilities",
+      description: "For small to medium-sized businesses",
       badge: "Popular"
     }
   ];
@@ -57,7 +57,7 @@ export default function PlanSelectionCard({ selectedPlan, onSelectPlan }: PlanSe
             <ul className="space-y-2 text-sm">
               {plan.features.map((feature, i) => (
                 <li key={i} className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+                  <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
                   <span>{feature}</span>
                 </li>
               ))}

@@ -3,6 +3,7 @@ import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
 import { Tables } from '@/lib/db.types';
 import { checkAssistantSubscription } from '@/utils/subscriptions';
+import { trackUsage, isLimitReached, UsageType } from '@/utils/usage-limits';
 
 // Define table types for better type safety
 type Interactions = Tables<'interactions'>
@@ -82,6 +83,23 @@ export async function POST(req: NextRequest) {
       }, { status: 402 }); // 402 Payment Required
     }
     
+    // Check if message limit has been reached
+    const isLimitExceeded = await isLimitReached(assistantId, UsageType.MESSAGE_RECEIVED);
+    if (isLimitExceeded) {
+      console.log(`Message limit reached for No-Show ${assistantId}`);
+      return NextResponse.json({
+        error: 'Usage limit reached',
+        details: 'This No-Show has reached its monthly message limit. Please upgrade your plan or wait until next month to continue the conversation.',
+        limitReached: true
+      }, { status: 429 }); // 429 Too Many Requests
+    }
+    
+    // Track the incoming message (only if it's not coming from an SMS - those are tracked in the webhook)
+    if (!userPhone) {
+      await trackUsage(assistantId, UsageType.MESSAGE_RECEIVED);
+      console.log(`Tracked direct web message for No-Show ${assistantId}`);
+    }
+    
     const supabase = await createClient();
 
     // Fetch the assistant from the database to get its Pinecone name
@@ -157,6 +175,12 @@ export async function POST(req: NextRequest) {
       if (!response || !response.message) {
         console.error('No-Show returned no response');
         return NextResponse.json({ error: 'No-Show returned no response' }, { status: 500 });
+      }
+
+      // Track the outgoing message (only if it's not going to SMS - those are tracked in the webhook)
+      if (!userPhone) {
+        await trackUsage(assistantId, UsageType.MESSAGE_SENT);
+        console.log(`Tracked direct web response for No-Show ${assistantId}`);
       }
 
       // Log the response content

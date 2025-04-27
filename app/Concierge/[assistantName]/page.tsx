@@ -588,7 +588,7 @@ const [fileError, setFileError] = useState<{
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-lg">Loading No-Show ..</p>
+          <p className="text-lg">Loading...</p>
         </div>
       </div>
     );
@@ -714,7 +714,7 @@ const [fileError, setFileError] = useState<{
                   </h3>
                   <p className="text-muted-foreground max-w-md mt-2">
                     {!fileList?.files?.length 
-                      ? "This No-Show needs document files to work. Please add at least one file or link. Your noshow won’t work otherwise."
+                      ? "This No-Show needs information to work. Please add at least one file or link."
                       : "Ask me anything about the documents you've provided. I'm here to help!"}
                   </p>
                   {!fileList?.files?.length && (

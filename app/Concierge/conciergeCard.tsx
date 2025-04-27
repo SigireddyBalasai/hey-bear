@@ -81,6 +81,25 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {/* Upgrade Plan button */}
+              {typeof assistant.params === 'object' && 
+               assistant.params !== null && 
+               'subscription' in assistant.params && 
+               typeof assistant.params.subscription === 'object' &&
+               assistant.params.subscription !== null &&
+               'plan' in assistant.params.subscription &&
+               assistant.params.subscription.plan === 'personal' && (
+                <>
+                  <DropdownMenuItem 
+                    onClick={() => window.location.href=`/api/subscriptions/upgrade?assistantId=${assistant.id}`}
+                    className="cursor-pointer"
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Upgrade to Business
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem 
                 onClick={() => handleDeleteAssistant(assistant.id)}
                 className="text-red-600 focus:text-red-600 dark:focus:text-red-400 cursor-pointer"

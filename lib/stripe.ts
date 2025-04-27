@@ -49,26 +49,37 @@ export const SUBSCRIPTION_PLANS = {
     id: process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PLAN_ID || process.env.STRIPE_PERSONAL_PLAN_ID,
     price: 13.99,
     features: [
-      'Basic chat capabilities',
       'Document upload',
-      'Basic analytics',
-      'Email support'
+      'Webpage referencing & crawling',
+      'Interaction analytics',
+      'Email support',
+      'Dedicated local phone number',
+      'SMS capabilities',
+      'Simple interface, easy management',
+      '300 messages/month (sent and received)',
+      '5 documents',
+      '5 webpages crawled'
     ],
-    description: 'Perfect for personal use and individual projects'
+    description: 'Perfect for individuals'
   },
   BUSINESS: {
     name: 'Business',
     id: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PLAN_ID || process.env.STRIPE_BUSINESS_PLAN_ID,
     price: 34.99,
     features: [
-      'Advanced chat capabilities',
-      'Unlimited document upload',
-      'Detailed analytics',
-      'Priority support',
+      'Document upload',
+      'Webpage referencing & crawling',
+      'Interaction analytics',
+      'Priority email support',
+      'Dedicated local phone number',
       'SMS capabilities',
-      'API access'
+      'Webhook access',
+      'Simple interface, easy management',
+      '2,000 messages/month (sent and received)',
+      '25 documents',
+      '25 webpages crawled'
     ],
-    description: 'For professionals and businesses who need more capabilities'
+    description: 'For small to medium-sized businesses'
   }
 };
 

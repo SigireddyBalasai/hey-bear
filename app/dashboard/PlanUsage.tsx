@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useData } from './DataContext';
 
@@ -18,12 +17,9 @@ const PlanUsage = () => {
     <div className="mb-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Plan Usage</CardTitle>
-              <CardDescription>Track your usage to ensure you stay within your plan's limits</CardDescription>
-            </div>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">Change Plan</Button>
+          <div>
+            <CardTitle>Plan Usage</CardTitle>
+            <CardDescription>Track your usage to ensure you stay within your plan's limits</CardDescription>
           </div>
         </CardHeader>
         <CardContent>

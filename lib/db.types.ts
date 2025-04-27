@@ -92,44 +92,6 @@ export type Database = {
           },
         ]
       }
-      pending_assistants: {
-        Row: {
-          id: string
-          user_id: string
-          name: string
-          params: Json | null
-          created_at: string | null
-          checkout_session_id: string | null
-          plan_id: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          name: string
-          params?: Json | null
-          created_at?: string | null
-          checkout_session_id?: string | null
-          plan_id?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          params?: Json | null
-          created_at?: string | null
-          checkout_session_id?: string | null
-          plan_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pending_assistants_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       assistantusage: {
         Row: {
           assistant_id: string | null
@@ -232,6 +194,44 @@ export type Database = {
           },
         ]
       }
+      pending_assistants: {
+        Row: {
+          checkout_session_id: string | null
+          created_at: string | null
+          id: string
+          name: string
+          params: Json | null
+          plan_id: string | null
+          user_id: string
+        }
+        Insert: {
+          checkout_session_id?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          params?: Json | null
+          plan_id?: string | null
+          user_id: string
+        }
+        Update: {
+          checkout_session_id?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          params?: Json | null
+          plan_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_assistants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       phonenumberpool: {
         Row: {
           added_at: string | null
@@ -321,6 +321,50 @@ export type Database = {
           price?: number | null
         }
         Relationships: []
+      }
+      usage_limits: {
+        Row: {
+          assistant_id: string
+          created_at: string
+          documents_count: number
+          id: string
+          last_reset: string
+          messages_received: number
+          messages_sent: number
+          updated_at: string
+          webpages_crawled: number
+        }
+        Insert: {
+          assistant_id: string
+          created_at?: string
+          documents_count?: number
+          id?: string
+          last_reset?: string
+          messages_received?: number
+          messages_sent?: number
+          updated_at?: string
+          webpages_crawled?: number
+        }
+        Update: {
+          assistant_id?: string
+          created_at?: string
+          documents_count?: number
+          id?: string
+          last_reset?: string
+          messages_received?: number
+          messages_sent?: number
+          updated_at?: string
+          webpages_crawled?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_limits_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usagetiers: {
         Row: {

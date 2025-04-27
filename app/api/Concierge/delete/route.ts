@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
+import { stripe } from '@/lib/stripe';
+
+// Helper function for checking subscription params
+const hasSubscription = (params: any): params is { subscription: { stripeSubscriptionId?: string } } => {
+  return typeof params === 'object' && 
+         params !== null && 
+         'subscription' in params && 
+         typeof params.subscription === 'object' &&
+         params.subscription !== null;
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +38,41 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Fetch the assistant to check for subscription
+      const { data: assistantData, error: assistantError } = await supabase
+        .from('assistants')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('assistant_id', assistantName)
+        .single();
+
+      if (assistantError) {
+        console.error('Error fetching assistant:', assistantError);
+      } else if (assistantData) {
+        // Check if there is a subscription to cancel
+        let subscriptionId: string | undefined;
+        if (hasSubscription(assistantData.params)) {
+          subscriptionId = assistantData.params.subscription.stripeSubscriptionId;
+        }
+        
+        // If there's an active subscription, cancel it without a refund
+        if (subscriptionId && stripe) {
+          try {
+            console.log(`Canceling subscription ${subscriptionId} for No-Show ${assistantName}`);
+            
+            // Cancel subscription with no refund (prorate: false means no partial refunds)
+            await stripe.subscriptions.cancel(subscriptionId, {
+              prorate: false,
+            });
+            
+            console.log(`Successfully canceled subscription ${subscriptionId} for No-Show ${assistantName}`);
+          } catch (stripeError) {
+            console.error('Error canceling Stripe subscription:', stripeError);
+            // Continue with deletion even if subscription cancellation fails
+          }
+        }
+      }
+      
       // Delete from Pinecone
       const pinecone = getPineconeClient();
       if (!pinecone) {

@@ -74,6 +74,13 @@ export function Header({ user, handleSignOut }: HeaderProps) {
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
           
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard" className="flex w-full cursor-pointer">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+          </DropdownMenuItem>
+          
           {isAdmin && (
             <DropdownMenuItem asChild>
               <Link href="/admin" className="flex w-full cursor-pointer">

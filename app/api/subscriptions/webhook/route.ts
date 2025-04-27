@@ -379,6 +379,24 @@ async function handleSubscriptionCreated(subscription: any, supabase: any) {
       console.error('Error fetching assistant:', fetchError);
       return;
     }
+
+    // Check if this is an upgrade flow by looking at the metadata
+    const isUpgrade = subscription.metadata.upgradeFlow === 'true';
+    const previousSubscriptionId = subscription.metadata.previousSubscriptionId;
+    
+    // If this is an upgrade and there's a previous subscription, cancel it
+    if (isUpgrade && previousSubscriptionId) {
+      try {
+        console.log(`This is a plan upgrade. Canceling previous subscription ${previousSubscriptionId}`);
+        await stripe?.subscriptions.cancel(previousSubscriptionId, {
+          prorate: false, // No refunds for upgrades
+        });
+        console.log(`Successfully canceled previous subscription ${previousSubscriptionId}`);
+      } catch (cancelError) {
+        console.error('Error canceling previous subscription during upgrade:', cancelError);
+        // Continue with the upgrade process even if cancellation fails
+      }
+    }
     
     // Update the assistant with the new subscription data
     await supabase
@@ -390,8 +408,10 @@ async function handleSubscriptionCreated(subscription: any, supabase: any) {
             ...assistantData.params?.subscription,
             stripeSubscriptionId: subscription.id,
             status: subscription.status,
+            plan: isUpgrade ? 'business' : (assistantData.params?.subscription?.plan || 'personal'),
             currentPeriodEnd: new Date((subscription as any).current_period_end * 1000).toISOString(),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            upgradedAt: isUpgrade ? new Date().toISOString() : undefined
           }
         }
       })
