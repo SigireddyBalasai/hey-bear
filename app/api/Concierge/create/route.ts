@@ -120,8 +120,8 @@ export async function POST(req: NextRequest) {
         .insert(pendingAssistantData);
 
       if (pendingError) {
-        console.error('Error saving pending No-Shows to Supabase:', pendingError);
-        return NextResponse.json({ error: 'Failed to save pending No-Shows to database' }, { status: 500 });
+        console.error('Error saving pending No-show to Supabase:', pendingError);
+        return NextResponse.json({ error: 'Failed to save pending No-show to database' }, { status: 500 });
       }
 
       // No longer creating an entry in the assistants table until payment is confirmed

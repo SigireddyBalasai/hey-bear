@@ -23,7 +23,7 @@ export async function fetchAvailablePhoneNumbers() {
 }
 
 /**
- * Fetch all assigned phone numbers with their associated No-Shows
+ * Fetch all assigned phone numbers with their associated No-show
  */
 export async function fetchAssignedPhoneNumbers() {
   try {
@@ -168,7 +168,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
       .eq('id', assistantId);
     
     if (assistantError) {
-      console.error('Error updating No-Shows:', assistantError);
+      console.error('Error updating No-show:', assistantError);
       
       // Rollback phone number assignment
       await supabase
@@ -189,7 +189,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
 }
 
 /**
- * Unassign a phone number from a No-Shows
+ * Unassign a phone number from a No-show
  */
 export async function unassignPhoneNumber(phoneNumber: string) {
   try {
@@ -226,11 +226,11 @@ export async function unassignPhoneNumber(phoneNumber: string) {
       .eq('assigned_phone_number', phoneNumber);
     
     if (assistantError) {
-      console.error('Error finding No-Shows:', assistantError);
+      console.error('Error finding No-show:', assistantError);
       throw assistantError;
     }
     
-    // Clear assigned phone number from No-Shows
+    // Clear assigned phone number from No-show
     if (assistants && assistants.length > 0) {
       const { error: clearError } = await supabase
         .from('assistants')
@@ -238,7 +238,7 @@ export async function unassignPhoneNumber(phoneNumber: string) {
         .eq('assigned_phone_number', phoneNumber);
       
       if (clearError) {
-        console.error('Error clearing phone number from No-Shows:', clearError);
+        console.error('Error clearing phone number from No-show:', clearError);
         throw clearError;
       }
     }

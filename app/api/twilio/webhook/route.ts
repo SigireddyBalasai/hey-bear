@@ -39,8 +39,8 @@ export async function POST(req: Request) {
     }
     
     if (!assistantId) {
-      console.log(`No No-Shows provided, cannot process request`);
-      return generateSmsResponse('No-Shows ID is required');
+      console.log(`No No-show provided, cannot process request`);
+      return generateSmsResponse('No-show ID is required');
     }
     
     console.log(`Using assistantId from URL param: ${assistantId}`);

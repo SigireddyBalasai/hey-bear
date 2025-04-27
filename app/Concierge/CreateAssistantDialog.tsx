@@ -82,16 +82,16 @@ export function CreateAssistantDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New No-Shows</DialogTitle>
+          <DialogTitle>Create New No-show</DialogTitle>
           <DialogDescription>
-            Create a new AI No-Shows to help with your tasks.
+            Create a new AI No-show to help with your tasks.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="assistantName" className="font-medium">
-              No-Shows Display Name *
+              No-show Display Name *
             </Label>
             <Input
               id="assistantName"
@@ -108,7 +108,7 @@ export function CreateAssistantDialog({
 
           <div className="space-y-2">
             <Label htmlFor="conciergeName" className="font-medium">
-              No-Shows Name
+              No-show Name
             </Label>
             <Input
               id="conciergeName"
@@ -124,7 +124,7 @@ export function CreateAssistantDialog({
 
           <div className="space-y-2">
             <Label htmlFor="conciergePersonality" className="font-medium">
-              No-Shows Personality
+              No-show Personality
             </Label>
             <Select
               value={conciergePersonality}
@@ -168,7 +168,7 @@ export function CreateAssistantDialog({
             </Label>
             <Textarea
               id="description"
-              placeholder="Describe what this No-Shows does..."
+              placeholder="Describe what this No-show does..."
               value={newAssistantDescription}
               onChange={(e) => setNewAssistantDescription(e.target.value)}
               className="min-h-[80px] w-full"
@@ -182,7 +182,7 @@ export function CreateAssistantDialog({
                   Share Your Phone Number
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Enabling this lets your No-Shows share the inputted number.
+                  Enabling this lets your No-show share the inputted number.
                 </p>
               </div>
               <Switch
@@ -203,7 +203,7 @@ export function CreateAssistantDialog({
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  This is useful if you want your No-Shows to redirect others to another number if they request it.
+                  This is useful if you want your No-show to redirect others to another number if they request it.
                 </p>
               </div>
             )}
@@ -229,7 +229,7 @@ export function CreateAssistantDialog({
                 Creating...
               </>
             ) : (
-              "Create No-Shows"
+              "Create No-show"
             )}
           </Button>
         </DialogFooter>

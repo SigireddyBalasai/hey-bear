@@ -8,7 +8,7 @@ export default function conciergeButton() {
 
   return (
     <Button onClick={() => router.push('/Concierge')}>
-      Go to No-Shows
+      Go to No-show
     </Button>
   );
 }

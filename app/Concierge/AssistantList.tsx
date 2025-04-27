@@ -73,7 +73,7 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {assistant.is_starred ? "Unstar" : "Star"} No-Shows
+                  {assistant.is_starred ? "Unstar" : "Star"} No-show
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

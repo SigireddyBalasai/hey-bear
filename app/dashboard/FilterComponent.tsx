@@ -117,11 +117,11 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="all" id="Concierge-all" />
-                <Label htmlFor="Concierge-all">All No-Shows</Label>
+                <Label htmlFor="Concierge-all">All No-show</Label>
               </div>
               
               {isLoading ? (
-                <div className="text-sm text-muted-foreground">Loading No-Shows...</div>
+                <div className="text-sm text-muted-foreground">Loading No-show...</div>
               ) : assistants.length > 0 ? (
                 assistants.map(assistant => (
                   <div key={assistant.id} className="flex items-center space-x-2">

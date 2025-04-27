@@ -55,8 +55,8 @@ export function Header({ user, handleSignOut }: HeaderProps) {
   return (
     <header className="flex justify-between items-center mb-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">No-Shows</h1>
-        <p className="text-muted-foreground">Manage your AI No-Shows</p>
+        <h1 className="text-3xl font-bold tracking-tight">No-show</h1>
+        <p className="text-muted-foreground">Manage your AI No-show</p>
       </div>
       
       <DropdownMenu>

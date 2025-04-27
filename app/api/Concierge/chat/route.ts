@@ -8,6 +8,35 @@ import { checkAssistantSubscription } from '@/utils/subscriptions';
 type Interactions = Tables<'interactions'>
 type Assistant = Tables<'assistants'>
 
+// Helper function to generate a personalized and behaviorally-correct system prompt
+function generateBehaviorPrompt(
+  assistantName: string,
+  params: any
+): string {
+  // Extract parameters if they exist
+  const conciergeName = params?.conciergeName || assistantName;
+  const businessName = params?.businessName || '';
+  const personality = params?.conciergePersonality?.toLowerCase() || 'business casual';
+  
+  // Start with the introduction template based on personality
+  let prompt = '';
+  
+  // First set the greeting format based on personality
+  if (personality.includes('friendly')) {
+    prompt = `Hey there! This is ${conciergeName} from ${businessName} 😊 What can I do for you?`;
+  } else if (personality.includes('formal')) {
+    prompt = `Hello, this is ${conciergeName} representing ${businessName}. How may I assist you?`;
+  } else {
+    // Default to business casual
+    prompt = `Hi! ${conciergeName} here with ${businessName} — what can I help with today?`;
+  }
+  
+  // Add the behavior instructions
+  prompt += `\n\nAs ${conciergeName}, I represent ${businessName || 'this business'} directly. I'll always speak as a helpful, knowledgeable employee—not like a search engine or AI assistant. I'll never reference "search results" or say phrases like "this appears to be." I know the business well and speak with a ${personality} tone throughout our conversation.`;
+  
+  return prompt;
+}
+
 export async function POST(req: NextRequest) {
   // Record the request timestamp
   const requestTimestamp = new Date();
@@ -55,12 +84,10 @@ export async function POST(req: NextRequest) {
     
     const supabase = await createClient();
 
-    // Removed authentication check - the assistant is now accessible without login
-
     // Fetch the assistant from the database to get its Pinecone name
     const { data: assistantData, error: assistantError } = await supabase
       .from('assistants')
-      .select('pinecone_name, name')
+      .select('pinecone_name, name, params')
       .eq('id', assistantId)
       .single();
     
@@ -68,7 +95,7 @@ export async function POST(req: NextRequest) {
       console.error('Error fetching No-Show:', assistantError);
       return NextResponse.json({ error: 'No-Show not found' }, { status: 404 });
     }
-    const { pinecone_name, name: assistantName } = assistantData;
+    const { pinecone_name, name: assistantName, params } = assistantData;
     console.log(`Found No-Show: name=${assistantName}, pinecone_name=${pinecone_name}`);
     
     if (!pinecone_name) {
@@ -95,10 +122,17 @@ export async function POST(req: NextRequest) {
       // Prepare chat messages with optional system override
       const messages = [];
       
-      if (systemOverride) {
+      // Create behavior prompt if this is the first message (no systemOverride provided)
+      if (!systemOverride) {
+        // Generate a system prompt that enforces our desired behaviors
+        const behaviorPrompt = generateBehaviorPrompt(assistantName, params);
+        messages.push({ role: 'assistant', content: behaviorPrompt });
+      } else {
+        // Use the provided system override
         messages.push({ role: 'assistant', content: systemOverride });
       }
       
+      // Add user message
       messages.push({ role: 'user', content: message });
       
       console.log('Sending message to No-Show for processing...');

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     
     // Validate required fields
     if (!assistantName) {
-      return NextResponse.json({ error: 'No-Shows name is required' }, { status: 400 });
+      return NextResponse.json({ error: 'No-show name is required' }, { status: 400 });
     }
     
     const supabase = await createClient();

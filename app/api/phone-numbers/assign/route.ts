@@ -223,7 +223,7 @@ export async function POST(request: Request) {
     if (assistantData.assigned_phone_number) {
       console.log(`[${new Date().toISOString()}] Phone Number Assignment - No-Show already has a phone number`);
       return NextResponse.json(
-        { error: 'No-Shows already has a phone number assigned' }, 
+        { error: 'No-show already has a phone number assigned' }, 
         { status: 400 }
       );
     }

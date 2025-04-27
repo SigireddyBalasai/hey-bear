@@ -21,12 +21,12 @@ export async function POST(req: Request) {
       .single();
     
     if (assistantError || !assistant) {
-      console.error('No-Shows not found:', assistantId, assistantError);
+      console.error('No-show not found:', assistantId, assistantError);
       return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
     }
     
     if (!assistant.assigned_phone_number) {
-      return NextResponse.json({ error: 'This No-Shows does not have an assigned phone number' }, { status: 400 });
+      return NextResponse.json({ error: 'This No-show does not have an assigned phone number' }, { status: 400 });
     }
     
     // Initialize Twilio client

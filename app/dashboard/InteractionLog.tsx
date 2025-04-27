@@ -42,14 +42,8 @@ const InteractionLog: React.FC<InteractionLogProps> = ({
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Interaction Log</CardTitle>
-            <CardDescription>Detailed insights into how your No-Shows is interacting with others</CardDescription>
+            <CardDescription>Detailed insights into how your No-show is interacting with others</CardDescription>
           </div>
-          <Tabs defaultValue="table" value={activeTab} onValueChange={setActiveTab} className="w-auto">
-            <TabsList>
-              <TabsTrigger value="table">Table View</TabsTrigger>
-              <TabsTrigger value="conversation">Conversation View</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
       </CardHeader>
       <CardContent className="relative">

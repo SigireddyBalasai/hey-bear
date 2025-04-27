@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
         if (!assistant) {
             logger.error(`Assistant not found with ID ${assistantId}`);
             return NextResponse.json(
-                { error: 'No-Shows not found or you do not have permission to modify it' },
+                { error: 'No-show not found or you do not have permission to modify it' },
                 { status: 404 }
             );
         }

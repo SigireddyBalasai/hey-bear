@@ -158,7 +158,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
                 </Badge>
               </div>
             ) : (
-              <span>No No-Shows connected to this phone number</span>
+              <span>No No-show connected to this phone number</span>
             )}
           </DialogDescription>
         </DialogHeader>

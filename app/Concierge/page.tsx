@@ -530,7 +530,7 @@ export default function AssistantsPage() {
         />
         {/* <div className="flex space-x-2">
           <Button onClick={() => setCreateDialogOpen(true)} className="whitespace-nowrap">
-            New No-Shows
+            New No-show
           </Button>
         </div> */}
       </div>
