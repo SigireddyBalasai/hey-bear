@@ -156,7 +156,7 @@ const ConciergeInteractionDashboard = () => {
         <Link href="/Concierge">
           <Button variant="outline" size="sm" className="flex items-center gap-1">
             <ArrowLeft className="h-4 w-4" />
-            My No-show
+            My No-shows
           </Button>
         </Link>
       </div>
