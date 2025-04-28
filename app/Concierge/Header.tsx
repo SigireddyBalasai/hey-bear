@@ -55,8 +55,8 @@ export function Header({ user, handleSignOut }: HeaderProps) {
   return (
     <header className="flex justify-between items-center mb-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">No-show</h1>
-        <p className="text-muted-foreground">Manage your AI No-show</p>
+        <h1 className="text-3xl font-bold tracking-tight">No-Show</h1>
+        <p className="text-muted-foreground">Manage your no-show</p>
       </div>
       
       <DropdownMenu>
@@ -77,7 +77,7 @@ export function Header({ user, handleSignOut }: HeaderProps) {
           <DropdownMenuItem asChild>
             <Link href="/dashboard" className="flex w-full cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
-              <span>Dashboard</span>
+              <span>Interaction Dashboard</span>
             </Link>
           </DropdownMenuItem>
           
