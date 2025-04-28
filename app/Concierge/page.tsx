@@ -528,11 +528,6 @@ export default function AssistantsPage() {
           selectedTab={selectedTab}
           setSelectedTab={setSelectedTab}
         />
-        {/* <div className="flex space-x-2">
-          <Button onClick={() => setCreateDialogOpen(true)} className="whitespace-nowrap">
-            New No-show
-          </Button>
-        </div> */}
       </div>
       
       <SearchAndControls

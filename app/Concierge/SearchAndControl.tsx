@@ -65,7 +65,7 @@ export function SearchAndControls({
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              <span>New No-Show</span>
+              <span>New no-show</span>
             </Button>
           </DialogTrigger>
         </Dialog>
