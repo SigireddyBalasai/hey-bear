@@ -91,6 +91,13 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
               Sign in with Google
             </SubmitButton>
           </form>
+          
+          <p className="mt-4 text-xs text-center text-muted-foreground">
+            By using our services, including signing in or signing up, you agree to be bound by our 
+            <Link href="/terms" className="text-primary hover:underline mx-1">Terms & Conditions</Link>
+            and
+            <Link href="/privacy" className="text-primary hover:underline mx-1">Privacy Policy</Link>.
+          </p>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
