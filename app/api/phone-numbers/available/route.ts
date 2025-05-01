@@ -1,35 +1,26 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { PhoneNumberService } from '../../services/phone-number-service';
 
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
+    // Initialize the supabase client
     const supabase = await createClient();
     
-    // Authenticate the user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Initialize service with client
+    const phoneNumberService = new PhoneNumberService(supabase);
     
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Fetch all unassigned phone numbers
-    const { data: numbers, error } = await supabase
-      .from('phonenumbers')
-      .select('id, number')
-      .eq('is_assigned', false)
-      .order('created_at', { ascending: false });
-      
-    if (error) {
-      console.error('Error fetching available phone numbers:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch available phone numbers' },
-        { status: 500 }
-      );
-    }
+    // Get available phone numbers
+    const phoneNumbers = await phoneNumberService.getAvailablePhoneNumbers();
     
-    return NextResponse.json({ numbers: numbers || [] });
-  } catch (error: any) {
-    console.error("Error fetching available phone numbers:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Return the available phone numbers
+    return NextResponse.json({ phoneNumbers });
+    
+  } catch (error) {
+    console.error('Error fetching available phone numbers:', error);
+    return NextResponse.json(
+      { error: `Error fetching available phone numbers: ${error instanceof Error ? error.message : String(error)}` },
+      { status: 500 }
+    );
   }
 }

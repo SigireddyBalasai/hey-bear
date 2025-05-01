@@ -16,7 +16,16 @@ export async function GET() {
     try {
       const pinecone = getPineconeClient();
       
-      // Handle potential errors from Pinecone
+      // Check if Pinecone client was initialized successfully
+      if (!pinecone) {
+        console.error('Failed to initialize Pinecone client');
+        return NextResponse.json({ 
+          assistants: [],
+          error: 'Failed to connect to knowledge base service'
+        });
+      }
+      
+      // Now safely call listAssistants as pinecone is not null
       const assistantsResponse = await pinecone.listAssistants().catch(error => {
         console.error('Pinecone error listing assistants:', error);
         return { assistants: [] }; // Return empty array on error

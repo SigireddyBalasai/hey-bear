@@ -54,6 +54,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [inputType, setInputType] = useState<"file" | "url">("file");
   const [url, setUrl] = useState<string>('');
   const [isUrlValid, setIsUrlValid] = useState<boolean>(true);
+  const [urlErrorMessage, setUrlErrorMessage] = useState<string>('');
 const [fileError, setFileError] = useState<{
     title: string;
     description: string;
@@ -433,8 +434,43 @@ const [fileError, setFileError] = useState<{
     }
   };
 
+  // Handle URL validation
+  const validateUrl = (input: string): boolean => {
+    // Reset error message
+    setUrlErrorMessage('');
+
+    // Empty URL
+    if (!input.trim()) {
+      setIsUrlValid(false);
+      setUrlErrorMessage('URL cannot be empty');
+      return false;
+    }
+
+    try {
+      const urlObj = new URL(input);
+      
+      // Basic URL validation - must be http or https protocol
+      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+        setIsUrlValid(false);
+        setUrlErrorMessage('URL must use http:// or https:// protocol');
+        return false;
+      }
+
+      setIsUrlValid(true);
+      return true;
+    } catch (e) {
+      setIsUrlValid(false);
+      setUrlErrorMessage('Please enter a valid URL (e.g., https://example.com/document)');
+      return false;
+    }
+  };
+
   // Handle adding URL to assistant
   const handleAddUrl = async () => {
+    // Validate URL before proceeding
+    if (!validateUrl(url)) {
+      return;
+    }
     
     try {
       setIsUploading(true);
@@ -473,10 +509,14 @@ const [fileError, setFileError] = useState<{
         startStatusPolling(); // Start polling for status changes
       } else {
         // Show file error dialog with server error details
+        const errorMsg = data.error || "Failed to add URL";
+        const errorDetails = data.details || 
+          (res.status === 500 ? "The server encountered an error processing your request. The service might be temporarily unavailable." : undefined);
+
         setFileError({
           title: "URL Addition Error",
-          description: data.error || "Failed to add URL",
-          details: data.details || undefined,
+          description: errorMsg,
+          details: errorDetails,
           show: true
         });
       }
@@ -484,7 +524,8 @@ const [fileError, setFileError] = useState<{
       console.error("URL addition error:", error);
       setFileError({
         title: "URL Error",
-        description: "Something went wrong while adding this URL",
+        description: "Something went wrong while adding this URL. The server might be temporarily unavailable.",
+        details: "Please try again later or contact support if the problem persists.",
         show: true
       });
     } finally {
@@ -932,14 +973,20 @@ const [fileError, setFileError] = useState<{
                       type="url"
                       placeholder="https://example.com/document.pdf"
                       value={url}
-                      onChange={(e) => setUrl(e.target.value)}
+                      onChange={(e) => {
+                        setUrl(e.target.value);
+                        if (!isUrlValid) {
+                          validateUrl(e.target.value);
+                        }
+                      }}
+                      onBlur={() => validateUrl(url)}
                       className={cn(
                         !isUrlValid && "border-red-500 focus-visible:ring-red-500"
                       )}
                     />
                     {!isUrlValid && (
                       <p className="text-sm text-red-500">
-                        Please enter a valid URL
+                        {urlErrorMessage || "Please enter a valid URL"}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">

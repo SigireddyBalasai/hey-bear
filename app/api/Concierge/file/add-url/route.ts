@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { getPineconeClient } from '@/lib/pinecone';
+import { getPineconeClient, PineconeConnectionError, PineconeNotFoundError } from '@/lib/pinecone';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -508,27 +508,100 @@ export async function POST(req: NextRequest) {
         logger.info(`Creating temporary file: ${tempFilePath}`);
         
         try {
-            // Write content to temporary file and upload to Pinecone
+            // Write content to temporary file
             fs.writeFileSync(tempFilePath, markdownContent);
             logger.debug('Content written to temporary file');
 
+            // Try to upload to Pinecone with retries
             logger.info(`Uploading content to Pinecone index: ${pinecone_name}`);
-            const pineconeAssistant = pinecone.Assistant(pinecone_name);
-            const uploadResult = await pineconeAssistant.uploadFile({
-                path: tempFilePath,
-                metadata: { 
-                    source: url,
-                    type: 'webpage',
-                    dateAdded: new Date().toISOString(),
-                    assistantId: assistantId,
-                    userId: user.id,
-                    title: resultData?.metadata?.title || '',
-                    description: resultData?.metadata?.description || ''
-                }
-            });
             
+            // Retry configuration
+            const maxRetries = 3;
+            const initialRetryDelay = 1000; // 1 second
+            
+            let uploadResult = null;
+            let lastError = null;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    // Create a new Pinecone Assistant instance each time to avoid connection reuse issues
+                    const pineconeAssistant = pinecone.Assistant(pinecone_name);
+                    
+                    // Validate assistant existence by attempting a simple operation
+                    try {
+                        logger.debug(`Validating Pinecone assistant: ${pinecone_name} (attempt ${attempt + 1}/${maxRetries})`);
+                        
+                        // We only need to do this check on the first attempt
+                        if (attempt === 0) {
+                            try {
+                                await pineconeAssistant.listFiles();
+                                logger.debug(`Pinecone assistant validated: ${pinecone_name}`);
+                            } catch (verifyError: any) {
+                                // Only throw if it's a not found error, other errors may resolve with retries
+                                if (verifyError instanceof PineconeNotFoundError) {
+                                    logger.error(`Pinecone assistant not found: ${pinecone_name}`, verifyError);
+                                    throw verifyError; // Rethrow to be caught by outer catch
+                                }
+                                // For connection errors, we'll continue with the upload attempt
+                                // as the retry logic will handle those
+                            }
+                        }
+                    } catch (verifyError: any) {
+                        // Explicit handling for verification errors
+                        if (verifyError instanceof PineconeNotFoundError) {
+                            throw new Error(`The Pinecone assistant "${pinecone_name}" doesn't exist. Please check your configuration.`);
+                        }
+                        throw verifyError; // Rethrow other errors
+                    }
+                    
+                    // Upload the file
+                    uploadResult = await pineconeAssistant.uploadFile({
+                        path: tempFilePath,
+                        metadata: { 
+                            source: url,
+                            type: 'webpage',
+                            dateAdded: new Date().toISOString(),
+                            assistantId: assistantId,
+                            userId: user.id,
+                            title: resultData?.metadata?.title || '',
+                            description: resultData?.metadata?.description || ''
+                        }
+                    });
+                    
+                    // If we get here, upload was successful
+                    break;
+                    
+                } catch (uploadError: any) {
+                    lastError = uploadError;
+                    
+                    // Check error type to determine if we should retry
+                    if ((uploadError instanceof PineconeConnectionError || 
+                         uploadError?.code === 'UND_ERR_CONNECT_TIMEOUT') && 
+                        attempt < maxRetries - 1) {
+                        // Only retry on connection errors, not other types
+                        logger.warn(`Pinecone upload failed on attempt ${attempt + 1}/${maxRetries}, retrying...`, {
+                            error: uploadError.message,
+                            name: uploadError.name,
+                            code: uploadError.code
+                        });
+                        
+                        // Exponential backoff
+                        await new Promise(r => setTimeout(r, initialRetryDelay * Math.pow(2, attempt)));
+                    } else {
+                        // Either not a connection error or last attempt
+                        logger.error(`Pinecone upload failed on attempt ${attempt + 1}/${maxRetries}`, uploadError);
+                        throw uploadError;
+                    }
+                }
+            }
+            
+            // Clean up temporary file
             logger.debug('Removing temporary file');
             fs.unlinkSync(tempFilePath);
+            
+            if (!uploadResult) {
+                throw lastError || new Error('Failed to upload to Pinecone after multiple attempts');
+            }
             
             logger.info(`Successfully uploaded URL content to Pinecone with ID: ${uploadResult.id}`);
             
@@ -546,13 +619,37 @@ export async function POST(req: NextRequest) {
                 fs.unlinkSync(tempFilePath);
             }
             
-            logger.error('Error uploading URL content to Pinecone', error);
+            // Detailed error handling based on error types
+            const errorDetails = {
+                message: error.message || 'An error occurred during content upload',
+                type: error.name || 'Unknown',
+                cause: error.cause ? (error.cause.message || String(error.cause)) : undefined
+            };
+            
+            // Format user-friendly error message based on error type
+            let userMessage = 'Failed to upload URL content';
+            let statusCode = 500;
+            
+            if (error instanceof PineconeConnectionError) {
+                userMessage = 'Unable to connect to the Pinecone service. The service might be temporarily unavailable.';
+                logger.error('Pinecone connection error', errorDetails);
+            } else if (error instanceof PineconeNotFoundError) {
+                userMessage = `The assistant configuration is invalid. Please contact support.`;
+                statusCode = 400;
+                logger.error('Pinecone assistant not found', errorDetails);
+            } else if (error.code === 'ECONNREFUSED' || error.code === 'UND_ERR_CONNECT_TIMEOUT') {
+                userMessage = 'Connection to the knowledge base timed out. Please try again later.';
+                logger.error('Connection timeout error', errorDetails);
+            } else {
+                logger.error('Unexpected error uploading URL content', errorDetails);
+            }
+            
             return NextResponse.json(
                 { 
-                    error: 'Failed to upload URL content',
-                    message: error.message || 'An error occurred during content upload'  
+                    error: userMessage,
+                    details: `${errorDetails.type}: ${errorDetails.message}${errorDetails.cause ? ` (Caused by: ${errorDetails.cause})` : ''}`
                 }, 
-                { status: 500 }
+                { status: statusCode }
             );
         }
     } catch (e: any) {
