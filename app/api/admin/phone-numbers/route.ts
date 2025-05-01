@@ -1,136 +1,129 @@
-import { createClient } from "@/utils/supabase/server";
-import { NextResponse } from "next/server";
-import { checkIsAdmin } from "@/utils/admin";
+import { createClient } from '@/utils/supabase/server';
+import { PhoneNumberAdminService } from '@/app/services/phone-number/phone-number-admin-service';
+import { serviceResponseToNextResponse, createWarningResponse } from '@/app/utils/api-response';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Initialize the supabase client
     const supabase = await createClient();
     
-    // Verify admin user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check admin status using the utility function
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
+    // Initialize service with client
+    const phoneNumberAdminService = new PhoneNumberAdminService(supabase);
     
-    if (adminError || !isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Get phone numbers
-    const { data: numbers, error: numbersError } = await supabase
-      .from("phonenumbers")
-      .select("*")
-      .order("assigned_at", { ascending: false });
-
-    if (numbersError) {
-      console.error("DB error fetching phone numbers:", numbersError);
-      return NextResponse.json(
-        { error: "Failed to fetch phone numbers" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ numbers });
+    // Get all phone numbers (admin only)
+    const response = await phoneNumberAdminService.getAllPhoneNumbers();
+    
+    // Convert service response to NextResponse and return
+    return serviceResponseToNextResponse({
+      ...response,
+      data: { phoneNumbers: response.phoneNumbers }
+    });
+    
   } catch (error) {
-    console.error("Unexpected error in phone numbers API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error('Error fetching phone numbers:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return serviceResponseToNextResponse({
+      error: `Error fetching phone numbers: ${errorMessage}`,
+      status: 500,
+      data: { phoneNumbers: [] }
+    });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { phone_number, twilio_sid, is_assigned, assistant_id } = body;
+    
+    // Initialize the supabase client
+    const supabase = await createClient();
+    
+    // Initialize service with client
+    const phoneNumberAdminService = new PhoneNumberAdminService(supabase);
+    
+    // Create a new phone number (admin only)
+    const response = await phoneNumberAdminService.createPhoneNumber({
+      phone_number,
+      twilio_sid,
+      is_assigned,
+      assistant_id
+    });
+    
+    // Convert service response to NextResponse and return
+    return serviceResponseToNextResponse({
+      ...response,
+      data: { phoneNumber: response.phoneNumber }
+    });
+    
+  } catch (error) {
+    console.error('Error creating phone number:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return serviceResponseToNextResponse({
+      error: `Error creating phone number: ${errorMessage}`,
+      status: 500
+    });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
+    const body = await request.json();
+    const { phoneNumber, twilioSid } = body;
+    
+    // Initialize the supabase client
     const supabase = await createClient();
-    const { phoneNumber, twilioSid } = await request.json();
     
-    if (!phoneNumber && !twilioSid) {
-      return NextResponse.json(
-        { error: "Phone number or Twilio SID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Verify admin user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check admin status using the utility function
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
+    // Initialize service with client
+    const phoneNumberAdminService = new PhoneNumberAdminService(supabase);
     
-    if (adminError || !isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Delete from database first
-    const query = supabase.from("phonenumbers").delete();
+    // Delete phone number (admin only)
+    const response = await phoneNumberAdminService.deletePhoneNumber({ phoneNumber, twilioSid });
     
-    if (phoneNumber) {
-      query.eq("phone_number", phoneNumber);
-    } else if (twilioSid) {
-      query.eq("twilio_sid", twilioSid);
-    }
-    
-    const { error: deleteError } = await query;
+    // Call Twilio API to release the number if database deletion was successful
+    if (response.status === 200) {
+      try {
+        // Note: This assumes you have a separate API endpoint that handles Twilio operations
+        const twilioResponse = await fetch("/api/twilio/release", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber, twilioSid }),
+        });
 
-    if (deleteError) {
-      console.error("Error deleting phone number:", deleteError);
-      return NextResponse.json(
-        { error: "Failed to delete phone number from database" },
-        { status: 500 }
-      );
-    }
+        const twilioResult = await twilioResponse.json();
 
-    // Call Twilio API to release the number
-    // Note: This assumes you have a separate API endpoint that handles Twilio operations
-    const twilioResponse = await fetch("/api/twilio/release", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        phoneNumber, 
-        twilioSid,
-        adminId: user.id 
-      }),
-    });
-
-    const twilioResult = await twilioResponse.json();
-
-    if (!twilioResponse.ok) {
-      console.warn(
-        "Phone number deleted from database but Twilio release failed:",
-        twilioResult.error
-      );
-      return NextResponse.json(
-        { 
-          success: true, 
-          warning: "Phone number removed from database but may not have been released from Twilio"
+        if (!twilioResponse.ok) {
+          console.warn(
+            "Phone number deleted from database but Twilio release failed:",
+            twilioResult.error
+          );
+          return createWarningResponse(
+            { success: true },
+            "Phone number removed from database but may not have been released from Twilio",
+            "Partial success"
+          );
         }
-      );
+      } catch (twilioError) {
+        const errorMessage = twilioError instanceof Error ? twilioError.message : String(twilioError);
+        return createWarningResponse(
+          { success: true },
+          "Phone number removed from database but Twilio API call failed",
+          `Twilio error: ${errorMessage}`
+        );
+      }
     }
-
-    return NextResponse.json({ 
-      success: true,
-      message: "Phone number released successfully"
+    
+    // Convert service response to NextResponse and return
+    return serviceResponseToNextResponse({
+      ...response,
+      data: { success: response.status === 200 }
     });
+    
   } catch (error) {
-    console.error("Unexpected error releasing phone number:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error('Error deleting phone number:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return serviceResponseToNextResponse({
+      error: `Error deleting phone number: ${errorMessage}`,
+      status: 500
+    });
   }
 }
