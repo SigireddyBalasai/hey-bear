@@ -22,7 +22,7 @@ export function UnassignedNumbersWidget() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('phonenumbers')
+        .from('phone_numbers')
         .select('*')
         .eq('is_assigned', false)
         .order('created_at', { ascending: false });

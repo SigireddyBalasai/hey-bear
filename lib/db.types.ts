@@ -38,10 +38,14 @@ export type Database = {
         Row: {
           assigned_phone_number: string | null
           created_at: string
+          description: string | null
           id: string
+          is_starred: boolean | null
           name: string
           params: Json | null
+          pending: boolean | null
           pinecone_name: string | null
+          system_prompt: string | null
           twilio_app_sid: string | null
           updated_at: string
           user_id: string | null
@@ -49,10 +53,14 @@ export type Database = {
         Insert: {
           assigned_phone_number?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          is_starred?: boolean | null
           name: string
           params?: Json | null
+          pending?: boolean | null
           pinecone_name?: string | null
+          system_prompt?: string | null
           twilio_app_sid?: string | null
           updated_at?: string
           user_id?: string | null
@@ -60,10 +68,14 @@ export type Database = {
         Update: {
           assigned_phone_number?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          is_starred?: boolean | null
           name?: string
           params?: Json | null
+          pending?: boolean | null
           pinecone_name?: string | null
+          system_prompt?: string | null
           twilio_app_sid?: string | null
           updated_at?: string
           user_id?: string | null
@@ -88,38 +100,50 @@ export type Database = {
       interactions: {
         Row: {
           assistant_id: string | null
+          chat: string | null
           cost_estimate: number | null
+          duration: number | null
           id: string
           input_tokens: number | null
           interaction_time: string
+          is_error: boolean | null
           monthly_period: string | null
           output_tokens: number | null
           request: string
           response: string
+          token_usage: number | null
           user_id: string | null
         }
         Insert: {
           assistant_id?: string | null
+          chat?: string | null
           cost_estimate?: number | null
+          duration?: number | null
           id?: string
           input_tokens?: number | null
           interaction_time?: string
+          is_error?: boolean | null
           monthly_period?: string | null
           output_tokens?: number | null
           request: string
           response: string
+          token_usage?: number | null
           user_id?: string | null
         }
         Update: {
           assistant_id?: string | null
+          chat?: string | null
           cost_estimate?: number | null
+          duration?: number | null
           id?: string
           input_tokens?: number | null
           interaction_time?: string
+          is_error?: boolean | null
           monthly_period?: string | null
           output_tokens?: number | null
           request?: string
           response?: string
+          token_usage?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -231,6 +255,7 @@ export type Database = {
           country: Database["public"]["Enums"]["country"] | null
           created_at: string
           id: string
+          is_assigned: boolean | null
           phone_number: string
           status: string | null
           updated_at: string
@@ -241,6 +266,7 @@ export type Database = {
           country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
           id?: string
+          is_assigned?: boolean | null
           phone_number: string
           status?: string | null
           updated_at?: string
@@ -251,6 +277,7 @@ export type Database = {
           country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
           id?: string
+          is_assigned?: boolean | null
           phone_number?: string
           status?: string | null
           updated_at?: string

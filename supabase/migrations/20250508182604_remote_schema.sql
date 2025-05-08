@@ -916,7 +916,11 @@ CREATE TABLE IF NOT EXISTS "public"."assistants" (
     "params" "jsonb",
     "assigned_phone_number" "text",
     "pinecone_name" "text",
-    "twilio_app_sid" "text"
+    "twilio_app_sid" "text",
+    "is_starred" boolean DEFAULT false,
+    "description" "text",
+    "pending" boolean DEFAULT false,
+    "system_prompt" "text"
 );
 
 
@@ -955,6 +959,7 @@ CREATE TABLE IF NOT EXISTS "public"."phone_numbers" (
     "capabilities" "jsonb" DEFAULT '{"mms": false, "sms": true, "voice": true}'::"jsonb",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "is_assigned" boolean,
     CONSTRAINT "phone_numbers_status_check" CHECK (("status" = ANY (ARRAY['available'::"text", 'assigned'::"text", 'disabled'::"text"])))
 );
 
@@ -1011,6 +1016,10 @@ CREATE TABLE IF NOT EXISTS "public"."interactions" (
     "output_tokens" integer DEFAULT 0,
     "cost_estimate" numeric(10,4) DEFAULT 0,
     "monthly_period" "date",
+    "token_usage" numeric,
+    "is_error" boolean,
+    "duration" double precision,
+    "chat" "text",
     CONSTRAINT "interactions_cost_estimate_check" CHECK (("cost_estimate" >= (0)::numeric)),
     CONSTRAINT "interactions_input_tokens_check" CHECK (("input_tokens" >= 0)),
     CONSTRAINT "interactions_output_tokens_check" CHECK (("output_tokens" >= 0))
