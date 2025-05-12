@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { stripe } from '@/lib/stripe';
-import { TablesInsert } from '@/lib/db.types';
 import { v4 as uuidv4 } from 'uuid';
 import { getPineconeClient } from '@/lib/pinecone';
 
@@ -54,9 +53,10 @@ export async function POST(req: NextRequest) {
 
     // Fetch the pending assistant
     const { data: pendingAssistant, error: pendingError } = await supabase
-      .from('pending_assistants')
+      .from('assistants')
       .select('*')
       .eq('id', pendingAssistantId)
+      .eq('pending', true)
       .single();
 
     if (pendingError || !pendingAssistant) {
@@ -115,13 +115,10 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
     
-    // Create the assistant in our database
-    const assistantData: TablesInsert<'assistants'> = {
-      id: assistantId,
-      name: pendingAssistant.name,
-      user_id: userData.id,
+    // Create the assistant in our database by updating the existing record
+    const assistantData = {
+      pending: false, // Mark as no longer pending
       pinecone_name: pinecone_name,
-      created_at: new Date().toISOString(),
       params: {
         ...(typeof pendingAssistant.params === 'object' && pendingAssistant.params !== null ? pendingAssistant.params : {}),
         subscription: {
@@ -132,28 +129,24 @@ export async function POST(req: NextRequest) {
           currentPeriodEnd: new Date((subscription as any).current_period_end * 1000).toISOString(),
           createdAt: new Date().toISOString()
         }
-      },
-      plan_id: pendingAssistant.plan_id
+      }
     };
     
     const { error: assistantError } = await supabase
       .from('assistants')
-      .insert(assistantData);
+      .update(assistantData)
+      .eq('id', pendingAssistantId);
       
     if (assistantError) {
-      console.error('Error creating assistant in database:', assistantError);
-      return NextResponse.json({ error: 'Failed to create assistant in database' }, { status: 500 });
+      console.error('Error updating assistant in database:', assistantError);
+      return NextResponse.json({ error: 'Failed to update assistant in database' }, { status: 500 });
     }
     
-    // Delete the pending assistant entry
-    await supabase
-      .from('pending_assistants')
-      .delete()
-      .eq('id', pendingAssistantId);
+    // No need to delete the pending assistant, we've just updated it instead
       
     return NextResponse.json({
       success: true,
-      assistantId,
+      assistantId: pendingAssistantId, // Use the same ID since we're updating, not creating
       name: pendingAssistant.name
     });
   } catch (error: any) {

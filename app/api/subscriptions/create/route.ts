@@ -54,11 +54,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
     }
     
-    // Fetch the pending assistant directly from pending_assistants table
+    // Fetch the pending assistant directly from assistants table with pending=true flag
     const { data: pendingAssistant, error: pendingError } = await supabase
-      .from('pending_assistants')
+      .from('assistants')
       .select('*')
       .eq('id', assistantId)
+      .eq('pending', true)
       .single();
     
     if (pendingError || !pendingAssistant) {
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Pending assistant not found' }, { status: 404 });
     }
     
-    // Ensure the assistant belongs to the authenticated user
+    // Ensure the assistant belongs to the authenticated usercated user
     if (pendingAssistant.user_id !== userData.id) {
       return NextResponse.json({ error: 'Unauthorized: You do not own this assistant' }, { status: 403 });
     }
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
     
     // Update the pending assistant with the checkout session information
     const { error: updateError } = await supabase
-      .from('pending_assistants')
+      .from('assistants')
       .update({
         params: {
           ...(typeof pendingAssistant.params === 'object' && pendingAssistant.params !== null ? pendingAssistant.params : {}),

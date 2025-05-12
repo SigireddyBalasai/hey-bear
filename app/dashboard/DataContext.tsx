@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Interaction, DashboardStats, DashboardResponse } from './models';
+import { Interaction, DashboardStats } from './models';
 
 interface DataContextProps {
   allInteractions: Interaction[];

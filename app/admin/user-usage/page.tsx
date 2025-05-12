@@ -14,7 +14,7 @@ import {
   Filter,
   Download,
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AdminSidebar } from '../AdminSidebar';
 import { AdminHeader } from '../AdminHeader';
@@ -90,15 +90,11 @@ export default function UserUsagePage() {
       
       // Fetch detailed usage data per user
       const { data: detailedUsage, error: usageError } = await supabase
-        .from('userusage')
+        .from("monthly_usage")
         .select(`
           id,
           user_id,
           users (email, full_name, created_at),
-          message_count,
-          token_usage,
-          cost_estimate,
-          date
         `);
         // .gte('date', fromDate) // Removing date filters for now
         // .lte('date', toDate)

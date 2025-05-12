@@ -5,8 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Loading } from '../../Concierge/Loading';
-import { 
-  BarChart3,
+import {
   AlertTriangle,
   Clock,
   Activity,
@@ -23,7 +22,6 @@ import { AdminSidebar } from '../AdminSidebar';
 import { AdminHeader } from '../AdminHeader';
 import { RealTimeMonitor } from '../RealTimeMonitor';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,

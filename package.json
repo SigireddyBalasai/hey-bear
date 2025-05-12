@@ -1,9 +1,34 @@
 {
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:unused": "eslint . --rule 'unused-imports/no-unused-imports: error' --rule 'import/no-unused-modules: error'",
+    "lint:api": "eslint ./app/api --rule 'import/no-unused-modules: error'",
+    "analyze:api-routes": "npx tsx utils/analytics/unused-routes-analyzer.ts",
+    "analyze:modules": "npx next-unused",
+    "analyze:unused": "npx tsx utils/analytics/unused-modules-analyzer.ts"
+  },
+  "next-unused": {
+    "entrypoints": [
+      "app/**/*.{ts,tsx}"
+    ],
+    "include": [
+      "components/**/*",
+      "lib/**/*",
+      "utils/**/*",
+      "src/**/*"
+    ],
+    "exclude": [
+      "node_modules/**/*",
+      ".next/**/*",
+      "public/**/*"
+    ],
+    "debug": true
   },
   "dependencies": {
     "@mendable/firecrawl-js": "^1.20.1",
@@ -51,14 +76,30 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.26.0",
+    "@next/eslint-plugin-next": "^15.3.2",
     "@types/node": "22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "19.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.32.0",
+    "@typescript-eslint/parser": "^8.32.0",
+    "eslint": "^9.26.0",
+    "eslint-import-resolver-typescript": "^4.3.4",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-next": "^0.0.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "glob": "^11.0.2",
+    "globals": "^16.1.0",
     "postcss": "8.4.49",
     "tailwind-merge": "^2.5.2",
     "tailwindcss": "3.4.17",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "5.7.2"
+    "tsx": "^4.19.4",
+    "typescript": "5.7.2",
+    "typescript-eslint": "^8.32.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

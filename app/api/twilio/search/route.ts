@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { checkIsAdmin } from '@/utils/admin';
 import twilio from 'twilio';
 
 export async function POST(req: Request) {

@@ -15,10 +15,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tables } from '@/lib/db.types';
 import { UserCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Phone, CreditCard } from 'lucide-react';
 import { SUBSCRIPTION_PLANS, getSubscriptionPlanDetails } from '@/lib/stripe';
-import {Button} from "@/components/ui/button"
 
 type Assistant = Tables<'assistants'>
 

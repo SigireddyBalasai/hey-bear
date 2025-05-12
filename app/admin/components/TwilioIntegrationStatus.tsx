@@ -24,7 +24,7 @@ export function TwilioIntegrationStatus() {
     try {
       // Get phone numbers data
       const { data: phoneNumbers, error } = await supabase
-        .from('phonenumbers')
+        .from('phone_numbers')
         .select('id, is_assigned');
       
       if (error) throw error;

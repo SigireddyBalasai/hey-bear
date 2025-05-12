@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { checkIsAdmin } from '@/utils/admin';
 
 export async function POST(req: Request) {
   try {
@@ -37,7 +36,7 @@ export async function POST(req: Request) {
 
     // Check if the number already exists
     const { data: existingNumber } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('id')
       .eq('number', phoneNumber)
       .single();
@@ -51,9 +50,9 @@ export async function POST(req: Request) {
 
     // Add the phone number to the database
     const { data: number, error: insertError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .insert({
-        number: phoneNumber,
+        phone_number: phoneNumber,
         is_assigned: false,
         created_at: new Date().toISOString(),
       })
@@ -66,26 +65,6 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-
-    // Add to phone number pool
-    await supabase
-      .from('phonenumberpool')
-      .insert({
-        phone_number_id: number.id,
-        added_by_admin: userData.id,  // Use the directly retrieved userData
-        added_at: new Date().toISOString()
-      });
-
-    // Log the import as an interaction for auditing
-    await supabase
-      .from('interactions')
-      .insert({
-        user_id: userData.id,
-        chat: 'system',
-        request: 'Import phone number',
-        response: JSON.stringify({ action: 'import_phone_number', number: phoneNumber }),
-        interaction_time: new Date().toISOString()
-      });
 
     return NextResponse.json({
       success: true,

@@ -38,10 +38,9 @@ export async function GET(request: Request) {
         created_at,
         auth_user_id,
         is_admin,
-        plan_id,
         last_active,
-        plans (name, description),
-        userusage (assistants_used, interactions_used)
+        metadata,
+        stripe_customer_id
       `)
       .order('created_at', { ascending: false });
     

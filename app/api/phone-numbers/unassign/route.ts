@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import type { Tables } from '@/lib/db.types';
 
 export async function POST(request: Request) {
   const startTime = new Date();
@@ -48,7 +47,7 @@ export async function POST(request: Request) {
     
     // Get the phone number record
     const { data: phoneNumberData, error: phoneNumberError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('*')
       .eq('number', phoneNumber)
       .single();
@@ -78,7 +77,7 @@ export async function POST(request: Request) {
     
     // 2. Update phone number as unassigned
     const { error: updatePhoneError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .update({ is_assigned: false })
       .eq('number', phoneNumber);
     
@@ -100,7 +99,7 @@ export async function POST(request: Request) {
       console.error(`[${new Date().toISOString()}] Phone Number Unassignment - Update No-Show error:`, updateAssistantError);
       try {
         await supabase
-          .from('phonenumbers')
+          .from('phone_numbers')
           .update({ is_assigned: true })
           .eq('number', phoneNumber);
       } catch (revertError) {

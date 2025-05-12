@@ -1,0 +1,21 @@
+{
+  "rootDir": ".",
+  "entrypoints": [
+    "./app/page.tsx",
+    "./app/layout.tsx",
+    "./app/admin/page.tsx",
+    "./app/Concierge/page.tsx",
+    "./app/dashboard/page.tsx"
+  ],
+  "include": [
+    "components",
+    "lib",
+    "utils",
+    "app"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "public"
+  ]
+}

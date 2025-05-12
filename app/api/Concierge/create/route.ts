@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { TablesInsert } from '@/lib/db.types';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
@@ -100,7 +99,10 @@ export async function POST(req: NextRequest) {
         id: pendingAssistantId,
         user_id: userId,
         name: assistantName,
+        description: description || null,
         created_at: new Date().toISOString(),
+        pending: true, // Set the pending flag instead of using a separate table
+        pinecone_name: pinecone_name,
         params: {
           ...params,
           description: description || 'No description provided',
@@ -108,15 +110,12 @@ export async function POST(req: NextRequest) {
           plan: plan || 'personal',
           is_active: false,
           createdAt: new Date().toISOString()
-        },
-        plan_id: plan === 'business' ? 
-          process.env.STRIPE_BUSINESS_PLAN_ID : 
-          process.env.STRIPE_PERSONAL_PLAN_ID
+        }
       };
 
-      // Insert into pending_assistants table
+      // Insert into assistants table with pending flag
       const { error: pendingError } = await supabase
-        .from('pending_assistants')
+        .from('assistants')
         .insert(pendingAssistantData);
 
       if (pendingError) {

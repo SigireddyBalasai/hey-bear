@@ -13,19 +13,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  BarChart,
   BarChart3,
   Calendar,
   Clock,
   Download,
-  Filter,
   MessageSquare,
   Phone,
   RefreshCw,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Tables } from "@/lib/db.types";
 import {
   Select,
   SelectContent,
@@ -46,7 +43,7 @@ import {
   ArcElement,
   Filler
 } from "chart.js";
-import { Bar, Line, Doughnut } from "react-chartjs-2";
+import { Bar, Doughnut } from "react-chartjs-2";
 import { TwilioMessageDetails } from './TwilioMessageDetails';
 
 // Register Chart.js components
@@ -90,7 +87,7 @@ export function PhoneNumberStats() {
     try {
       // First, get all phone numbers from the database
       const { data: phoneNumbers, error: phoneError } = await supabase
-        .from('phonenumbers')
+        .from('phone_numbers')
         .select('*, assistants(id, name, user_id)');
       
       if (phoneError) throw phoneError;
@@ -132,13 +129,13 @@ export function PhoneNumberStats() {
       
       // Initialize phone data
       phoneNumbers?.forEach(phone => {
-        phoneData.set(phone.number, {
+        phoneData.set(phone.phone_number, {
           id: phone.id,
-          number: phone.number,
+          number: phone.phone_number,
           is_assigned: phone.is_assigned,
-          assistant: phone.assistants?.[0]?.name || null,
-          assistant_id: phone.assistants?.[0]?.id || null,
-          user_id: phone.assistants?.[0]?.user_id || null,
+          assistant: phone.assistants?.name,
+          assistant_id: phone.assistants?.id || null,
+          user_id: phone.assistants?.user_id || null,
           messages_sent: 0,
           messages_received: 0,
           active_days: new Set(),
@@ -151,7 +148,7 @@ export function PhoneNumberStats() {
       // Count interactions
       interactions?.forEach(interaction => {
         try {
-          const chatData = JSON.parse(interaction.chat);
+          const chatData = JSON.parse(interaction.chat || "");
           let phoneNumber = null;
           
           // Determine phone number from interaction

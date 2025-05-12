@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { logTwilio, logTwilioError, formatTwilioWebhook, logTwimlResponse } from '@/utils/twilio-logger';
+import { logTwilio, logTwilioError, logTwimlResponse } from '@/utils/twilio-logger';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();

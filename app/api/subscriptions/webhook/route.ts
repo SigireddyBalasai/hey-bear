@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
 import { createServiceClient } from '@/utils/supabase/server-admin';
-import { TablesInsert } from '@/lib/db.types';
 import { v4 as uuidv4 } from 'uuid';
 import { getPineconeClient } from '@/lib/pinecone';
 
@@ -141,9 +140,10 @@ async function handleCheckoutSessionCompleted(session: any, supabase: any) {
     
     // Get the pending assistant
     const { data: pendingAssistant, error: pendingError } = await supabase
-      .from('pending_assistants')
+      .from('assistants')
       .select('*')
       .eq('id', pendingAssistantId)
+      
       .single();
     
     if (pendingError || !pendingAssistant) {
@@ -310,9 +310,10 @@ async function handleCheckoutSessionForAssistant(session: any, supabase: any, pe
     
     // Delete the pending assistant entry
     await supabase
-      .from('pending_assistants')
+      .from('assistants')
       .delete()
-      .eq('id', pendingAssistant.id);
+      .eq('id', pendingAssistant.id)
+      .eq('is_active', false);
     
     console.log(`Successfully processed pending assistant ${pendingAssistant.id}`);
   } catch (error) {
@@ -425,9 +426,10 @@ async function handleSubscriptionCreated(subscription: any, supabase: any) {
     
     // Check if the pending assistant still exists (wasn't already processed)
     const { data: pendingAssistant, error: pendingError } = await supabase
-      .from('pending_assistants')
+      .from('assistants')
       .select('*')
       .eq('id', pendingAssistantId)
+      .eq('pending',true)
       .single();
     
     if (pendingError || !pendingAssistant) {
@@ -535,8 +537,9 @@ async function handleSubscriptionCreated(subscription: any, supabase: any) {
       
       // Delete the pending assistant entry
       await supabase
-        .from('pending_assistants')
+        .from('assistants')
         .delete()
+        .eq('pending',true)
         .eq('id', pendingAssistantId);
       
       console.log(`Successfully processed pending assistant ${pendingAssistantId} via subscription creation`);

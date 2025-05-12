@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Loading } from '../Concierge/Loading';
 import { fetchUsageData } from './utils/adminUtils';
-import { DollarSign, Users, MessageSquare, Activity, Download } from 'lucide-react';
+import { DollarSign, Users, MessageSquare, Activity } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -130,10 +130,25 @@ export default function AdminDashboard() {
 
       // Calculate active users today
       const today = new Date().toISOString().split('T')[0];
-      const activeToday = timeSeriesData
-        .filter(entry => entry.date === today)
-        .reduce((sum, entry) => sum + entry.activeUsers, 0);
-
+      
+      // Query interactions directly to get distinct users who were active today
+      const { data: activeUsersToday, error: activeUsersError } = await supabase
+        .from('interactions')
+        .select('user_id')
+        .gte('interaction_time', `${today}T00:00:00Z`)
+        .lte('interaction_time', `${today}T23:59:59Z`)
+        .not('user_id', 'is', null);
+      
+      // Count distinct users
+      const distinctActiveUserIds = new Set();
+      activeUsersToday?.forEach(interaction => {
+        if (interaction.user_id) {
+          distinctActiveUserIds.add(interaction.user_id);
+        }
+      });
+      
+      const activeToday = distinctActiveUserIds.size;
+      
       // Set dashboard data
       setDashboardData({
         users: {

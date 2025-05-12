@@ -37,51 +37,56 @@ export type Database = {
       assistants: {
         Row: {
           assigned_phone_number: string | null
-          created_at: string | null
+          created_at: string
+          description: string | null
           id: string
           is_starred: boolean | null
           name: string
           params: Json | null
+          pending: boolean | null
           pinecone_name: string | null
-          plan_id: string | null
+          system_prompt: string | null
+          twilio_app_sid: string | null
+          updated_at: string
           user_id: string | null
         }
         Insert: {
           assigned_phone_number?: string | null
-          created_at?: string | null
+          created_at?: string
+          description?: string | null
           id?: string
           is_starred?: boolean | null
           name: string
           params?: Json | null
+          pending?: boolean | null
           pinecone_name?: string | null
-          plan_id?: string | null
+          system_prompt?: string | null
+          twilio_app_sid?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
           assigned_phone_number?: string | null
-          created_at?: string | null
+          created_at?: string
+          description?: string | null
           id?: string
           is_starred?: boolean | null
           name?: string
           params?: Json | null
+          pending?: boolean | null
           pinecone_name?: string | null
-          plan_id?: string | null
+          system_prompt?: string | null
+          twilio_app_sid?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "assistants_assigned_phone_number_fkey"
-            columns: ["assigned_phone_number"]
+            foreignKeyName: "assistants_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "phonenumbers"
-            referencedColumns: ["number"]
-          },
-          {
-            foreignKeyName: "assistants_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
+            referencedRelation: "user_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "assistants_user_id_fkey"
@@ -92,55 +97,17 @@ export type Database = {
           },
         ]
       }
-      assistantusage: {
-        Row: {
-          assistant_id: string | null
-          id: string
-          interactions_used: number | null
-          last_reset_at: string | null
-          usage_tier_id: string | null
-        }
-        Insert: {
-          assistant_id?: string | null
-          id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          usage_tier_id?: string | null
-        }
-        Update: {
-          assistant_id?: string | null
-          id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          usage_tier_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assistantusage_assistant_id_fkey"
-            columns: ["assistant_id"]
-            isOneToOne: false
-            referencedRelation: "assistants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assistantusage_usage_tier_id_fkey"
-            columns: ["usage_tier_id"]
-            isOneToOne: false
-            referencedRelation: "usagetiers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       interactions: {
         Row: {
           assistant_id: string | null
-          chat: string
+          chat: string | null
           cost_estimate: number | null
           duration: number | null
           id: string
           input_tokens: number | null
-          interaction_time: string | null
+          interaction_time: string
           is_error: boolean | null
+          monthly_period: string | null
           output_tokens: number | null
           request: string
           response: string
@@ -149,13 +116,14 @@ export type Database = {
         }
         Insert: {
           assistant_id?: string | null
-          chat: string
+          chat?: string | null
           cost_estimate?: number | null
           duration?: number | null
           id?: string
           input_tokens?: number | null
-          interaction_time?: string | null
+          interaction_time?: string
           is_error?: boolean | null
+          monthly_period?: string | null
           output_tokens?: number | null
           request: string
           response: string
@@ -164,13 +132,14 @@ export type Database = {
         }
         Update: {
           assistant_id?: string | null
-          chat?: string
+          chat?: string | null
           cost_estimate?: number | null
           duration?: number | null
           id?: string
           input_tokens?: number | null
-          interaction_time?: string | null
+          interaction_time?: string
           is_error?: boolean | null
+          monthly_period?: string | null
           output_tokens?: number | null
           request?: string
           response?: string
@@ -182,11 +151,25 @@ export type Database = {
             foreignKeyName: "interactions_assistant_id_fkey"
             columns: ["assistant_id"]
             isOneToOne: false
+            referencedRelation: "assistant_stats"
+            referencedColumns: ["assistant_id"]
+          },
+          {
+            foreignKeyName: "interactions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
             referencedRelation: "assistants"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "interactions_user_id_fkey1"
+            foreignKeyName: "interactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "interactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -194,37 +177,70 @@ export type Database = {
           },
         ]
       }
-      pending_assistants: {
+      monthly_usage: {
         Row: {
-          checkout_session_id: string | null
-          created_at: string | null
+          assistant_id: string | null
+          created_at: string
           id: string
-          name: string
-          params: Json | null
-          plan_id: string | null
-          user_id: string
+          input_tokens: number | null
+          interaction_count: number | null
+          month: Database["public"]["Enums"]["monthly_interval"]
+          output_tokens: number | null
+          total_cost: number | null
+          updated_at: string
+          user_id: string | null
+          year: number
         }
         Insert: {
-          checkout_session_id?: string | null
-          created_at?: string | null
+          assistant_id?: string | null
+          created_at?: string
           id?: string
-          name: string
-          params?: Json | null
-          plan_id?: string | null
-          user_id: string
+          input_tokens?: number | null
+          interaction_count?: number | null
+          month: Database["public"]["Enums"]["monthly_interval"]
+          output_tokens?: number | null
+          total_cost?: number | null
+          updated_at?: string
+          user_id?: string | null
+          year: number
         }
         Update: {
-          checkout_session_id?: string | null
-          created_at?: string | null
+          assistant_id?: string | null
+          created_at?: string
           id?: string
-          name?: string
-          params?: Json | null
-          plan_id?: string | null
-          user_id?: string
+          input_tokens?: number | null
+          interaction_count?: number | null
+          month?: Database["public"]["Enums"]["monthly_interval"]
+          output_tokens?: number | null
+          total_cost?: number | null
+          updated_at?: string
+          user_id?: string | null
+          year?: number
         }
         Relationships: [
           {
-            foreignKeyName: "pending_assistants_user_id_fkey"
+            foreignKeyName: "monthly_usage_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_stats"
+            referencedColumns: ["assistant_id"]
+          },
+          {
+            foreignKeyName: "monthly_usage_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "monthly_usage_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -232,133 +248,98 @@ export type Database = {
           },
         ]
       }
-      phonenumberpool: {
+      phone_numbers: {
         Row: {
-          added_at: string | null
-          added_by_admin: string | null
-          id: string
-          phone_number_id: string | null
-        }
-        Insert: {
-          added_at?: string | null
-          added_by_admin?: string | null
-          id?: string
-          phone_number_id?: string | null
-        }
-        Update: {
-          added_at?: string | null
-          added_by_admin?: string | null
-          id?: string
-          phone_number_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "phonenumberpool_added_by_admin_fkey"
-            columns: ["added_by_admin"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "phonenumberpool_phone_number_id_fkey"
-            columns: ["phone_number_id"]
-            isOneToOne: false
-            referencedRelation: "phonenumbers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      phonenumbers: {
-        Row: {
+          assistant_id: string | null
+          capabilities: Json | null
           country: Database["public"]["Enums"]["country"] | null
-          created_at: string | null
+          created_at: string
           id: string
           is_assigned: boolean | null
-          number: string
-        }
-        Insert: {
-          country?: Database["public"]["Enums"]["country"] | null
-          created_at?: string | null
-          id?: string
-          is_assigned?: boolean | null
-          number: string
-        }
-        Update: {
-          country?: Database["public"]["Enums"]["country"] | null
-          created_at?: string | null
-          id?: string
-          is_assigned?: boolean | null
-          number?: string
-        }
-        Relationships: []
-      }
-      plans: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          max_assistants: number | null
-          max_interactions: number | null
-          name: string
-          price: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          max_assistants?: number | null
-          max_interactions?: number | null
-          name: string
-          price?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          max_assistants?: number | null
-          max_interactions?: number | null
-          name?: string
-          price?: number | null
-        }
-        Relationships: []
-      }
-      usage_limits: {
-        Row: {
-          assistant_id: string
-          created_at: string
-          documents_count: number
-          id: string
-          last_reset: string
-          messages_received: number
-          messages_sent: number
+          phone_number: string
+          status: string | null
           updated_at: string
-          webpages_crawled: number
         }
         Insert: {
-          assistant_id: string
+          assistant_id?: string | null
+          capabilities?: Json | null
+          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
-          documents_count?: number
           id?: string
-          last_reset?: string
-          messages_received?: number
-          messages_sent?: number
+          is_assigned?: boolean | null
+          phone_number: string
+          status?: string | null
           updated_at?: string
-          webpages_crawled?: number
         }
         Update: {
-          assistant_id?: string
+          assistant_id?: string | null
+          capabilities?: Json | null
+          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
-          documents_count?: number
           id?: string
-          last_reset?: string
-          messages_received?: number
-          messages_sent?: number
+          is_assigned?: boolean | null
+          phone_number?: string
+          status?: string | null
           updated_at?: string
-          webpages_crawled?: number
         }
         Relationships: [
           {
-            foreignKeyName: "usage_limits_assistant_id_fkey"
+            foreignKeyName: "phone_numbers_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_stats"
+            referencedColumns: ["assistant_id"]
+          },
+          {
+            foreignKeyName: "phone_numbers_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          assistant_id: string | null
+          created_at: string
+          current_period_end: string | null
+          id: string
+          plan: string
+          status: string
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assistant_id?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan: string
+          status: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assistant_id?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan?: string
+          status?: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_stats"
+            referencedColumns: ["assistant_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_assistant_id_fkey"
             columns: ["assistant_id"]
             isOneToOne: true
             referencedRelation: "assistants"
@@ -366,115 +347,64 @@ export type Database = {
           },
         ]
       }
-      usagetiers: {
-        Row: {
-          created_at: string | null
-          id: string
-          max_phone_numbers: number | null
-          max_requests_per_month: number | null
-          name: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          max_phone_numbers?: number | null
-          max_requests_per_month?: number | null
-          name: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          max_phone_numbers?: number | null
-          max_requests_per_month?: number | null
-          name?: string
-        }
-        Relationships: []
-      }
       users: {
         Row: {
-          auth_user_id: string | null
-          created_at: string | null
+          auth_user_id: string
+          created_at: string
           id: string
           is_admin: boolean | null
           last_active: string | null
           metadata: Json | null
-          plan_id: string | null
-          updated_at: string | null
+          stripe_customer_id: string | null
+          updated_at: string
         }
         Insert: {
-          auth_user_id?: string | null
-          created_at?: string | null
+          auth_user_id: string
+          created_at?: string
           id?: string
           is_admin?: boolean | null
           last_active?: string | null
           metadata?: Json | null
-          plan_id?: string | null
-          updated_at?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
         }
         Update: {
-          auth_user_id?: string | null
-          created_at?: string | null
+          auth_user_id?: string
+          created_at?: string
           id?: string
           is_admin?: boolean | null
           last_active?: string | null
           metadata?: Json | null
-          plan_id?: string | null
-          updated_at?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "users_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      userusage: {
+    }
+    Views: {
+      assistant_stats: {
         Row: {
-          assistants_used: number | null
-          cost_estimate: number | null
-          id: string
-          interactions_used: number | null
-          last_reset_at: string | null
-          phone_numbers_used: number | null
-          token_usage: number | null
-          usage_tier_id: string | null
+          assistant_id: string | null
+          assistant_name: string | null
+          phone_number: string | null
+          plan: string | null
+          subscription_status: string | null
+          total_cost: number | null
+          total_input_tokens: number | null
+          total_interactions: number | null
+          total_output_tokens: number | null
           user_id: string | null
         }
-        Insert: {
-          assistants_used?: number | null
-          cost_estimate?: number | null
-          id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          phone_numbers_used?: number | null
-          token_usage?: number | null
-          usage_tier_id?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          assistants_used?: number | null
-          cost_estimate?: number | null
-          id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          phone_numbers_used?: number | null
-          token_usage?: number | null
-          usage_tier_id?: string | null
-          user_id?: string | null
-        }
         Relationships: [
           {
-            foreignKeyName: "userusage_usage_tier_id_fkey"
-            columns: ["usage_tier_id"]
+            foreignKeyName: "assistants_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "usagetiers"
-            referencedColumns: ["id"]
+            referencedRelation: "user_stats"
+            referencedColumns: ["user_id"]
           },
           {
-            foreignKeyName: "userusage_user_id_fkey"
+            foreignKeyName: "assistants_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -482,22 +412,199 @@ export type Database = {
           },
         ]
       }
-    }
-    Views: {
-      [_ in never]: never
+      user_stats: {
+        Row: {
+          assistants_count: number | null
+          auth_user_id: string | null
+          last_active: string | null
+          total_cost: number | null
+          total_interactions: number | null
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      aggregate_daily_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      aggregate_monthly_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       assign_phone_number: {
         Args: {
           p_assistant_id: string
-          p_phone_number: string
           p_phone_number_id: string
+          p_phone_number?: string
         }
+        Returns: Json
+      }
+      get_assistant_subscription_details: {
+        Args: { p_assistant_id: string }
+        Returns: {
+          subscription_id: string
+          stripe_subscription_id: string
+          plan: string
+          status: string
+          current_period_end: string
+          is_active: boolean
+          days_remaining: number
+          max_messages: number
+          max_tokens: number
+          max_documents: number
+          max_webpages: number
+        }[]
+      }
+      get_assistant_usage: {
+        Args: {
+          p_assistant_id: string
+          p_start_date?: string
+          p_end_date?: string
+        }
+        Returns: {
+          interactions_count: number
+          token_usage: number
+          input_tokens: number
+          output_tokens: number
+          cost_estimate: number
+        }[]
+      }
+      get_assistants_usage_stats: {
+        Args: {
+          p_start_date: string
+          p_end_date: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          assistant_id: string
+          assistant_name: string
+          user_id: string
+          interactions_count: number
+          token_usage: number
+          input_tokens: number
+          output_tokens: number
+          cost_estimate: number
+        }[]
+      }
+      get_monthly_assistant_usage: {
+        Args: {
+          p_assistant_id: string
+          p_start_date: string
+          p_end_date: string
+        }
+        Returns: {
+          year: number
+          month: number
+          month_name: string
+          interactions_count: number
+          token_usage: number
+          input_tokens: number
+          output_tokens: number
+          cost_estimate: number
+        }[]
+      }
+      get_monthly_user_usage: {
+        Args: { p_user_id: string; p_start_date: string; p_end_date: string }
+        Returns: {
+          year: number
+          month: number
+          month_name: string
+          interactions_count: number
+          token_usage: number
+          input_tokens: number
+          output_tokens: number
+          cost_estimate: number
+        }[]
+      }
+      get_usage_limits_for_plan: {
+        Args: { plan_type: string }
+        Returns: {
+          max_messages: number
+          max_tokens: number
+          max_documents: number
+          max_webpages: number
+        }[]
+      }
+      get_user_phone_numbers_count: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      get_user_usage: {
+        Args: { p_user_id: string; p_start_date?: string; p_end_date?: string }
+        Returns: {
+          interactions_count: number
+          token_usage: number
+          input_tokens: number
+          output_tokens: number
+          cost_estimate: number
+          assistants_count: number
+        }[]
+      }
+      get_users_usage_stats: {
+        Args: {
+          p_start_date: string
+          p_end_date: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          user_id: string
+          auth_user_id: string
+          interactions_count: number
+          token_usage: number
+          input_tokens: number
+          output_tokens: number
+          cost_estimate: number
+          assistants_count: number
+        }[]
+      }
+      prune_old_interactions: {
+        Args: { retention_days?: number }
+        Returns: number
+      }
+      unassign_phone_number: {
+        Args: { p_phone_number: string }
+        Returns: Json
+      }
+      update_subscription: {
+        Args:
+          | {
+              p_assistant_id: string
+              p_stripe_subscription_id: string
+              p_plan: string
+              p_status: string
+              p_current_period_end: string
+            }
+          | {
+              p_assistant_id: string
+              p_stripe_subscription_id: string
+              p_plan: string
+              p_status: string
+              p_current_period_end: string
+              p_current_period_start?: string
+            }
         Returns: undefined
       }
     }
     Enums: {
       country: "US" | "Canada"
+      monthly_interval:
+        | "January"
+        | "February"
+        | "March"
+        | "April"
+        | "May"
+        | "June"
+        | "July"
+        | "August"
+        | "September"
+        | "October"
+        | "November"
+        | "December"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -617,6 +724,20 @@ export const Constants = {
   public: {
     Enums: {
       country: ["US", "Canada"],
+      monthly_interval: [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ],
     },
   },
 } as const

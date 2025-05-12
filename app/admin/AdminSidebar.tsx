@@ -7,12 +7,8 @@ import { useEffect, useState } from 'react';
 import { fetchAllUsers } from './utils/adminUtils';
 import { 
   BarChart3, 
-  CreditCard, 
-  Download, 
   Home, 
-  Settings, 
   Users,
-  MessageSquare,
   HelpCircle,
   ChevronRight,
   Phone

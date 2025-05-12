@@ -194,6 +194,9 @@ export async function POST(req: NextRequest) {
       console.log(`Token usage: ${tokenCount} tokens (prompt: ${response.usage?.promptTokens || 'N/A'}, completion: ${response.usage?.completionTokens || 'N/A'})`);
       console.log(`Estimated cost: $${costEstimate.toFixed(6)}`);
 
+      // Create a monthly period string in YYYY-MM format
+      const monthlyPeriod = `${requestTimestamp.getFullYear()}-${String(requestTimestamp.getMonth() + 1).padStart(2, '0')}`;
+      
       // Save interaction to Supabase without requiring user_id
       const interactionData: Omit<Interactions, 'id'> = {
         request: message,
@@ -207,7 +210,8 @@ export async function POST(req: NextRequest) {
         is_error: false,
         token_usage: tokenCount > 0 ? tokenCount : null,
         input_tokens: response.usage?.promptTokens || null,
-        output_tokens: response.usage?.completionTokens || null
+        output_tokens: response.usage?.completionTokens || null,
+        monthly_period: monthlyPeriod
       };
       
       const { error: interactionError } = await supabase

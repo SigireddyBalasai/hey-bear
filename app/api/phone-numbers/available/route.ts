@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
     // Fetch all unassigned phone numbers
     const { data: numbers, error } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('id, number')
       .eq('is_assigned', false)
       .order('created_at', { ascending: false });

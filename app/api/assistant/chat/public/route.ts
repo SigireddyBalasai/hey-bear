@@ -121,6 +121,9 @@ export async function POST(req: NextRequest) {
         JSON.stringify({ type: 'sms', userPhone, message }) : 
         message;
 
+      // Calculate monthly period in YYYY-MM format
+      const monthlyPeriod = requestTimestamp.toISOString().substring(0, 7);
+      
       // Save interaction to Supabase with proper typing
       const interactionData: Omit<Interactions, 'id'> = {
         request: message,
@@ -134,7 +137,8 @@ export async function POST(req: NextRequest) {
         is_error: false,
         token_usage: tokenCount > 0 ? tokenCount : null,
         input_tokens: response.usage?.promptTokens || null,
-        output_tokens: response.usage?.completionTokens || null
+        output_tokens: response.usage?.completionTokens || null,
+        monthly_period: monthlyPeriod
       };
       
       const { error: interactionError } = await supabase

@@ -29,7 +29,6 @@ import {
   UserRoundCog,
   AlertCircle
 } from "lucide-react";
-// import { UserDetailModal } from './UserDetailModal';
 import {
   Avatar,
   AvatarFallback,
@@ -43,30 +42,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tables } from "@/lib/db.types";
 
-interface UserUsageData extends Partial<Tables<'userusage'>> {
-  users?: {
-    email: string;
-    full_name: string;
-    created_at: string;
-  };
+// Define interface for user usage data
+interface UserUsageItem {
+  id?: string;
+  full_name?: string;
+  email?: string;
   date?: string;
   message_count?: number;
+  interactions_count?: number;
   token_usage?: number;
   cost_estimate?: number;
-  [key: string]: any; // Add index signature to allow string indexing
+  [key: string]: any;
 }
 
 interface UserUsageTableProps {
-  usageData: UserUsageData[];
+  usageData: UserUsageItem[];
 }
 
-export function UserUsageTable({ usageData }: UserUsageTableProps) {
+export function UserUsageTable({ usageData = [] }: UserUsageTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<UserUsageItem | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState('10');
 
@@ -80,28 +78,28 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
     }
   };
 
-  // Filter and sort data with error handling for DB fields
+  // Filter and sort data with improved error handling
   const filteredData = usageData
     .filter(item => {
       // Guard against missing data
-      if (!item.users) return false;
+      if (!item) return false;
       
-      const email = item.users?.email || '';
-      const fullName = item.users?.full_name || '';
+      const email = String(item.email || '');
+      const fullName = String(item.full_name || '');
       
       return email.toLowerCase().includes(searchTerm.toLowerCase()) || 
              fullName.toLowerCase().includes(searchTerm.toLowerCase());
     })
     .sort((a, b) => {
       if (sortField === 'date') {
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
+        const dateA = a?.date ? new Date(a.date).getTime() : 0;
+        const dateB = b?.date ? new Date(b.date).getTime() : 0;
         return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
       }
       
       if (sortField === 'user') {
-        const nameA = a.users?.full_name?.toLowerCase() || '';
-        const nameB = b.users?.full_name?.toLowerCase() || '';
+        const nameA = String(a?.full_name || '').toLowerCase();
+        const nameB = String(b?.full_name || '').toLowerCase();
         return sortDirection === 'asc' 
           ? nameA.localeCompare(nameB)
           : nameB.localeCompare(nameA);
@@ -114,8 +112,8 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
           'cost': 'cost_estimate'
         };
         
-        const valueA = a[fieldMap[sortField]] || 0;
-        const valueB = b[fieldMap[sortField]] || 0;
+        const valueA = Number(a?.[fieldMap[sortField]] || 0);
+        const valueB = Number(b?.[fieldMap[sortField]] || 0);
         
         return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       }
@@ -125,7 +123,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
     .slice(0, parseInt(itemsPerPage, 10));
 
   // View user details
-  const handleViewDetails = (user: any) => {
+  const handleViewDetails = (user: UserUsageItem) => {
     setSelectedUser(user);
     setDetailModalOpen(true);
   };
@@ -136,7 +134,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
     
     return name
       .split(' ')
-      .map(part => part[0] || '')
+      .map(part => part?.[0] || '')
       .join('')
       .toUpperCase()
       .substring(0, 2) || 'UN';
@@ -234,20 +232,20 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
           <TableBody>
             {filteredData.length > 0 ? (
               filteredData.map((item) => {
-                const dateFormatted = formatDate(item.date);
+                const dateFormatted = formatDate(item?.date);
                 return (
-                <TableRow key={item.id} className="hover:bg-muted/30">
+                <TableRow key={item?.id || Math.random().toString()} className="hover:bg-muted/30">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8 border">
-                        <AvatarImage src="" alt={item.users?.full_name || "User"} />
+                        <AvatarImage src="" alt={item?.full_name || "User"} />
                         <AvatarFallback className="text-xs">
-                          {getInitials(item.users?.full_name)}
+                          {getInitials(item?.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{item.users?.full_name || "Unknown"}</div>
-                        <div className="text-xs text-muted-foreground">{item.users?.email || "No email"}</div>
+                        <div className="font-medium">{item?.full_name || "Unknown"}</div>
+                        <div className="text-xs text-muted-foreground">{item?.email || "No email"}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -258,16 +256,16 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={(item.message_count || 0) > 50 ? "default" : "outline"} className="font-mono">
-                      {item.message_count || 0}
+                    <Badge variant={Number(item?.message_count || item?.interactions_count || 0) > 50 ? "default" : "outline"} className="font-mono">
+                      {item?.message_count || item?.interactions_count || 0}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {(item.token_usage || 0).toLocaleString()}
+                    {Number(item?.token_usage || 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    <span className={(item.cost_estimate || 0) > 1 ? "text-amber-600 font-semibold" : ""}>
-                      ${item.cost_estimate?.toFixed(2) || "0.00"}
+                    <span className={Number(item?.cost_estimate || 0) > 1 ? "text-amber-600 font-semibold" : ""}>
+                      ${Number(item?.cost_estimate || 0).toFixed(2)}
                     </span>
                   </TableCell>
                   <TableCell>

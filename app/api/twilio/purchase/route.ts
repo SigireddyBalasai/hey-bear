@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { checkIsAdmin } from '@/utils/admin';
 import twilio from 'twilio';
 
 export async function POST(req: Request) {
@@ -61,9 +60,9 @@ export async function POST(req: Request) {
 
       // Add the phone number to the database
       const { data: number, error: insertError } = await supabase
-        .from('phonenumbers')
+        .from('phone_numbers')
         .insert({
-          number: purchasedNumber.phoneNumber,
+          phone_number: purchasedNumber.phoneNumber,
           is_assigned: false,
           created_at: new Date().toISOString(),
         })
@@ -84,14 +83,7 @@ export async function POST(req: Request) {
         );
       }
 
-      // Add to phone number pool
-      await supabase
-        .from('phonenumberpool')
-        .insert({
-          phone_number_id: number.id,
-          added_by_admin: userData.id,
-          added_at: new Date().toISOString()
-        });
+      // Add to phone number poo
 
       // Log the purchase as an interaction for auditing
       await supabase

@@ -9,12 +9,12 @@ export async function fetchAvailablePhoneNumbers() {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('*')
       .eq('is_assigned', false);
       
     if (error) throw error;
-    return data as Tables<'phonenumbers'>[];
+    return data as Tables<'phone_numbers'>[];
   } catch (error) {
     console.error('Error fetching available phone numbers:', error);
     toast.error('Failed to load available phone numbers');
@@ -68,7 +68,7 @@ export async function addPhoneNumber(phoneNumber: string) {
     
     // Check if phone number already exists
     const { data: existingNumber } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('id')
       .eq('number', phoneNumber)
       .single();
@@ -80,9 +80,9 @@ export async function addPhoneNumber(phoneNumber: string) {
     
     // Insert the new phone number
     const { error } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .insert({
-        number: phoneNumber,
+        phone_number: phoneNumber,
         is_assigned: false,
         created_at: new Date().toISOString()
       });
@@ -107,20 +107,10 @@ export async function addPhoneNumber(phoneNumber: string) {
     
     // Get the inserted phone number ID
     const { data: insertedPhone } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('id')
-      .eq('number', phoneNumber)
+      .eq('phone_number', phoneNumber)
       .single();
-    
-    if (insertedPhone) {
-      await supabase
-        .from('phonenumberpool')
-        .insert({
-          phone_number_id: insertedPhone.id,
-          added_by_admin: adminData?.id,
-          added_at: new Date().toISOString()
-        });
-    }
     
     toast.success('Phone number added successfully');
     return true;
@@ -140,7 +130,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
     
     // Update phone number record
     const { error: updateError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .update({ is_assigned: true })
       .eq('id', phoneNumberId);
     
@@ -151,8 +141,8 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
     
     // Get phone number value
     const { data: phoneData } = await supabase
-      .from('phonenumbers')
-      .select('number')
+      .from('phone_numbers')
+      .select('phone_number')
       .eq('id', phoneNumberId)
       .single();
     
@@ -164,7 +154,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
     // Update assistant record
     const { error: assistantError } = await supabase
       .from('assistants')
-      .update({ assigned_phone_number: phoneData.number })
+      .update({ assigned_phone_number: phoneData.phone_number })
       .eq('id', assistantId);
     
     if (assistantError) {
@@ -172,7 +162,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
       
       // Rollback phone number assignment
       await supabase
-        .from('phonenumbers')
+        .from('phone_numbers')
         .update({ is_assigned: false })
         .eq('id', phoneNumberId);
       
@@ -197,9 +187,9 @@ export async function unassignPhoneNumber(phoneNumber: string) {
     
     // Find the phone number record
     const { data: phoneData, error: phoneError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('id')
-      .eq('number', phoneNumber)
+      .eq('phone_number', phoneNumber)
       .single();
     
     if (phoneError || !phoneData) {
@@ -210,7 +200,7 @@ export async function unassignPhoneNumber(phoneNumber: string) {
     
     // Update the phone number record
     const { error: updateError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .update({ is_assigned: false })
       .eq('id', phoneData.id);
     
@@ -262,7 +252,7 @@ export async function deletePhoneNumber(phoneNumberId: string) {
     
     // Check if phone number is assigned
     const { data: phoneData, error: phoneError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('is_assigned')
       .eq('id', phoneNumberId)
       .single();
@@ -278,19 +268,9 @@ export async function deletePhoneNumber(phoneNumberId: string) {
       return false;
     }
     
-    // Remove from phone number pool first
-    const { error: poolError } = await supabase
-      .from('phonenumberpool')
-      .delete()
-      .eq('phone_number_id', phoneNumberId);
-    
-    if (poolError) {
-      console.error('Error removing phone number from pool:', poolError);
-    }
-    
     // Delete the phone number
     const { error: deleteError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .delete()
       .eq('id', phoneNumberId);
     

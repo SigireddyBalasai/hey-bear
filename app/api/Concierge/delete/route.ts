@@ -94,15 +94,6 @@ export async function POST(req: NextRequest) {
       }
 
       // Clean up chat history
-      const { error: chatDeleteError } = await supabase
-        .from('interactions')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('assistant_id', assistantName);
-        
-      if (chatDeleteError) {
-        console.error('Error cleaning up chat history:', chatDeleteError);
-      }
 
       return NextResponse.json({ message: `No-Show ${assistantName} deleted` });
     } catch (apiError) {

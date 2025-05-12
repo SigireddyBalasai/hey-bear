@@ -17,8 +17,7 @@ import {
   Phone, 
   Clock, 
   User, 
-  Bot, 
-  Calendar,
+  Bot,
   ChevronRight,
   ChevronLeft,
   Coins

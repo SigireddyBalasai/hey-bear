@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserIdFromAuthId, recordInteraction } from '@/app/utils/interactionUtils';
+import { recordInteraction } from '@/app/utils/interactionUtils';
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();

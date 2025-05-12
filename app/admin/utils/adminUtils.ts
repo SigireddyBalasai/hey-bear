@@ -1,6 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
-import { Tables } from '@/lib/db.types';
 
 // Replace custom interfaces with types from the schema
 interface TimeSeriesItem {
@@ -118,18 +117,19 @@ export async function fetchAllUsers() {
           last_sign_in: data?.user?.last_sign_in_at
         });
       } catch (e) {
-        console.error('Error fetching auth data for user:', e);
+        // Still include the user even if we can't get their auth data
         usersWithAuthData.push(userRecord);
+        console.error(`Failed to get auth data for user ${userRecord.id}:`, e);
       }
     }
     
     return usersWithAuthData;
   } catch (error) {
-    console.error('Error fetching users:', error);
-    toast.error('Failed to load users');
-    return [];
+    console.error("Error fetching users:", error);
+    throw error;
   }
 }
+
 /**
  * Fetch aggregated usage data for dashboard
  */

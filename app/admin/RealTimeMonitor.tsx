@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ActivitySquare, PlayCircle, PauseCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ActivitySquare, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';

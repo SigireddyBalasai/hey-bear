@@ -1,7 +1,6 @@
 import React from 'react';
 import { Badge } from './badge';
-import { Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 type FileStatus = "ready" | "processing" | "failed";
 

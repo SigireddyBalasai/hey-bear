@@ -70,23 +70,10 @@ export async function POST(request: Request) {
 
     if (phoneNumber) {
       await supabase
-        .from('phonenumbers')
+        .from('phone_numbers')
         .update({ is_assigned: false })
         .eq('number', phoneNumber);
     }
-
-    await supabase.from('interactions').insert({
-      user_id: adminId,
-      assistant_id: null, 
-      chat: 'system',
-      request: 'Release phone number',
-      response: JSON.stringify({ 
-        action: 'release_phone_number', 
-        details: { twilioSid: sid, phoneNumber } 
-      }),
-      interaction_time: new Date().toISOString()
-    });
-
     return NextResponse.json({
       success: true,
       message: 'Phone number released successfully',

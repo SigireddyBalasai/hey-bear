@@ -107,6 +107,10 @@ export async function POST(req: NextRequest) {
         JSON.stringify({ type: 'sms', userPhone, message }) : 
         message;
 
+      // Calculate the monthly period in YYYY-MM format for analytics
+      const currentDate = new Date();
+      const monthlyPeriod = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      
       // Save interaction to Supabase with proper typing
       const interactionData: Omit<Interactions, 'id'> = {
         request: message,
@@ -120,7 +124,8 @@ export async function POST(req: NextRequest) {
         is_error: false,
         token_usage: tokenCount > 0 ? tokenCount : null,
         input_tokens: response.usage?.promptTokens || null,
-        output_tokens: response.usage?.completionTokens || null
+        output_tokens: response.usage?.completionTokens || null,
+        monthly_period: monthlyPeriod
       };
       
       const { error: interactionError } = await supabase

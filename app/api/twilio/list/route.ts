@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { checkIsAdmin } from '@/utils/admin';
 import twilio from 'twilio';
 
 export async function GET(req: Request) {
@@ -42,7 +41,7 @@ export async function GET(req: Request) {
 
     // Get phone numbers from database
     const { data: dbNumbers, error: dbError } = await supabase
-      .from('phonenumbers')
+      .from('phone_numbers')
       .select('*');
 
     if (dbError) {
@@ -75,7 +74,7 @@ export async function GET(req: Request) {
       }));
 
       // Find which Twilio numbers aren't in the database yet
-      const dbPhoneNumbersSet = new Set((dbNumbers || []).map(n => n.number));
+      const dbPhoneNumbersSet = new Set((dbNumbers || []).map(n => n.phone_number));
       const unmanagedNumbers = formattedNumbers.filter(n => !dbPhoneNumbersSet.has(n.phoneNumber));
 
       return NextResponse.json({

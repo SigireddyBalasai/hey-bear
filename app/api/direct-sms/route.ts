@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { logTwilio, logTwilioError } from '@/utils/twilio-logger';
+import { logTwilioError } from '@/utils/twilio-logger';
 import { logOutgoingSms } from '@/utils/sms-monitoring';
 
 export async function POST(request: Request) {
