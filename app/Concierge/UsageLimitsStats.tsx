@@ -5,10 +5,14 @@ import { format } from 'date-fns';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn } from "@/lib/utils";
+import { Database } from '@/lib/db.types';
 
 interface UsageLimitsStatsProps {
   assistantId: string;
 }
+
+// Usage limits type from database function return type
+type UsageLimits = Database['public']['Functions']['get_usage_limits_for_plan']['Returns'][0];
 
 interface UsageStats {
   messages: {

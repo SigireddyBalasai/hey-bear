@@ -75,7 +75,6 @@ const InteractionLog: React.FC<InteractionLogProps> = ({
                       <TableCell><Skeleton className="h-4 w-20 rounded-md" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24 rounded-md" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-full rounded-md" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-full rounded-md" /></TableCell>
                       <TableCell><Skeleton className="h-6 w-16 rounded-md" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-10 rounded-md" /></TableCell>
                     </TableRow>
@@ -89,7 +88,7 @@ const InteractionLog: React.FC<InteractionLogProps> = ({
                       <TableCell className="max-w-xs truncate">{interaction.message}</TableCell>
                       <TableCell className="max-w-xs truncate">{interaction.response}</TableCell>
                       <TableCell>
-                        {interaction.type.split(', ').map((type: string, i: number) => (
+                        {interaction.type && interaction.type.split(', ').map((type: string, i: number) => (
                           <Badge key={i} variant={type === 'Inbound' ? 'secondary' : 'default'} className="mr-1">
                             {type}
                           </Badge>

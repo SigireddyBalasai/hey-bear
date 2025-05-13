@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
 
       // Record additional metadata for context if provided
       const chatMetadata = userPhone ? 
-        JSON.stringify({ type: 'sms', userPhone, message }) : 
+        { type: 'sms', userPhone, message } : 
         message;
 
       // Calculate the monthly period in YYYY-MM format for analytics

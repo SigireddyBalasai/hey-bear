@@ -20,11 +20,24 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Database } from "@/lib/db.types";
+
+// Use the same UserUsageStats type from UserUsageTable
+type UserUsageStats = Database['public']['Functions']['get_users_usage_stats']['Returns'][0] & {
+  users?: {
+    full_name?: string;
+    email?: string;
+    created_at?: string;
+    last_active?: string;
+  };
+  date?: string;
+  message_count?: number;
+};
 
 interface UserDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  userData: any;
+  userData: UserUsageStats | null;
 }
 
 export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalProps) {
@@ -69,7 +82,7 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
               
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
-                Last active: {formatDate(userData.last_active)}
+                Last active: {userData.users?.last_active ? formatDate(userData.users.last_active) : "N/A"}
               </span>
             </div>
           </div>

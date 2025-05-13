@@ -43,16 +43,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Database } from "@/lib/db.types";
+
+// Define a type for the user stats return type from the database function
+type UserUsageStats = Database['public']['Functions']['get_users_usage_stats']['Returns'][0] & {
+  users?: {
+    full_name?: string;
+    email?: string;
+  };
+  date?: string;
+  message_count?: number;
+  id?: string; // Add id property to fix the key error
+};
 
 interface UserUsageTableProps {
-  usageData: any[];
+  usageData: UserUsageStats[];
 }
 
 export function UserUsageTable({ usageData }: UserUsageTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<UserUsageStats | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState('10');
 
@@ -94,14 +106,15 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
       }
       
       if (sortField === 'messages' || sortField === 'tokens' || sortField === 'cost') {
-        const fieldMap: Record<string, string> = {
-          'messages': 'message_count',
-          'tokens': 'token_usage',
+        const fieldMap: Record<string, keyof UserUsageStats> = {
+          'messages': 'interactions_count', // Note the 's' in interactions_count
+          'tokens': 'input_tokens', // Using input_tokens as base measure
           'cost': 'cost_estimate'
         };
         
-        const valueA = a[fieldMap[sortField]] || 0;
-        const valueB = b[fieldMap[sortField]] || 0;
+        const field = fieldMap[sortField];
+        const valueA = Number(a?.[field] || 0);
+        const valueB = Number(b?.[field] || 0);
         
         return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       }
@@ -111,7 +124,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
     .slice(0, parseInt(itemsPerPage, 10));
 
   // View user details
-  const handleViewDetails = (user: any) => {
+  const handleViewDetails = (user: UserUsageStats) => {
     setSelectedUser(user);
     setDetailModalOpen(true);
   };
@@ -129,7 +142,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
   };
 
   // Format date safely
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr?: string) => {
     if (!dateStr) return {
       short: 'N/A',
       year: ''
@@ -141,7 +154,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
         short: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         year: date.toLocaleDateString('en-US', { year: 'numeric' })
       };
-    } catch (e) {
+    } catch (_) {
       return { short: 'Invalid date', year: '' };
     }
   };
@@ -244,7 +257,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={item.message_count > 50 ? "default" : "outline"} className="font-mono">
+                    <Badge variant={item.message_count && item.message_count > 50 ? "default" : "outline"} className="font-mono">
                       {item.message_count || 0}
                     </Badge>
                   </TableCell>

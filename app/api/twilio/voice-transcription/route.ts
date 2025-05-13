@@ -351,7 +351,7 @@ function sanitizeMessage(message: string): string {
       .replace(/"/g, '')     // Remove quotes completely
       .replace(/'/g, '')     // Remove apostrophes completely
       // Replace any other potentially problematic characters
-      .replace(/[^\w\s.,?!;:()\-]/g, ''); // Only allow safe characters
+      .replace(/[^\w\s.,?!;:()/-]/g, ''); // Only allow safe characters
   } catch (error) {
     console.error('Error sanitizing message:', error);
     return "I'm sorry, there was an error processing the response.";

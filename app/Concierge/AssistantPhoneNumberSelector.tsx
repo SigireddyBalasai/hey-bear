@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -49,7 +48,6 @@ export function AssistantPhoneNumberSelector({
   const [isAssigning, setIsAssigning] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [twilioAppInfo, setTwilioAppInfo] = useState<any>(null);
-  const supabase = createClient();
 
   // Fetch available phone numbers when dialog opens
   const fetchAvailablePhoneNumbers = async () => {

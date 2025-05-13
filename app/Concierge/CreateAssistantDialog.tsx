@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import PlanSelectionCard from "@/app/components/PlanSelectionCard";
+// import Link from "next/link";
 
 interface CreateAssistantDialogProps {
   open: boolean;
@@ -102,7 +103,7 @@ export function CreateAssistantDialog({
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
-              This is what you'll see in your dashboard.
+              This is what you&apos;ll see in your dashboard.
             </p>
           </div>
 

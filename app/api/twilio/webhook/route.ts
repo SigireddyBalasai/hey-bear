@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const token = url.searchParams.get('token'); // Optional verification token
     
     console.log(`Request URL: ${req.url}`);
-    console.log(`Query parameters: ${JSON.stringify(Object.fromEntries(url.searchParams))}`);
+    console.log(`Query parameters:`, Object.fromEntries(url.searchParams));
     
     const formData = await req.formData();
     console.log(`Form data keys: ${Array.from(formData.keys()).join(', ')}`);

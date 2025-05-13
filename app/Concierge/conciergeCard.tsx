@@ -1,22 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Bot, Star, Trash, Phone, CreditCard } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Tables } from '@/lib/db.types';
-import Link from 'next/link';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { Bot, MoreHorizontal, Star, Trash, CreditCard, Phone } from "lucide-react";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Tables } from "@/lib/db.types";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { getAssistantData } from '@/utils/assistant-data';
 
 type Assistant = Tables<'assistants'>;
+
+// Extended assistant type that includes normalized data
+interface ExtendedAssistant {
+  assistant: Assistant;
+  config?: Tables<'assistant_configs'> | null;
+  subscription?: Tables<'assistant_subscriptions'> | null;
+}
 
 interface AssistantCardProps {
   assistant: Assistant;
@@ -27,17 +40,54 @@ interface AssistantCardProps {
 }
 
 export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDeleteAssistant, handleToggleStar }: AssistantCardProps) {
-  // Parse description from params if available
-  const description = typeof assistant.params === 'object' && 
+  const [extendedData, setExtendedData] = useState<ExtendedAssistant>({ assistant });
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  // Fetch the normalized data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const assistantData = await getAssistantData(assistant.id);
+        if (assistantData) {
+          setExtendedData({
+            assistant: assistantData.assistant,
+            config: assistantData.config,
+            subscription: assistantData.subscription
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching assistant extended data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [assistant.id]);
+  
+  // Get description from normalized config or fallback to params
+  const description = extendedData.config?.description || 
+                     (typeof assistant.params === 'object' && 
                      assistant.params !== null && 
                      'description' in assistant.params ? 
                      String(assistant.params.description) : 
-                     'No description provided';
+                     'No description provided');
   
   // Format the creation date
   const createdAt = assistant.created_at ? 
     format(new Date(assistant.created_at), 'MMM d, yyyy') : 
     'Unknown date';
+    
+  // Get subscription plan
+  const subscriptionPlan = extendedData.subscription?.plan || 
+                          (typeof assistant.params === 'object' && 
+                          assistant.params !== null &&
+                          'subscription' in assistant.params && 
+                          typeof assistant.params.subscription === 'object' &&
+                          assistant.params.subscription !== null &&
+                          'plan' in assistant.params.subscription ?
+                          assistant.params.subscription.plan : 
+                          'personal');
 
   return (
     <Card className="h-full flex flex-col">
@@ -80,14 +130,8 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {/* Upgrade Plan button */}
-              {typeof assistant.params === 'object' && 
-               assistant.params !== null && 
-               'subscription' in assistant.params && 
-               typeof assistant.params.subscription === 'object' &&
-               assistant.params.subscription !== null &&
-               'plan' in assistant.params.subscription &&
-               assistant.params.subscription.plan === 'personal' && (
+              {/* Upgrade Plan button - show only for personal plans */}
+              {subscriptionPlan === 'personal' && (
                 <>
                   <DropdownMenuItem 
                     onClick={() => window.location.href=`/api/subscriptions/upgrade?assistantId=${assistant.id}`}
@@ -129,19 +173,15 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
               SMS
             </Badge>
           )}
-          {typeof assistant.params === 'object' && 
-           assistant.params !== null && 
-           'subscription' in assistant.params && 
-           typeof assistant.params.subscription === 'object' &&
-           assistant.params.subscription !== null &&
-           'plan' in assistant.params.subscription && (
+          {/* Subscription badge */}
+          {subscriptionPlan && (
             <Badge 
               variant="outline" 
               className="gap-1 flex items-center" 
-              color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}
+              color={subscriptionPlan === 'business' ? 'gold' : 'blue'}
             >
               <CreditCard className="h-3 w-3" />
-              {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
+              {subscriptionPlan === 'business' ? 'Business' : 'Personal'}
             </Badge>
           )}
         </div>
@@ -158,7 +198,7 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
               </Link>
             </TooltipTrigger>
             <TooltipContent>
-              Chat with {assistant.name}
+              Edit No-Show 
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

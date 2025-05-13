@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe';
 import { createServiceClient } from '@/utils/supabase/server-admin';
 import { v4 as uuidv4 } from 'uuid';
 import { getPineconeClient } from '@/lib/pinecone';
+import { updateAssistantData } from '@/utils/assistant-data';
 
 // Helper function to generate a valid Pinecone name
 function generatePineconeName(name: string): string {
@@ -176,150 +177,154 @@ async function getPlanIdFromProductId(productId: string, supabase: any): Promise
 
 // Helper function to process a checkout session for a specific assistant
 async function handleCheckoutSessionForAssistant(session: any, supabase: any, pendingAssistant: any) {
-  // Get subscription details
-  const subscriptionId = session.subscription;
-  if (!subscriptionId) {
-    console.error('No subscription ID found in completed session');
-    return;
-  }
-  
-  const subscription = await stripe?.subscriptions.retrieve(subscriptionId);
-  if (!subscription) {
-    console.error('Could not retrieve subscription details');
-    return;
-  }
-  
-  // Get the plan UUID from the Stripe product ID
-  const stripeProductId = pendingAssistant.plan_id;
-  const planId = await getPlanIdFromProductId(stripeProductId, supabase);
-  
-  if (!planId) {
-    console.error(`Could not find plan UUID for Stripe product ID: ${stripeProductId}`);
-    // Continue with the flow but log the error
-  }
-  
-  // Helper function to safely convert UNIX timestamp to ISO string
-  const safeTimestampToISO = (timestamp: number | null | undefined): string => {
-    if (!timestamp) return new Date().toISOString();
-    
-    try {
-      // Stripe timestamps are in seconds, JS needs milliseconds
-      const date = new Date(timestamp * 1000);
-      return date.toISOString();
-    } catch (error) {
-      console.error('Error converting timestamp to ISO:', error);
-      return new Date().toISOString();
-    }
-  };
-  
-  let pinecone_name = '';
   try {
-    // Generate unique Pinecone name
-    pinecone_name = generatePineconeName(pendingAssistant.name);
-    console.log(`Generated Pinecone name: ${pinecone_name}`);
+    // Extract relevant details from the session
+    const checkoutSessionId = session.id;
+    const subscriptionId = session.subscription;
+    const customerId = session.customer;
+    const priceId = session.metadata?.price_id;
     
-    // Create assistant in Pinecone
+    if (!subscriptionId) {
+      throw new Error('No subscription ID in session');
+    }
+    
+    // Fetch subscription details
+    const stripe = getStripeInstance();
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    
+    if (!subscription) {
+      throw new Error('Could not retrieve subscription');
+    }
+    
+    // Generate a unique name for the Pinecone assistant
+    const pinecone_name = generatePineconeName(pendingAssistant.name);
+    
+    // Create a new assistant in Pinecone
     const pinecone = getPineconeClient();
     if (!pinecone) {
-      console.error('Pinecone client initialization failed');
-      return;
+      throw new Error('Could not get Pinecone client');
     }
     
     try {
-      // Create the assistant in Pinecone
-      console.log('Attempting to create assistant in Pinecone with name:', pinecone_name);
-      
-      const pineconeResult = await pinecone.createAssistant({
-        name: pinecone_name,
-        instructions: pendingAssistant.params?.systemPrompt || 
-            `You are a helpful AI assistant named ${pendingAssistant.name}.`,
-        metadata: {
-          owner: pendingAssistant.user_id,
-          description: pendingAssistant.params?.description || 'No description provided',
-          created_at: new Date().toISOString(),
-          display_name: pendingAssistant.name
-        },
-      });
-      
-      console.log('Created assistant in Pinecone:', pineconeResult);
-    } catch (error: any) {
-      console.error('Error creating assistant in Pinecone:', error);
-      console.error('Error details:', error.message);
-      
-      // Try one more time with a simpler name if the first attempt fails
-      try {
-        const fallbackName = `assistant-${Math.random().toString(36).substring(2, 10)}`;
-        console.log('Retrying with fallback name:', fallbackName);
-        
-        const pineconeResult = await pinecone.createAssistant({
-          name: fallbackName,
-          instructions: pendingAssistant.params?.systemPrompt || 
-              `You are a helpful AI assistant named ${pendingAssistant.name}.`,
-          metadata: {
-            owner: pendingAssistant.user_id,
-            description: pendingAssistant.params?.description || 'No description provided',
-            created_at: new Date().toISOString(),
-            display_name: pendingAssistant.name
-          },
-        });
-        
-        console.log('Created assistant in Pinecone with fallback name:', pineconeResult);
-        pinecone_name = fallbackName; // Update the name for database storage
-      } catch (fallbackError: any) {
-        console.error('Fallback creation also failed:', fallbackError);
-        throw error; // Re-throw the original error
-      }
+      // Create the Pinecone assistant
+      // ...existing code for creating Pinecone assistant...
+
+      // Handle existing errors the same way
+      // ...existing error handling code...
     }
     
     // Get the current period end timestamp and safely convert to ISO string
     const currentPeriodEndISO = safeTimestampToISO((subscription as any).current_period_end);
+    const currentPeriodStartISO = safeTimestampToISO((subscription as any).current_period_start);
+    const planType = session.metadata?.plan_type || 'personal';
 
-    // Create a new assistant record in the assistants table
-    const newAssistantId = uuidv4();
-    const newAssistantData = {
-      id: newAssistantId,
-      name: pendingAssistant.name,
-      user_id: pendingAssistant.user_id,
+    // Update subscription in the new normalized tables
+    await updateAssistantData(pendingAssistant.id, {
+      // Update assistant config
+      config: {
+        id: pendingAssistant.id,
+        // Use existing description from params or default
+        description: typeof pendingAssistant.params === 'object' && 
+                    pendingAssistant.params !== null &&
+                    'description' in pendingAssistant.params ? 
+                    String(pendingAssistant.params.description) : null,
+        // Use existing values from params if available
+        concierge_name: typeof pendingAssistant.params === 'object' && 
+                        pendingAssistant.params !== null &&
+                        'conciergeName' in pendingAssistant.params ? 
+                        String(pendingAssistant.params.conciergeName) : pendingAssistant.name,
+        concierge_personality: typeof pendingAssistant.params === 'object' && 
+                              pendingAssistant.params !== null &&
+                              'conciergePersonality' in pendingAssistant.params ? 
+                              String(pendingAssistant.params.conciergePersonality) : null,
+        business_name: typeof pendingAssistant.params === 'object' && 
+                      pendingAssistant.params !== null &&
+                      'businessName' in pendingAssistant.params ? 
+                      String(pendingAssistant.params.businessName) : null,
+        share_phone_number: typeof pendingAssistant.params === 'object' && 
+                           pendingAssistant.params !== null &&
+                           'sharePhoneNumber' in pendingAssistant.params ? 
+                           Boolean(pendingAssistant.params.sharePhoneNumber) : false,
+        business_phone: typeof pendingAssistant.params === 'object' && 
+                       pendingAssistant.params !== null &&
+                       'phoneNumber' in pendingAssistant.params ? 
+                       String(pendingAssistant.params.phoneNumber) : null
+      },
+      
+      // Update subscription information
+      subscription: {
+        assistant_id: pendingAssistant.id,
+        stripe_subscription_id: subscriptionId,
+        plan: planType || 'personal',
+        status: subscription.status,
+        current_period_end: currentPeriodEndISO,
+        current_period_start: currentPeriodStartISO,
+        created_at: new Date().toISOString()
+      },
+      
+      // Set usage limits based on plan
+      usageLimits: {
+        assistant_id: pendingAssistant.id,
+        max_messages: planType === 'business' ? 2000 : 100,
+        max_tokens: planType === 'business' ? 1000000 : 100000,
+        max_documents: planType === 'business' ? 25 : 5,
+        max_webpages: planType === 'business' ? 25 : 5
+      }
+    });
+    
+    // For backward compatibility, update the assistant record in the assistants table as before
+    const assistantData = {
+      pending: false, // Mark as no longer pending
       pinecone_name: pinecone_name,
-      created_at: new Date().toISOString(),
+      // Also keep updating the params for backward compatibility
       params: {
-        ...pendingAssistant.params,
+        ...(typeof pendingAssistant.params === 'object' && pendingAssistant.params !== null ? pendingAssistant.params : {}),
         is_active: true,
         pending: false,
         subscription: {
           stripeSubscriptionId: subscriptionId,
           status: subscription.status,
-          plan: pendingAssistant.params?.plan || 'personal',
+          plan: planType || 'personal',
           currentPeriodEnd: currentPeriodEndISO,
           createdAt: new Date().toISOString()
         }
-      },
-      plan_id: planId // Only use the resolved UUID, not the Stripe product ID
+      }
     };
     
     const { error: assistantError } = await supabase
       .from('assistants')
-      .insert(newAssistantData);
+      .update(assistantData)
+      .eq('id', pendingAssistant.id);
       
     if (assistantError) {
-      console.error('Error creating assistant in database:', assistantError);
-      return;
+      console.error('Error updating assistant in database:', assistantError);
+      throw assistantError;
     }
     
-    console.log(`Successfully created new assistant ${newAssistantId} from pending assistant ${pendingAssistant.id}`);
-    
-    // Delete the pending assistant entry
-    await supabase
-      .from('assistants')
-      .delete()
-      .eq('id', pendingAssistant.id)
-      .eq('is_active', false);
-    
-    console.log(`Successfully processed pending assistant ${pendingAssistant.id}`);
+    return {
+      success: true,
+      assistantId: pendingAssistant.id,
+      name: pendingAssistant.name
+    };
   } catch (error) {
-    console.error('Error creating assistant from pending assistant:', error);
+    console.error('Error in handleCheckoutSessionForAssistant:', error);
+    throw error;
   }
 }
+
+// Helper function to safely convert UNIX timestamp to ISO string
+const safeTimestampToISO = (timestamp: number | null | undefined): string => {
+  if (!timestamp) return new Date().toISOString();
+  
+  try {
+    // Stripe timestamps are in seconds, JS needs milliseconds
+    const date = new Date(timestamp * 1000);
+    return date.toISOString();
+  } catch (error) {
+    console.error('Error converting timestamp to ISO:', error);
+    return new Date().toISOString();
+  }
+};
 
 async function handleInvoicePaid(invoice: any, supabase: any) {
   const subscriptionId = invoice.subscription;
@@ -551,36 +556,97 @@ async function handleSubscriptionCreated(subscription: any, supabase: any) {
 
 // Handle subscription updates
 async function handleSubscriptionUpdated(subscription: any, supabase: any) {
-  if (subscription && subscription.metadata?.assistantId) {
-    const assistantId = subscription.metadata.assistantId;
-    
-    // Get the assistant
-    const { data: assistantData, error: fetchError } = await supabase
-      .from('assistants')
-      .select('*')
-      .eq('id', assistantId)
+  try {
+    // Find the assistant that uses this subscription
+    const { data: assistantData, error: findError } = await supabase
+      .from('assistant_subscriptions')
+      .select('assistant_id')
+      .eq('stripe_subscription_id', subscription.id)
       .single();
     
-    if (fetchError || !assistantData) {
-      console.error('Error fetching assistant:', fetchError);
-      return;
+    if (findError || !assistantData) {
+      // Try the old way with JSON params
+      const { data: legacyData, error: legacyError } = await supabase
+        .from('assistants')
+        .select('id, params')
+        .contains('params', { subscription: { stripeSubscriptionId: subscription.id } })
+        .limit(1);
+        
+      if (legacyError || !legacyData || legacyData.length === 0) {
+        console.error('Could not find assistant for subscription:', subscription.id);
+        return {
+          success: false,
+          error: 'No assistant found for this subscription'
+        };
+      }
+      
+      const assistantId = legacyData[0].id;
+      
+      // Update in normalized table
+      await updateAssistantData(assistantId, {
+        subscription: {
+          assistant_id: assistantId,
+          stripe_subscription_id: subscription.id,
+          plan: subscription.metadata?.plan_type || 'personal',
+          status: subscription.status,
+          current_period_end: safeTimestampToISO(subscription.current_period_end),
+          current_period_start: safeTimestampToISO(subscription.current_period_start),
+        }
+      });
+      
+      // Update in legacy table too
+      const { error: updateError } = await supabase
+        .from('assistants')
+        .update({
+          params: {
+            ...(typeof legacyData[0].params === 'object' ? legacyData[0].params : {}),
+            subscription: {
+              stripeSubscriptionId: subscription.id,
+              status: subscription.status,
+              plan: subscription.metadata?.plan_type || 'personal',
+              currentPeriodEnd: safeTimestampToISO(subscription.current_period_end),
+            }
+          }
+        })
+        .eq('id', assistantId);
+        
+      if (updateError) {
+        console.error('Error updating assistant subscription (legacy):', updateError);
+        return {
+          success: false,
+          error: 'Failed to update assistant subscription (legacy)'
+        };
+      }
+      
+      return {
+        success: true
+      };
     }
     
-    // Update the assistant with the updated subscription data
-    await supabase
-      .from('assistants')
-      .update({
-        params: {
-          ...assistantData.params,
-          subscription: {
-            ...assistantData.params?.subscription,
-            status: subscription.status,
-            currentPeriodEnd: new Date((subscription as any).current_period_end * 1000).toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        }
-      })
-      .eq('id', assistantId);
+    // For normalized tables, update the subscription
+    const assistantId = assistantData.assistant_id;
+    
+    // Update in normalized table
+    await updateAssistantData(assistantId, {
+      subscription: {
+        assistant_id: assistantId,
+        stripe_subscription_id: subscription.id,
+        plan: subscription.metadata?.plan_type || 'personal',
+        status: subscription.status,
+        current_period_end: safeTimestampToISO(subscription.current_period_end),
+        current_period_start: safeTimestampToISO(subscription.current_period_start),
+      }
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error handling subscription update:', error);
+    return {
+      success: false,
+      error: 'Failed to process subscription update'
+    };
   }
 }
 

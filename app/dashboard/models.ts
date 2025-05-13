@@ -1,23 +1,17 @@
-export interface Interaction {
-  id: number | string;
-  date: string;
-  phoneNumber: string;
-  message: string;
-  response: string;
-  type: string;
-  responseTime: string;
-  assistant_id?: string;
-  user_id?: string;
-  chat?: string;
-  duration?: number;
-  interaction_time?: string;
-  request?: any;
+import { Tables } from '@/lib/db.types';
+
+export type Interaction = Tables<'interactions'> & {
+  date?: string;
+  phoneNumber?: string;
+  message?: string;
+  type?: string;
+  responseTime?: string;
   metadata?: {
     requestTimestamp?: string;
     responseTimestamp?: string;
     responseDuration?: string;
   };
-}
+};
 
 export interface DashboardStats {
   totalInteractions: number;

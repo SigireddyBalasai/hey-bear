@@ -957,6 +957,7 @@ CREATE TABLE IF NOT EXISTS "public"."monthly_usage" (
     "total_cost" numeric(10,4) DEFAULT 0,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "date_field" "date",
     CONSTRAINT "monthly_usage_input_tokens_check" CHECK (("input_tokens" >= 0)),
     CONSTRAINT "monthly_usage_interaction_count_check" CHECK (("interaction_count" >= 0)),
     CONSTRAINT "monthly_usage_output_tokens_check" CHECK (("output_tokens" >= 0)),
@@ -1167,6 +1168,10 @@ CREATE INDEX "idx_interactions_user_time" ON "public"."interactions" USING "btre
 
 
 CREATE INDEX "idx_monthly_usage_assistant_month_year" ON "public"."monthly_usage" USING "btree" ("assistant_id", "month", "year");
+
+
+
+CREATE INDEX "idx_monthly_usage_date_field" ON "public"."monthly_usage" USING "btree" ("date_field");
 
 
 

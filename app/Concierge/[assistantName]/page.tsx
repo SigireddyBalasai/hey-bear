@@ -22,6 +22,7 @@ import { useDropzone } from "react-dropzone";
 import { FileStatusBadge } from "@/components/ui/file-status-badge";
 import { FileErrorDialog } from "@/components/ui/file-error-dialog";
 import { AssistantPhoneNumberSelector } from '@/app/components/AssistantPhoneNumberSelector';
+import { getAssistantData } from '@/utils/assistant-data';
 
 // Replace the constant date with a function to ensure consistency on the client side
 const getCurrentTimestamp = () => {
@@ -64,6 +65,11 @@ const [fileError, setFileError] = useState<{
     show: false
   });
   
+  // Add state for storing normalized data
+  const [configData, setConfigData] = useState<Tables<'assistant_configs'> | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<Tables<'assistant_subscriptions'> | null>(null);
+  const [usageLimitsData, setUsageLimitsData] = useState<Tables<'assistant_usage_limits'> | null>(null);
+
   const router = useRouter();
   const supabase = createClient();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -91,6 +97,14 @@ const [fileError, setFileError] = useState<{
           });
           router.push('/Concierge');
           return;
+        }
+
+        // Fetch normalized data using our new helper
+        const normalizedData = await getAssistantData(assistantName);
+        if (normalizedData) {
+          setConfigData(normalizedData.config);
+          setSubscriptionData(normalizedData.subscription);
+          setUsageLimitsData(normalizedData.usageLimits);
         }
         
         if (!data) {
@@ -130,14 +144,52 @@ const [fileError, setFileError] = useState<{
           router.push('/dashboard');
           return;
         }
+        
+        // Prefer data from normalized tables, fallback to params
+        if (configData) {
+          // Use normalized data
+          if (configData.system_prompt) {
+            setChatHistory([
+              {
+                role: "system",
+                content: configData.system_prompt,
+                timestamp: getCurrentTimestamp()
+              }
+            ]);
+          }
+        } else if (data.params) {
+          // Fallback to params data
+          // Handle system prompt if present in params
+          const systemPrompt = typeof data.params === 'object' && 
+                              data.params !== null && 
+                              'systemPrompt' in data.params ? 
+                              String(data.params.systemPrompt) : null;
+          
+          if (systemPrompt) {
+            setChatHistory([
+              {
+                role: "system",
+                content: systemPrompt,
+                timestamp: getCurrentTimestamp()
+              }
+            ]);
+          }
+        }
+        
+        // Check if assistant is active in Pinecone by fetching files
+        // This confirms the assistant exists and we can enable chatting
+        await fetchFiles();
+        
+        setIsChatDisabled(false);
       } catch (error) {
-        console.error('Error loading No-Show details:', error);
-        toast.error("No-Show error", {
-          description: "Unable to load this No-Show. Redirecting to No-Show page."
+        console.error('Error loading params:', error);
+        setIsLoading(false);
+        toast.error("Failed to load No-Show", {
+          description: "There was an error loading the No-Show details."
         });
-        router.push('/dashboard');
       }
     }
+    
     loadParams();
   }, [params, router]);
 
@@ -361,6 +413,20 @@ const [fileError, setFileError] = useState<{
           description: data.error || "The No-Show couldn't process your request",
         });
       }
+
+      // Update last used timestamp in normalized tables
+      await fetch('/api/assistant/usage/track', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          assistantId,
+          type: 'message_sent',
+          amount: 1
+        })
+      });
+
     } catch (error) {
       console.error("Chat error:", error);
       toast("Communication error", {

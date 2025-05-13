@@ -42,33 +42,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Database } from "@/lib/db.types";
 
-// Define interface for user usage data
-interface UserUsageItem {
-  id?: string;
-  full_name?: string;
+// Use only database types directly without extra fields
+type MonthlyUsageRow = Database['public']['Tables']['monthly_usage']['Row'];
+
+// Extending UserRow to include all the needed fields that might come from joins
+type UserRow = Database['public']['Tables']['users']['Row'] & {
   email?: string;
-  date?: string;
-  message_count?: number;
-  interactions_count?: number;
-  token_usage?: number;
-  cost_estimate?: number;
-  [key: string]: any;
-}
+  full_name?: string;
+};
 
 interface UserUsageTableProps {
-  usageData: UserUsageItem[];
+  usageData: Array<MonthlyUsageRow & { users?: UserRow }>;
 }
 
 export function UserUsageTable({ usageData = [] }: UserUsageTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [selectedUser, setSelectedUser] = useState<UserUsageItem | null>(null);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState('10');
+  // Add state for user details
+  const [selectedUser, setSelectedUser] = useState<MonthlyUsageRow & { users?: UserRow } | null>(null);
 
-  // Handle sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -77,6 +73,14 @@ export function UserUsageTable({ usageData = [] }: UserUsageTableProps) {
       setSortDirection('asc');
     }
   };
+  
+  // Handle viewing user details
+  const handleViewDetails = (user: MonthlyUsageRow & { users?: UserRow }) => {
+    setSelectedUser(user);
+    // You could implement a modal or redirect here
+    // For now, let's just log the user
+    console.log('View details for user:', user);
+  };
 
   // Filter and sort data with improved error handling
   const filteredData = usageData
@@ -84,36 +88,41 @@ export function UserUsageTable({ usageData = [] }: UserUsageTableProps) {
       // Guard against missing data
       if (!item) return false;
       
-      const email = String(item.email || '');
-      const fullName = String(item.full_name || '');
+      const email = String(item.users?.email || '');
+      const fullName = String(item.users?.full_name || '');
       
       return email.toLowerCase().includes(searchTerm.toLowerCase()) || 
              fullName.toLowerCase().includes(searchTerm.toLowerCase());
     })
     .sort((a, b) => {
       if (sortField === 'date') {
-        const dateA = a?.date ? new Date(a.date).getTime() : 0;
-        const dateB = b?.date ? new Date(b.date).getTime() : 0;
+        // Use the new date_field if available, otherwise fallback to created_at
+        const dateA = a?.date_field ? new Date(a.date_field).getTime() : 
+                    (a?.created_at ? new Date(a.created_at).getTime() : 0);
+        const dateB = b?.date_field ? new Date(b.date_field).getTime() : 
+                    (b?.created_at ? new Date(b.created_at).getTime() : 0);
         return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
       }
       
+      // Rest of the sort function remains the same
       if (sortField === 'user') {
-        const nameA = String(a?.full_name || '').toLowerCase();
-        const nameB = String(b?.full_name || '').toLowerCase();
+        const nameA = String(a.users?.full_name || '').toLowerCase();
+        const nameB = String(b.users?.full_name || '').toLowerCase();
         return sortDirection === 'asc' 
           ? nameA.localeCompare(nameB)
           : nameB.localeCompare(nameA);
       }
       
       if (sortField === 'messages' || sortField === 'tokens' || sortField === 'cost') {
-        const fieldMap: Record<string, string> = {
-          'messages': 'message_count',
-          'tokens': 'token_usage',
-          'cost': 'cost_estimate'
+        const fieldMap: Record<string, keyof MonthlyUsageRow> = {
+          'messages': 'interaction_count',
+          'tokens': 'input_tokens', // Using input_tokens as base measure
+          'cost': 'total_cost'
         };
         
-        const valueA = Number(a?.[fieldMap[sortField]] || 0);
-        const valueB = Number(b?.[fieldMap[sortField]] || 0);
+        const field = fieldMap[sortField];
+        const valueA = Number(a?.[field] || 0);
+        const valueB = Number(b?.[field] || 0);
         
         return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       }
@@ -121,12 +130,6 @@ export function UserUsageTable({ usageData = [] }: UserUsageTableProps) {
       return 0;
     })
     .slice(0, parseInt(itemsPerPage, 10));
-
-  // View user details
-  const handleViewDetails = (user: UserUsageItem) => {
-    setSelectedUser(user);
-    setDetailModalOpen(true);
-  };
   
   // Get initials with error handling
   const getInitials = (name: string = '') => {
@@ -232,20 +235,21 @@ export function UserUsageTable({ usageData = [] }: UserUsageTableProps) {
           <TableBody>
             {filteredData.length > 0 ? (
               filteredData.map((item) => {
-                const dateFormatted = formatDate(item?.date);
+                // Handle null date_field by providing undefined instead
+                const dateFormatted = formatDate(item?.date_field ?? undefined);
                 return (
                 <TableRow key={item?.id || Math.random().toString()} className="hover:bg-muted/30">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8 border">
-                        <AvatarImage src="" alt={item?.full_name || "User"} />
+                        <AvatarImage src="" alt={item.users?.full_name || "User"} />
                         <AvatarFallback className="text-xs">
-                          {getInitials(item?.full_name)}
+                          {getInitials(item.users?.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{item?.full_name || "Unknown"}</div>
-                        <div className="text-xs text-muted-foreground">{item?.email || "No email"}</div>
+                        <div className="font-medium">{item.users?.full_name || "Unknown"}</div>
+                        <div className="text-xs text-muted-foreground">{item.users?.email || "No email"}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -256,16 +260,16 @@ export function UserUsageTable({ usageData = [] }: UserUsageTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={Number(item?.message_count || item?.interactions_count || 0) > 50 ? "default" : "outline"} className="font-mono">
-                      {item?.message_count || item?.interactions_count || 0}
+                    <Badge variant={Number(item?.interaction_count || 0) > 50 ? "default" : "outline"} className="font-mono">
+                      {item?.interaction_count || 0}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {Number(item?.token_usage || 0).toLocaleString()}
+                    {((Number(item?.input_tokens || 0) + Number(item?.output_tokens || 0))).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    <span className={Number(item?.cost_estimate || 0) > 1 ? "text-amber-600 font-semibold" : ""}>
-                      ${Number(item?.cost_estimate || 0).toFixed(2)}
+                    <span className={Number(item?.total_cost || 0) > 1 ? "text-amber-600 font-semibold" : ""}>
+                      ${Number(item?.total_cost || 0).toFixed(2)}
                     </span>
                   </TableCell>
                   <TableCell>

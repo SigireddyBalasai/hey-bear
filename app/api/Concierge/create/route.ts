@@ -1,80 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
+import { getPineconeClient } from '@/lib/pinecone';
+import { updateAssistantData } from '@/utils/assistant-data';
+import { Tables } from '@/lib/db.types';
 import crypto from 'crypto';
 
 // Generate a valid name for Pinecone assistant
 // Pinecone requires names to be lowercase alphanumeric with hyphens only
 function generatePineconeName(base: string): string {
-  // Generate a random string of 8 characters
-  const randomSuffix = crypto.randomBytes(4).toString('hex');
+  // Replace spaces and special characters with hyphens, ensure lowercase
+  let prefix = base.toLowerCase().replace(/[^a-z0-9]/g, '-');
   
-  // Create a valid formatted version of the assistant name
-  // Only lowercase alphanumeric characters and hyphens are allowed
-  const baseFormatted = base
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '-') // Replace non-alphanumeric with hyphens
-    .replace(/-{2,}/g, '-')     // Replace multiple hyphens with a single one
-    .replace(/^-|-$/g, '')      // Remove leading/trailing hyphens
-    .substring(0, 20);          // Limit to 20 chars
+  // Ensure the name isn't too long (leave room for random suffix)
+  prefix = prefix.substring(0, 40);
   
-  // Ensure the name starts with a letter
-  const prefix = /^[a-z]/.test(baseFormatted) ? baseFormatted : `a-${baseFormatted}`;
+  // Add a random suffix for uniqueness
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
   
-  // Combine them to create a unique valid name
   return `${prefix}-${randomSuffix}`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // Validate request body
-    const body = await req.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
-    }
-    
-    const { assistantName, description, params, plan } = body;
+    const body = await req.json();
     
     // Validate required fields
+    const { 
+      assistantName, 
+      description, 
+      params = {},
+      plan = 'personal'  // Default to personal plan
+    } = body;
+    
     if (!assistantName) {
       return NextResponse.json({ error: 'Assistant name is required' }, { status: 400 });
     }
     
+    // Get authentication
     const supabase = await createClient();
-
-    // Check user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
       console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
+    
     try {
-      // Check if user exists in the users table, and create if not
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-      
-      // If user doesn't exist in users table, create it
-      if (!existingUser) {
-        console.log('Creating new user record in users table');
-        const { error: createUserError } = await supabase
-          .from('users')
-          .insert({
-            auth_user_id: user.id,
-            created_at: new Date().toISOString(),
-          });
-        
-        if (createUserError) {
-          console.error('Error creating user record:', createUserError);
-          return NextResponse.json({ error: 'Failed to create user record' }, { status: 500 });
-        }
-      }
-      
-      // Fetch the user entry again to get the actual user_id
+      // Get user ID from the users table
       const { data: userData, error: userFetchError } = await supabase
         .from('users')
         .select('id')
@@ -93,9 +66,19 @@ export async function POST(req: NextRequest) {
       // Generate unique Pinecone name with valid format
       const pinecone_name = generatePineconeName(assistantName);
       console.log(`Generated Pinecone name: ${pinecone_name}`);
+      
+      // Extract configuration parameters from params
+      const {
+        conciergeName,
+        conciergePersonality,
+        businessName,
+        sharePhoneNumber,
+        phoneNumber,
+        systemPrompt
+      } = params;
 
       // Create a pending assistant record that will be fulfilled after payment is confirmed
-      const pendingAssistantData = {
+      const pendingAssistantData: Tables<'assistants'>['Insert'] = {
         id: pendingAssistantId,
         user_id: userId,
         name: assistantName,
@@ -103,13 +86,18 @@ export async function POST(req: NextRequest) {
         created_at: new Date().toISOString(),
         pending: true, // Set the pending flag instead of using a separate table
         pinecone_name: pinecone_name,
+        // For backward compatibility, still include params
         params: {
-          ...params,
-          description: description || 'No description provided',
-          systemPrompt: params?.systemPrompt,
-          plan: plan || 'personal',
-          is_active: false,
-          createdAt: new Date().toISOString()
+          description,
+          systemPrompt,
+          plan,
+          pending: true,
+          createdAt: new Date().toISOString(),
+          conciergeName,
+          conciergePersonality,
+          businessName,
+          sharePhoneNumber,
+          phoneNumber
         }
       };
 
@@ -119,26 +107,54 @@ export async function POST(req: NextRequest) {
         .insert(pendingAssistantData);
 
       if (pendingError) {
-        console.error('Error saving pending No-show to Supabase:', pendingError);
-        return NextResponse.json({ error: 'Failed to save pending No-show to database' }, { status: 500 });
+        console.error('Error saving pending assistant to Supabase:', pendingError);
+        return NextResponse.json({ error: 'Failed to save pending assistant to database' }, { status: 500 });
       }
-
-      // No longer creating an entry in the assistants table until payment is confirmed
+      
+      // Also insert the normalized data into the new tables
+      await updateAssistantData(pendingAssistantId, {
+        config: {
+          id: pendingAssistantId,
+          description: description || null,
+          concierge_name: conciergeName || assistantName,
+          concierge_personality: conciergePersonality || null,
+          business_name: businessName || null,
+          share_phone_number: sharePhoneNumber || false,
+          business_phone: phoneNumber || null,
+          system_prompt: systemPrompt || null
+        },
+        subscription: {
+          assistant_id: pendingAssistantId,
+          plan: plan || 'personal',
+          status: 'pending',
+          created_at: new Date().toISOString()
+        },
+        usageLimits: {
+          assistant_id: pendingAssistantId,
+          max_messages: plan === 'business' ? 2000 : 100,
+          max_tokens: plan === 'business' ? 1000000 : 100000,
+          max_documents: plan === 'business' ? 25 : 5,
+          max_webpages: plan === 'business' ? 25 : 5
+        }
+      });
 
       return NextResponse.json({ 
         message: `Assistant ${assistantName} created as pending`,
-        assistantId: pendingAssistantId, // Use pendingAssistantId as the main ID now
+        assistantId: pendingAssistantId,
         pendingAssistantId: pendingAssistantId
       });
     } catch (apiError: any) {
       console.error('Error creating assistant:', apiError);
-      return NextResponse.json(
-        { error: `Failed to create assistant: ${apiError.message || ''}` }, 
-        { status: 500 }
-      );
+      return NextResponse.json({ 
+        error: 'Failed to create assistant', 
+        details: apiError.message
+      }, { status: 500 });
     }
-  } catch (e: any) {
-    console.error('Unexpected error:', e);
-    return NextResponse.json({ error: `Internal server error: ${e.message || ''}` }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error processing request:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error.message 
+    }, { status: 500 });
   }
 }

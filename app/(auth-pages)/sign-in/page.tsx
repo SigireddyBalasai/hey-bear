@@ -100,7 +100,7 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link className="text-primary font-medium hover:underline" href="/sign-up">
               Sign up
             </Link>

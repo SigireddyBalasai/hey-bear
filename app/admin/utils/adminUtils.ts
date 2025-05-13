@@ -1,40 +1,6 @@
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 
-// Replace custom interfaces with types from the schema
-interface TimeSeriesItem {
-  date: string;
-  interactions: number;
-  tokens: number;
-  costs: number;
-  activeUsers: number;
-  errors: number;
-  inputTokens: number;
-  outputTokens: number;
-}
-
-// Use the Tables type for user stats
-interface UserStat {
-  userId: string;
-  interactions: number;
-  tokens: number;
-  costs: number;
-  lastActive: string | null;
-  email?: string;
-  fullName?: string;
-  inputTokens: number;
-  outputTokens: number;
-}
-
-// Define types for hourly metrics
-interface HourlyMetric {
-  timestamp: string;
-  requests: number;
-  tokens: number;
-  errors: number;
-  avgLatency: number;
-}
-
 /**
  * Check if current user is an admin
  */
@@ -500,9 +466,24 @@ export function exportToCSV(data: any[], filename: string) {
     headers.join(','), // Header row
     ...data.map((row: any) => headers.map(header => {
       const value = row[header];
-      // Handle special cases (objects, null values, etc.)
+      // Handle special cases (null values, etc.)
       if (value === null || value === undefined) return '';
-      if (typeof value === 'object') return JSON.stringify(value);
+      
+      // For objects, convert them to a simplified string representation
+      // instead of using JSON.stringify which can be excessively verbose
+      if (typeof value === 'object' && value !== null) {
+        // Create a simplified representation based on object type
+        if (Array.isArray(value)) {
+          return `"${value.join(', ')}"`;
+        } else {
+          // Create a simple key-value representation for objects
+          const objStr = Object.entries(value)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ');
+          return `"${objStr}"`;
+        }
+      }
+      
       // Escape quotes and wrap in quotes if contains commas
       if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
         return `"${value.replace(/"/g, '""')}"`;

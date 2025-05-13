@@ -97,176 +97,6 @@ export type Database = {
           },
         ]
       }
-      assistant_configs: {
-        Row: {
-          id: string
-          system_prompt: string | null
-          description: string | null
-          concierge_name: string | null
-          concierge_personality: string | null
-          business_name: string | null
-          share_phone_number: boolean | null
-          business_phone: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          system_prompt?: string | null
-          description?: string | null
-          concierge_name?: string | null
-          concierge_personality?: string | null
-          business_name?: string | null
-          share_phone_number?: boolean | null
-          business_phone?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          system_prompt?: string | null
-          description?: string | null
-          concierge_name?: string | null
-          concierge_personality?: string | null
-          business_name?: string | null
-          share_phone_number?: boolean | null
-          business_phone?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assistant_configs_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "assistants"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      assistant_subscriptions: {
-        Row: {
-          id: string
-          assistant_id: string | null
-          stripe_subscription_id: string | null
-          plan: string
-          status: string
-          current_period_end: string | null
-          current_period_start: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          assistant_id?: string | null
-          stripe_subscription_id?: string | null
-          plan?: string
-          status?: string
-          current_period_end?: string | null
-          current_period_start?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          assistant_id?: string | null
-          stripe_subscription_id?: string | null
-          plan?: string
-          status?: string
-          current_period_end?: string | null
-          current_period_start?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assistant_subscriptions_assistant_id_fkey"
-            columns: ["assistant_id"]
-            isOneToOne: true
-            referencedRelation: "assistants"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      assistant_usage_limits: {
-        Row: {
-          id: string
-          assistant_id: string | null
-          max_messages: number
-          max_tokens: number
-          max_documents: number
-          max_webpages: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          assistant_id?: string | null
-          max_messages?: number
-          max_tokens?: number
-          max_documents?: number
-          max_webpages?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          assistant_id?: string | null
-          max_messages?: number
-          max_tokens?: number
-          max_documents?: number
-          max_webpages?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assistant_usage_limits_assistant_id_fkey"
-            columns: ["assistant_id"]
-            isOneToOne: true
-            referencedRelation: "assistants"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      assistant_activity: {
-        Row: {
-          id: string
-          assistant_id: string | null
-          last_used_at: string | null
-          total_messages: number
-          total_tokens: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          assistant_id?: string | null
-          last_used_at?: string | null
-          total_messages?: number
-          total_tokens?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          assistant_id?: string | null
-          last_used_at?: string | null
-          total_messages?: number
-          total_tokens?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assistant_activity_assistant_id_fkey"
-            columns: ["assistant_id"]
-            isOneToOne: true
-            referencedRelation: "assistants"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       interactions: {
         Row: {
           assistant_id: string | null
@@ -351,7 +181,6 @@ export type Database = {
         Row: {
           assistant_id: string | null
           created_at: string
-          date_field: string | null
           id: string
           input_tokens: number | null
           interaction_count: number | null
@@ -365,7 +194,6 @@ export type Database = {
         Insert: {
           assistant_id?: string | null
           created_at?: string
-          date_field?: string | null
           id?: string
           input_tokens?: number | null
           interaction_count?: number | null
@@ -379,7 +207,6 @@ export type Database = {
         Update: {
           assistant_id?: string | null
           created_at?: string
-          date_field?: string | null
           id?: string
           input_tokens?: number | null
           interaction_count?: number | null

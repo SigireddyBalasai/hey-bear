@@ -22,11 +22,23 @@ export async function POST(request: Request) {
     
     // Validate required fields
     if (!assistantId || !phoneNumber) {
-      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Missing fields`);
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Missing required fields`);
       return NextResponse.json(
-        { error: 'Missing required fields' }, 
+        { error: 'Missing required fields: assistantId and phoneNumber are required' }, 
         { status: 400 }
       );
+    }
+
+    // Check if the user is authorized to modify this assistant
+    const { data: assistantData, error: assistantError } = await supabase
+      .from('assistants')
+      .select('user_id, assigned_phone_number')
+      .eq('id', assistantId)
+      .single();
+
+    if (assistantError || !assistantData) {
+      console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Assistant not found`);
+      return NextResponse.json({ error: 'Assistant not found' }, { status: 404 });
     }
     
     // Check if assistant has this phone number assigned

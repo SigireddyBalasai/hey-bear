@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,16 @@ import {
   TooltipProvider, 
   TooltipTrigger 
 } from "@/components/ui/tooltip";
+import { getAssistantData } from '@/utils/assistant-data';
 
 type Assistant = Tables<'assistants'>;
+
+// Extended assistant type that includes normalized data
+interface ExtendedAssistant {
+  assistant: Assistant;
+  config?: Tables<'assistant_configs'> | null;
+  subscription?: Tables<'assistant_subscriptions'> | null;
+}
 
 interface AssistantListProps {
   assistant: Assistant;
@@ -26,17 +34,51 @@ interface AssistantListProps {
 }
 
 export function AssistantList({ assistant, getInitials, getAvatarColor, handleDeleteAssistant, handleToggleStar }: AssistantListProps) {
-  // Parse description from params if available
-  const description = typeof assistant.params === 'object' && 
+  const [extendedData, setExtendedData] = useState<ExtendedAssistant>({ assistant });
+  
+  // Fetch the normalized data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const assistantData = await getAssistantData(assistant.id);
+        if (assistantData) {
+          setExtendedData({
+            assistant: assistantData.assistant,
+            config: assistantData.config,
+            subscription: assistantData.subscription
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching assistant extended data:', error);
+      }
+    };
+    
+    fetchData();
+  }, [assistant.id]);
+  
+  // Get description from normalized config or fallback to params
+  const description = extendedData.config?.description || 
+                     (typeof assistant.params === 'object' && 
                      assistant.params !== null && 
                      'description' in assistant.params ? 
                      String(assistant.params.description) : 
-                     'No description provided';
+                     'No description provided');
   
   // Format the creation date
   const createdAt = assistant.created_at ? 
     format(new Date(assistant.created_at), 'MMM d, yyyy') : 
     'Unknown date';
+    
+  // Get subscription plan
+  const subscriptionPlan = extendedData.subscription?.plan || 
+                          (typeof assistant.params === 'object' && 
+                          assistant.params !== null &&
+                          'subscription' in assistant.params && 
+                          typeof assistant.params.subscription === 'object' &&
+                          assistant.params.subscription !== null &&
+                          'plan' in assistant.params.subscription ?
+                          assistant.params.subscription.plan : 
+                          'personal');
 
   return (
     <Card className="p-4 w-full">
@@ -50,6 +92,7 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
             <h3 className="font-medium truncate">
               {assistant.name}
             </h3>
+            
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -96,19 +139,14 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
             </Badge>
           )}
           
-          {typeof assistant.params === 'object' && 
-           assistant.params !== null && 
-           'subscription' in assistant.params && 
-           typeof assistant.params.subscription === 'object' &&
-           assistant.params.subscription !== null &&
-           'plan' in assistant.params.subscription && (
+          {subscriptionPlan && (
             <Badge 
               variant="outline" 
               className="hidden md:flex items-center gap-1" 
-              color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}
+              color={subscriptionPlan === 'business' ? 'gold' : 'blue'}
             >
               <CreditCard className="h-3 w-3" />
-              {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
+              {subscriptionPlan === 'business' ? 'Business' : 'Personal'}
             </Badge>
           )}
           
@@ -133,13 +171,13 @@ export function AssistantList({ assistant, getInitials, getAvatarColor, handleDe
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link href={`/Concierge/${assistant.id}`}>
-                  <Button size="sm">
-                    Open <ArrowRight className="ml-2 h-4 w-4" />
+                  <Button variant="default" size="icon" className="flex items-center">
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
               </TooltipTrigger>
               <TooltipContent>
-                Chat with {assistant.name}
+                Open No-Show 
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

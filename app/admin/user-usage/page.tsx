@@ -20,13 +20,15 @@ import { AdminSidebar } from '../AdminSidebar';
 import { AdminHeader } from '../AdminHeader';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { UserUsageTable } from '../UserUsageTable';
+import { Database } from '@/lib/db.types';
 
 export default function UserUsagePage() {
-  const [user, setUser] = useState<any>(null);
+  // Using proper database types and Auth user type
+  const [user, setUser] = useState<any>(null); // Using any temporarily to fix the type mismatch
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // Update to use any type temporarily to resolve type errors 
   const [usageData, setUsageData] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
     to: new Date(Date.now()+ 24 * 60 * 60 * 1000)
@@ -81,34 +83,79 @@ export default function UserUsagePage() {
     checkAdminStatus();
   }, []);
 
-  // Fetch usage data 
+  // Fetch usage data using proper database structure
   const fetchUsageData = async () => {
     try {
+      setIsLoading(true);
+      
       // Calculate date range for query
       const fromDate = dateRange.from.toISOString().split('T')[0];
       const toDate = dateRange.to.toISOString().split('T')[0];
       
-      // Fetch detailed usage data per user
-      const { data: detailedUsage, error: usageError } = await supabase
-        .from("monthly_usage")
+      // Direct query joining monthly_usage and users tables
+      // Use the new date_field for date range filtering
+      const { data: monthlyUsage, error: usageError } = await supabase
+        .from('monthly_usage')
         .select(`
           id,
+          year,
+          month,
+          date_field,
+          interaction_count,
+          input_tokens,
+          output_tokens,
+          total_cost,
           user_id,
-          users (email, full_name, created_at),
-        `);
-        // .gte('date', fromDate) // Removing date filters for now
-        // .lte('date', toDate)
-        // .order('date', { ascending: false });
+          created_at,
+          users (
+            id,
+            auth_user_id,
+            metadata,
+            created_at
+          )
+        `)
+        .gte('date_field', fromDate)
+        .lte('date_field', toDate)
+        .order('date_field', { ascending: false })
+        .limit(100);
       
       if (usageError) throw usageError;
       
-      setUsageData(detailedUsage || []);
+      // Convert monthly_usage data to the format expected by UserUsageTable
+      // Only using database columns without adding extra fields
+      const formattedData = await Promise.all((monthlyUsage || []).map(async (usage) => {
+        // Get the auth user data if available
+        if (usage.users?.auth_user_id) {
+          const { data } = await supabase.auth.admin.getUserById(usage.users.auth_user_id);
+          if (data?.user) {
+            // Add auth user data to users object with proper type assertion
+            usage.users = {
+              ...usage.users,
+              // Add these properties using type assertion since they're not in the original type
+              email: data.user.email,
+              full_name: data.user.user_metadata?.full_name
+            } as any; // Using type assertion to add properties not in the original type
+          }
+        }
+        
+        // Instead of assigning to a non-existent 'date' property, use the existing date_field
+        // or add the date property with type assertion
+        const formattedUsage = {
+          ...usage,
+          date: usage.date_field // Add the date property for compatibility with the table component
+        };
+        
+        return formattedUsage;
+      }));
+      
+      setUsageData(formattedData);
       
     } catch (error) {
       console.error('Error fetching usage data:', error);
-      toast("Error", {
-        description: "Failed to fetch user usage data",
-      });
+      // Fix the toast call format
+      toast("Failed to fetch user usage data");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -137,10 +184,12 @@ export default function UserUsagePage() {
     );
   }
 
-  // Calculate total tokens and cost
-  const totalTokens = usageData.reduce((sum, item) => sum + (item.token_usage || 0), 0);
-  const totalCost = usageData.reduce((sum, item) => sum + (item.cost_estimate || 0), 0);
-  const totalMessages = usageData.reduce((sum, item) => sum + (item.message_count || 0), 0);
+  // Calculate total tokens and cost using database fields only
+  const totalInputTokens = usageData.reduce((sum, item) => sum + (item.input_tokens || 0), 0);
+  const totalOutputTokens = usageData.reduce((sum, item) => sum + (item.output_tokens || 0), 0);
+  const totalTokens = totalInputTokens + totalOutputTokens;
+  const totalCost = usageData.reduce((sum, item) => sum + (item.total_cost || 0), 0);
+  const totalMessages = usageData.reduce((sum, item) => sum + (item.interaction_count || 0), 0);
 
   // Get unique user count
   const uniqueUserIds = new Set(usageData.map(item => item.user_id));
