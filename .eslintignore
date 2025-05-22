@@ -1,0 +1,7 @@
+# Auto-generated files
+.next/**
+node_modules/**
+dist/**
+build/**
+.vercel/**
+coverage/**

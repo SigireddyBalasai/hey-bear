@@ -4,23 +4,9 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../Concierge/Loading';
-import {
-  AlertTriangle,
-  Clock,
-  Activity,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  Layers,
-  Terminal,
-  RotateCw
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AdminSidebar } from '../AdminSidebar';
-import { AdminHeader } from '../AdminHeader';
-import { RealTimeMonitor } from '../RealTimeMonitor';
+import { Loading } from '@/components/concierge/Loading';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { RealTimeMonitor } from '@/components/admin/RealTimeMonitor';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -38,6 +24,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertTriangle,
+  Clock,
+  Activity,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Layers,
+  Terminal,
+  RotateCw
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 
 interface ServiceStatus {
   name: string;
@@ -77,6 +77,7 @@ export default function MonitoringPage() {
         
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
+          .schema('users')
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)

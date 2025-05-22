@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Search, Calendar, Filter, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import FilterComponent from './FilterComponent';
-import StatCard from './StatCard';
-import PlanUsage from './PlanUsage';
-import InteractionLog from './InteractionLog';
-import { useData } from './DataContext';
+import FilterComponent from '@/components/dashboard/FilterComponent';
+import StatCard from '@/components/dashboard/StatCard';
+import PlanUsage from '@/components/dashboard/PlanUsage';
+import InteractionLog from '@/components/dashboard/InteractionLog';
+import { useData } from '@/components/dashboard/DataContext';
 import { createClient } from '@/utils/supabase/client';
 import { 
   Select,
@@ -21,22 +21,16 @@ import {
 
 const ConciergeInteractionDashboard = () => {
   const { 
-    allInteractions, 
-    stats, 
-    dateRange, 
-    isLoading, 
-    setIsLoading,
-    filterInteractions,
-    currentPage,
-    setCurrentPage,
+    dateRange,
+    setDateRange,
     searchTerm,
     setSearchTerm,
-    totalItems,
-    totalPages: apiTotalPages,
-    fetchInteractions,
+    currentPage,
+    setCurrentPage,
     pageSize,
     setPageSize,
-    assistantId
+    assistantId,
+    setAssistantId
   } = useData();
   
   const [activeTab, setActiveTab] = useState('table');
@@ -53,101 +47,77 @@ const ConciergeInteractionDashboard = () => {
   // Fetch user data from Supabase
   useEffect(() => {
     const fetchUserData = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // Get user metadata if available
+      const { data: { user } } = await supabase.auth.getUser();
       
-      if (error) {
-        console.error('Error fetching user:', error);
-        return;
+      if (user?.user_metadata?.name) {
+        setUserName(user.user_metadata.name);
+      } else {
+        setUserName('User');
       }
       
-      if (user) {
-        // Use the user's name from their profile data - could be from Google login
-        if (user.user_metadata && user.user_metadata.full_name) {
-          setUserName(user.user_metadata.full_name);
-        } else if (user.user_metadata && user.user_metadata.name) {
-          setUserName(user.user_metadata.name);
-        } else {
-          setUserName('User');
-        }
-        
-        // If assistantId is available, fetch the assistant's name
-        if (assistantId) {
-          const { data, error } = await supabase
-            .from('assistants')
-            .select('name')
-            .eq('id', assistantId)
-            .single();
-            
-          if (data && !error) {
-            setAssistantName(data.name);
-          }
+      // If assistantId is available, fetch the assistant's name
+      if (assistantId) {
+        const { data, error } = await supabase
+          .schema('assistants')
+          .from('assistants')
+          .select('name')
+          .eq('id', assistantId)
+          .single();
+          
+        if (data && !error) {
+          setAssistantName(data.name);
         }
       }
     };
     
     fetchUserData();
   }, [supabase, assistantId]);
-
-  // Using API pagination instead of client-side pagination
-  useEffect(() => {
-    fetchInteractions({
-      page: currentPage,
-      pageSize: pageSize,
-      searchTerm: searchTerm,
-      assistantId: assistantId || undefined // Pass assistantId here
-    });
-  }, [currentPage, pageSize, searchTerm, assistantId]);
   
   useEffect(() => {
-    setCurrentPage(1); // Reset to page 1 when changing page size
-  }, [pageSize, setCurrentPage]);
-
-  const changePage = (page: number) => {
-    if (page >= 1 && page <= apiTotalPages) {
-      setIsLoading(true);
-      setCurrentPage(page);
-    }
-  };
-  
-  const handleItemsPerPageChange = (value: string) => {
-    setPageSize(Number(value));
-  };
-
-  const getPaginationNumbers = () => {
-    const result = [];
+    const currentDate = new Date();
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
     
-    result.push(1);
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+    };
     
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(apiTotalPages - 1, currentPage + 1); i++) {
-      if (!result.includes(i)) result.push(i);
-    }
-    
-    if (apiTotalPages > 1 && !result.includes(apiTotalPages)) {
-      result.push(apiTotalPages);
-    }
-    
-    const withEllipsis = [];
-    for (let i = 0; i < result.length; i++) {
-      if (i > 0 && result[i] - result[i-1] > 1) {
-        withEllipsis.push('...');
-      }
-      withEllipsis.push(result[i]);
-    }
-    
-    return withEllipsis;
-  };
+    setDateRange(`${formatDate(lastMonth)} - ${formatDate(currentDate)}`);
+  }, [setDateRange]);
 
   const handleDateRangeChange = (startDate: string, endDate: string) => {
-    filterInteractions({ fromDate: startDate, toDate: endDate });
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      const formatDate = (date: Date) => {
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric'
+        });
+      };
+      
+      setDateRange(`${formatDate(start)} - ${formatDate(end)}`);
+    }
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
+    setSearchTerm(e.target.value);
   };
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+  };
+  
+  const handleItemsPerPageChange = (value: string) => {
+    setPageSize(Number(value));
+    setCurrentPage(1); // Reset to page 1 when changing page size
   };
 
   return (
@@ -237,35 +207,32 @@ const ConciergeInteractionDashboard = () => {
           />
         </div>
       </div>
+      
       {showFilters && <FilterComponent setShowFilters={setShowFilters} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard 
           title="Total Interactions" 
-          value={stats.totalInteractions} 
+          metricType="totalInteractions"
           description="Total messages or requests received by your No-show"
-          loading={isLoading}
         />
         
         <StatCard 
           title="Active Contacts" 
-          value={stats.activeContacts} 
+          metricType="activeContacts"
           description="Unique phone numbers that have interacted with your No-show"
-          loading={isLoading}
         />
         
         <StatCard 
           title="Interactions Per Contact" 
-          value={stats.interactionsPerContact.toFixed(1)} 
+          metricType="interactionsPerContact"
           description="Average number of interactions per unique contact"
-          loading={isLoading}
         />
         
         <StatCard 
           title="Average Response Time" 
-          value={stats.averageResponseTime} 
+          metricType="averageResponseTime"
           description="Average time for your No-show to respond to a message"
-          loading={isLoading}
         />
       </div>
 
@@ -311,17 +278,8 @@ const ConciergeInteractionDashboard = () => {
         </div>
         
         <InteractionLog 
-          isLoading={isLoading} 
-          interactions={allInteractions} 
           activeTab={activeTab} 
           setActiveTab={handleTabChange} 
-          startIndex={0} // Not needed with API pagination
-          endIndex={allInteractions.length} // Not needed with API pagination
-          allInteractions={allInteractions} 
-          currentPage={currentPage} 
-          totalPages={apiTotalPages} 
-          changePage={changePage} 
-          getPaginationNumbers={getPaginationNumbers} 
         />
       </div>
     </div>

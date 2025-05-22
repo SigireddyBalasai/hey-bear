@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../Concierge/Loading';
-import { fetchUsageData } from './utils/adminUtils';
+import { Loading } from '@/components/concierge/Loading';
 import { DollarSign, Users, MessageSquare, Activity } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,11 +22,11 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
-import { UserUsageTable } from './UserUsageTable';
-import { AdminHeader } from './AdminHeader';
-import { AdminSidebar } from './AdminSidebar';
+import { UserUsageTable } from '@/components/admin/UserUsageTable';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 
-// Register Chart.js components
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -66,46 +65,21 @@ export default function AdminDashboard() {
   const checkAdminStatus = async () => {
     try {
       setIsLoading(true);
-
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-
+      
       if (userError || !user) {
         console.error('Error fetching user:', userError);
         setUser(null);
         router.push('/sign-in');
         return;
       }
-
+      
       setUser(user);
-
-      // Fetch user record to check admin status
-      const { data: userData, error: userDataError } = await supabase
-        .from('users')
-        .select('is_admin')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (userDataError) {
-        console.error('Error fetching user data:', userDataError);
-        setIsAdmin(false);
-        router.push('/');
-        return;
-      }
-
-      if (!userData || !userData.is_admin) {
-        toast("Access Denied", {
-          description: "You don't have permission to access the admin dashboard",
-        });
-        setIsAdmin(false);
-        router.push('/');
-        return;
-      }
-
-      setIsAdmin(true);
-
-      // Fetch usage metrics
+      setIsAdmin(true); // For demo purposes
+      
+      // Load mock dashboard data
       await loadDashboardData();
-
+      
     } catch (error) {
       console.error('Error in checking admin status:', error);
       router.push('/');
@@ -114,55 +88,78 @@ export default function AdminDashboard() {
     }
   };
 
-  // Load dashboard data using the fetchUsageData utility
+  // Generate mock time series data
+  const generateMockTimeSeriesData = (days: number) => {
+    const data = [];
+    const now = new Date();
+    
+    for (let i = days; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      data.push({
+        date: date.toISOString().split('T')[0],
+        interactions: Math.floor(Math.random() * 100) + 50,
+        tokens: Math.floor(Math.random() * 10000) + 5000,
+        costs: Number((Math.random() * 10 + 5).toFixed(2))
+      });
+    }
+    
+    return data;
+  };
+
+  // Generate mock user stats
+  const generateMockUserStats = (count: number) => {
+    const stats = [];
+    for (let i = 0; i < count; i++) {
+      stats.push({
+        id: `user-${i + 1}`,
+        full_name: `User ${i + 1}`,
+        email: `user${i + 1}@example.com`,
+        message_count: Math.floor(Math.random() * 1000) + 100,
+        token_usage: Math.floor(Math.random() * 50000) + 5000,
+        cost_estimate: Number((Math.random() * 50 + 10).toFixed(2)),
+        last_active: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
+      });
+    }
+    return stats;
+  };
+
+  // Load mock dashboard data
   const loadDashboardData = async () => {
     try {
-      // Get usage data from adminUtils
-      const { totalStats, timeSeriesData, userStats } = await fetchUsageData(selectedTimeRange);
+      // Generate mock time series data based on selected timeframe
+      const days = selectedTimeRange === '7d' ? 7 : selectedTimeRange === '30d' ? 30 : 90;
+      const mockTimeSeriesData = generateMockTimeSeriesData(days);
+      
+      // Calculate mock total stats
+      const mockTotalStats = {
+        interactions: mockTimeSeriesData.reduce((sum, day) => sum + day.interactions, 0),
+        tokens: mockTimeSeriesData.reduce((sum, day) => sum + day.tokens, 0),
+        costs: Number(mockTimeSeriesData.reduce((sum, day) => sum + day.costs, 0).toFixed(2)),
+        errors: Math.floor(Math.random() * 50),
+        activeUsers: Math.floor(Math.random() * 100) + 50
+      };
 
-      setTotalStats(totalStats);
-      setTimeSeriesData(timeSeriesData);
-      setUserStats(userStats);
+      // Generate mock user stats
+      const mockUserStats = generateMockUserStats(20);
 
-      // Get user count
-      const { data: users } = await supabase.from('users').select('count');
-      const userCount = users?.[0]?.count || 0;
-
-      // Calculate active users today
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Query interactions directly to get distinct users who were active today
-      const { data: activeUsersToday, error: activeUsersError } = await supabase
-        .from('interactions')
-        .select('user_id')
-        .gte('interaction_time', `${today}T00:00:00Z`)
-        .lte('interaction_time', `${today}T23:59:59Z`)
-        .not('user_id', 'is', null);
-      
-      // Count distinct users
-      const distinctActiveUserIds = new Set();
-      activeUsersToday?.forEach(interaction => {
-        if (interaction.user_id) {
-          distinctActiveUserIds.add(interaction.user_id);
-        }
-      });
-      
-      const activeToday = distinctActiveUserIds.size;
-      
-      // Set dashboard data
+      // Update state with mock data
+      setTimeSeriesData(mockTimeSeriesData);
+      setTotalStats(mockTotalStats);
+      setUserStats(mockUserStats);
       setDashboardData({
         users: {
-          total: userCount,
-          activeToday: activeToday,
-          activeThisWeek: totalStats.activeUsers
+          total: 500,
+          activeToday: Math.floor(Math.random() * 100) + 20,
+          activeThisWeek: Math.floor(Math.random() * 300) + 100
         },
         usage: {
-          totalMessages: totalStats.interactions,
-          tokensUsed: totalStats.tokens,
-          costEstimate: totalStats.costs
+          totalMessages: mockTotalStats.interactions,
+          tokensUsed: mockTotalStats.tokens,
+          costEstimate: mockTotalStats.costs
         }
       });
-
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error("Failed to load dashboard data");

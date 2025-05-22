@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../Concierge/Loading';
+import { Loading } from '@/components/concierge/Loading';
+import { fetchUsageData } from '@/components/admin/utils/adminUtils';
 import { DollarSign, Users, MessageSquare, Activity } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,10 @@ import {
   Legend 
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
-import { AdminHeader } from '../components/AdminHeader';
-import { AdminSidebar } from '../components/AdminSidebar';
-import { TwilioIntegrationStatus } from '../components/TwilioIntegrationStatus';
-import { UnassignedNumbersWidget } from '../UnassignedNumbersWidget';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { TwilioIntegrationStatus } from '@/components/admin/TwilioIntegrationStatus';
+import { UnassignedNumbersWidget } from '@/components/admin/UnassignedNumbersWidget';
 
 // Register Chart.js components
 ChartJS.register(
@@ -67,6 +68,7 @@ export default function AdminDashboardPage() {
         
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
+          .schema('users')
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)

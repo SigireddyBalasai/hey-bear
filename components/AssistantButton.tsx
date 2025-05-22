@@ -1,14 +1,12 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default function conciergeButton() {
-  const router = useRouter();
-
+export default function ConciergeButton() {
   return (
-    <Button onClick={() => router.push('/Concierge')}>
-      Go to No-show
+    <Button asChild>
+      <Link href="/Concierge">Go to No-show</Link>
     </Button>
   );
 }

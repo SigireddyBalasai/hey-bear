@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { Loading } from '@/components/concierge/Loading';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../Concierge/Loading';
-import { AdminSidebar } from '../AdminSidebar';
-import { AdminHeader } from '../AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Button } from '@/components/ui/button';
-import { PhoneNumberManagement } from '../components/PhoneNumberManagement';
-import { TwilioNumbersList } from '../components/TwilioNumbersList';
-import { PhoneNumberSettings } from '../components/PhoneNumberSettings';
+import { PhoneNumberManagement } from '@/components/admin/PhoneNumberManagement';
+import { TwilioNumbersList } from '@/components/admin/TwilioNumbersList';
+import { PhoneNumberSettings } from '@/components/admin/PhoneNumberSettings';
 import { 
   Phone, 
   ChevronLeft, 
@@ -51,6 +51,7 @@ export default function PhoneManagementPage() {
         
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
+          .schema('users')
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)

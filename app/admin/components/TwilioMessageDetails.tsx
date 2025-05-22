@@ -52,6 +52,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
     
     try {
       const { data: assistantData, error: assistantError } = await supabase
+        .schema('assistants')
         .from('assistants')
         .select('id, name, user_id, params')
         .eq('assigned_phone_number', phoneNumber)
@@ -69,6 +70,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
       
       // Get message count for pagination
       const { count, error: countError } = await supabase
+        .schema('analytics')
         .from('interactions')
         .select('id', { count: 'exact', head: true })
         .contains('chat', phoneNumber);
@@ -79,8 +81,14 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
       
       // Fetch messages for the current page
       const { data, error } = await supabase
+        .schema('analytics')
         .from('interactions')
-        .select('*, users(auth_user_id)')
+        .select(`
+          *,
+          users:public_users (
+            auth_user_id
+          )
+        `)
         .contains('chat', phoneNumber)
         .order('interaction_time', { ascending: false })
         .range(from, to);

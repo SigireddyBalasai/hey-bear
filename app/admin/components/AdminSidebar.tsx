@@ -4,23 +4,26 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
-import { fetchAllUsers } from '../utils/adminUtils';
+import { cn } from '@/lib/utils';
 import { 
   BarChart3, 
   Download, 
-  Home, 
+  Home,
   Users,
   HelpCircle,
-  ChevronRight
+  ChevronRight,
+  Activity,
+  Settings,
+  Phone,
+  Database
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface SidebarLinkProps {
   href: string;
   icon: React.ReactNode;
   label: string;
   active: boolean;
-  badge?: number | string;
+  badge?: string | number;
 }
 
 function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
@@ -59,28 +62,23 @@ function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [userCount, setUserCount] = useState<number | null>(null);
+  const [userCount, setUserCount] = useState<string | number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const getUserCount = async () => {
-      try {
-        const users = await fetchAllUsers();
-        setUserCount(users.length);
-      } catch (error) {
-        console.error('Error fetching user count for sidebar:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    getUserCount();
+    // Generate a random user count for demo purposes
+    setUserCount(Math.floor(Math.random() * 500) + 100);
+    setIsLoading(false);
   }, []);
 
   const links = [
     { href: '/admin', icon: <Home size={18} />, label: 'Overview' },
-    { href: '/admin/users', icon: <Users size={18} />, label: 'Users', badge: isLoading ? '...' : userCount || 0 },
+    { href: '/admin/users', icon: <Users size={18} />, label: 'Users', badge: isLoading ? '-' : userCount },
     { href: '/admin/usage', icon: <BarChart3 size={18} />, label: 'Usage Analytics' },
+    { href: '/admin/monitoring', icon: <Activity size={18} />, label: 'Monitoring' },
+    { href: '/admin/phone-management', icon: <Phone size={18} />, label: 'Phone Numbers' },
+    { href: '/admin/database', icon: <Database size={18} />, label: 'Database' },
+    { href: '/admin/settings', icon: <Settings size={18} />, label: 'Settings' },
   ];
 
   return (

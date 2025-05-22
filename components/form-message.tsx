@@ -4,21 +4,27 @@ export type Message =
   | { message: string };
 
 export function FormMessage({ message }: { message: Message }) {
+  const messageType =
+    "success" in message
+      ? "success"
+      : "error" in message
+      ? "error"
+      : "message";
+
+  const content = message[messageType as keyof Message];
+  const isError = messageType === "error";
+
   return (
     <div className="flex flex-col gap-2 w-full max-w-md text-sm">
-      {"success" in message && (
-        <div className="text-foreground border-l-2 border-foreground px-4">
-          {message.success}
-        </div>
-      )}
-      {"error" in message && (
-        <div className="text-destructive-foreground border-l-2 border-destructive-foreground px-4">
-          {message.error}
-        </div>
-      )}
-      {"message" in message && (
-        <div className="text-foreground border-l-2 px-4">{message.message}</div>
-      )}
+      <div
+        className={`${
+          isError
+            ? "text-destructive-foreground border-destructive-foreground"
+            : "text-foreground border-foreground"
+        } border-l-2 px-4`}
+      >
+        {content}
+      </div>
     </div>
   );
 }

@@ -1,34 +1,51 @@
-import js from "@eslint/js";
-import globals from "globals";
-import tseslint from "typescript-eslint";
-import pluginReact from "eslint-plugin-react";
-import pluginUnusedImports from "eslint-plugin-unused-imports";
-import pluginImport from "eslint-plugin-import";
-import { defineConfig } from "eslint/config";
+// @ts-check
 
+import ts from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
+import nextPlugin from '@next/eslint-plugin-next';
+import react from 'eslint-plugin-react';
+import hooks from 'eslint-plugin-react-hooks';
 
-export default defineConfig([
-  { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"], plugins: { js }, extends: ["js/recommended"] },
-  { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"], languageOptions: { globals: globals.browser } },
-  tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
+export default [
   {
-    files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
+    files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
-      "unused-imports": pluginUnusedImports,
-      "import": pluginImport
+      '@typescript-eslint': ts,
+      'react': react,
+      'react-hooks': hooks,
+      '@next/next': nextPlugin
+    },
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true
+        }
+      }
+    },
+    settings: {
+      react: {
+        version: 'detect'
+      }
     },
     rules: {
-      "unused-imports/no-unused-imports": "warn",
-      "import/no-unused-modules": "warn",
-      // Allow JSX without React being in scope - Next.js doesn't need it anymore
-      "react/react-in-jsx-scope": "off",
-      "react/prop-types": "off", // Optional: Disable prop-types validation if using TypeScript
-      // Escape special characters in JSX
-      "react/no-unescaped-entities": "warn",
-      // Disable type checking rules temporarily to allow build to proceed
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": "warn"
-    }
+      'react/react-in-jsx-scope': 'off',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        'argsIgnorePattern': '^_',
+        'varsIgnorePattern': '^_'
+      }]
+    },
+    ignores: [
+      '**/node_modules/**',
+      '.next/**',
+      'out/**',
+      'coverage/**',
+      'public/**'
+    ]
   }
-]);
+];

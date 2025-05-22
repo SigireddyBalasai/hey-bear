@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../Concierge/Loading';
-import { fetchUsageData } from '../utils/adminUtils';
+import { Loading } from '@/components/concierge/Loading';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { fetchUsageData } from '@/app/admin/utils/adminUtils';
 import { 
   CircleDollarSign, 
   BarChart3,
@@ -16,16 +17,12 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-// Table components
-
-
-import { AdminSidebar } from '../AdminSidebar';
-import { AdminHeader } from '../AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  PointElement,  // Add PointElement import
+  PointElement,
   LineElement,
   BarElement,
   ArcElement,
@@ -56,7 +53,7 @@ import {
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  PointElement,  // Register PointElement
+  PointElement,
   LineElement,
   BarElement,
   ArcElement,
@@ -66,16 +63,49 @@ ChartJS.register(
   Filler
 );
 
+interface TimeSeriesDataPoint {
+  date: string;
+  interactions: number;
+  tokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  costs: number;
+  activeUsers: number;
+  errors: number;
+}
+
+interface UserStat {
+  userId: string;
+  interactions: number;
+  tokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  costs: number;
+  lastActive: string | null;
+  email?: string;
+  fullName?: string;
+}
+
+const MOCK_ASSISTANTS = [
+  { id: 'ast-1', name: 'Customer Support' },
+  { id: 'ast-2', name: 'Sales Assistant' },
+  { id: 'ast-3', name: 'HR Bot' },
+  { id: 'ast-4', name: 'IT Helper' },
+  { id: 'ast-5', name: 'General Assistant' }
+];
+
 export default function UsageAnalyticsPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{id: string} | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTimeframe, setSelectedTimeframe] = useState('30d');
   const [selectedModel, setSelectedModel] = useState('all');
-  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
-  // Replace model distribution with token distribution
+  const [selectedAssistant, setSelectedAssistant] = useState('all');
+  const [selectedPlan, setSelectedPlan] = useState('all');
+  const assistants = MOCK_ASSISTANTS;  // Convert to constant since we're not modifying it
+  const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesDataPoint[]>([]);
   const [tokenDistribution, setTokenDistribution] = useState<{type: string, tokens: number, percentage: number}[]>([]);
-  const [userStats, setUserStats] = useState<any[]>([]);
+  const [userStats, setUserStats] = useState<UserStat[]>([]);
   const [totalStats, setTotalStats] = useState({
     interactions: 0,
     tokens: 0,
@@ -95,64 +125,14 @@ export default function UsageAnalyticsPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  // Check if current user is an admin
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        setIsLoading(true);
-        
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          console.error('Error fetching user:', userError);
-          setUser(null);
-          router.push('/sign-in');
-          return;
-        }
-        
-        setUser(user);
-        
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from('users')
-          .select('is_admin')
-          .eq('auth_user_id', user.id)
-          .single();
-          
-        if (userDataError || !userData?.is_admin) {
-          setIsAdmin(false);
-          router.push('/');
-          return;
-        }
-        
-        setIsAdmin(true);
-        
-        // Fetch usage data
-        await loadUsageData(selectedTimeframe);
-        
-      } catch (error) {
-        console.error('Error in checking admin status:', error);
-        router.push('/');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    checkAdminStatus();
-  }, []);
-
-  const loadUsageData = async (timeframe: string) => {
+  // Load usage data using the mock data generator from adminUtils
+  const loadUsageData = async (timeframe: string, assistantId: string = selectedAssistant, plan: string = selectedPlan) => {
     setIsLoading(true);
     
     try {
-      // Fetch real usage data from adminUtils
-      const { totalStats, timeSeriesData, userStats } = await fetchUsageData(timeframe);
+      const { totalStats, timeSeriesData, userStats } = await fetchUsageData(timeframe, assistantId, plan);
       
-      setTotalStats({
-        ...totalStats,
-        inputTokens: 0, // Initialize if not provided by the API
-        outputTokens: 0 // Initialize if not provided by the API
-      });
+      setTotalStats(totalStats);
       setTimeSeriesData(timeSeriesData);
       setUserStats(userStats);
       
@@ -174,25 +154,17 @@ export default function UsageAnalyticsPage() {
         });
       }
       
-      // Create token distribution using actual input and output token data
-      const totalTokens = totalStats.tokens;
-      const inputTokens = totalStats.inputTokens || 0;
-      const outputTokens = totalStats.outputTokens || 0;
-      
-      // If we don't have a breaksadown, estimate based on typical patterns
-      const inputTokenCount = inputTokens || Math.round(totalTokens * 0.3);
-      const outputTokenCount = outputTokens || Math.round(totalTokens * 0.7);
-      
+      // Create token distribution
       const tokenDist = [
         { 
           type: 'Input Tokens', 
-          tokens: inputTokenCount,
-          percentage: Math.round((inputTokenCount / totalTokens) * 100) || 0
+          tokens: totalStats.inputTokens,
+          percentage: Math.round((totalStats.inputTokens / totalStats.tokens) * 100) || 0
         },
         { 
           type: 'Output Tokens', 
-          tokens: outputTokenCount,
-          percentage: Math.round((outputTokenCount / totalTokens) * 100) || 0
+          tokens: totalStats.outputTokens,
+          percentage: Math.round((totalStats.outputTokens / totalStats.tokens) * 100) || 0
         }
       ];
       
@@ -205,7 +177,79 @@ export default function UsageAnalyticsPage() {
       setIsLoading(false);
     }
   };
+
+  // Check if current user is an admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        setIsLoading(true);
+        
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          console.error('Error fetching user:', userError);
+          setUser(null);
+          router.push('/sign-in');
+          return;
+        }
+        
+        setUser(user);
+        
+        // Fetch user record to check admin status
+        const { data: userData, error: userDataError } = await supabase
+            .schema('users')
+            .from('users')
+            .select('is_admin')
+            .eq('auth_user_id', user.id)
+            .single();
+          
+        if (userDataError || !userData?.is_admin) {
+          setIsAdmin(false);
+          router.push('/');
+          return;
+        }
+        
+        setIsAdmin(true);
+        
+        // Fetch initial usage data
+        await loadUsageData(selectedTimeframe);
+        
+      } catch (error) {
+        console.error('Error in checking admin status:', error);
+        router.push('/');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [loadUsageData, router, selectedTimeframe, supabase]);
+
+  // Handle timeframe change
+  const handleTimeframeChange = (timeframe: string) => {
+    setSelectedTimeframe(timeframe);
+    loadUsageData(timeframe);
+  };
   
+  // Handle model filter change
+  const handleModelChange = (model: string) => {
+    setSelectedModel(model);
+    // In mock mode, just regenerate data
+    loadUsageData(selectedTimeframe);
+  };
+
+  // Handle assistant change
+  const handleAssistantChange = (assistant: string) => {
+    setSelectedAssistant(assistant);
+    loadUsageData(selectedTimeframe, assistant);
+  };
+
+  // Add plan filter change handler
+  const handlePlanChange = (plan: string) => {
+    setSelectedPlan(plan);
+    loadUsageData(selectedTimeframe, selectedAssistant, plan);
+  };
+
   // Generate time series data for chart
   const generateTimeSeriesData = () => {
     return {
@@ -267,18 +311,6 @@ export default function UsageAnalyticsPage() {
     };
   };
   
-  // Handle timeframe change
-  const handleTimeframeChange = (timeframe: string) => {
-    setSelectedTimeframe(timeframe);
-    loadUsageData(timeframe);
-  };
-  
-  // Handle model filter change
-  const handleModelChange = (model: string) => {
-    setSelectedModel(model);
-    // In a real app, would refetch data filtered by model
-  };
-  
   if (isLoading) {
     return <Loading />;
   }
@@ -308,6 +340,32 @@ export default function UsageAnalyticsPage() {
           </div>
           
           <div className="flex flex-wrap gap-3">
+            <Select value={selectedAssistant} onValueChange={handleAssistantChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Assistants" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Assistants</SelectItem>
+                {assistants.map((assistant) => (
+                  <SelectItem key={assistant.id} value={assistant.id}>
+                    {assistant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedPlan} onValueChange={handlePlanChange}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All Plans" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Plans</SelectItem>
+                <SelectItem value="personal">Personal</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+                <SelectItem value="enterprise">Enterprise</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={selectedModel} onValueChange={handleModelChange}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="All Models" />

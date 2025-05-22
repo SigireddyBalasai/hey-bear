@@ -45,6 +45,7 @@ import {
 } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
 import { TwilioMessageDetails } from './TwilioMessageDetails';
+import { Database } from '@/lib/db.types';
 
 // Register Chart.js components
 ChartJS.register(
@@ -59,6 +60,41 @@ ChartJS.register(
   Legend,
   Filler
 );
+
+// Define custom types for interactions
+type DatabaseWithInteractions = Database & {
+  Tables: {
+    interactions: {
+      Row: {
+        id: string;
+        interaction_time: string;
+        chat: Record<string, any>;
+        [key: string]: any;
+      };
+      Insert: {
+        interaction_time?: string;
+        chat?: Record<string, any>;
+      };
+      Update: {
+        interaction_time?: string;
+        chat?: Record<string, any>;
+      };
+    };
+  };
+};
+
+type InteractionRow = DatabaseWithInteractions['Tables']['interactions']['Row'];
+
+// Update the type to match Supabase's join return type
+interface AssistantDetails {
+  id: string;
+  name: string;
+  user_id: string;
+}
+
+type PhoneNumberWithAssistant = Database['public']['Tables']['phone_numbers']['Row'] & {
+  assistant: AssistantDetails | null;
+};
 
 export function PhoneNumberStats() {
   const [isLoading, setIsLoading] = useState(true);
@@ -85,12 +121,44 @@ export function PhoneNumberStats() {
     setError(null);
 
     try {
-      // First, get all phone numbers from the database
-      const { data: phoneNumbers, error: phoneError } = await supabase
+      // First, get all phone numbers with assistant details
+      const { data: phoneNumbers } = await supabase
         .from('phone_numbers')
-        .select('*, assistants(id, name, user_id)');
-      
-      if (phoneError) throw phoneError;
+        .select(`
+          id,
+          phone_number,
+          is_assigned,
+          assistant:assistants (
+            id,
+            name,
+            user_id
+          )
+        `).returns<Array<{
+          id: string;
+          phone_number: string;
+          is_assigned: boolean;
+          assistant: {
+            id: string;
+            name: string;
+            user_id: string;
+          } | null;
+        }>>();
+
+      // Format the data
+      const formattedPhoneStats = (phoneNumbers || []).map((phone) => ({
+        id: phone.id,
+        number: phone.phone_number,
+        is_assigned: phone.is_assigned,
+        assistant: phone.assistant?.name ?? null,
+        assistant_id: phone.assistant?.id ?? null,
+        user_id: phone.assistant?.user_id ?? null,
+        messages_sent: 0,
+        messages_received: 0,
+        active_days: new Set<string>(),
+        first_message: null,
+        last_message: null,
+        unique_users: new Set<string>()
+      }));
 
       // Calculate basic stats
       const assigned = phoneNumbers?.filter(p => p.is_assigned).length || 0;
@@ -116,6 +184,7 @@ export function PhoneNumberStats() {
 
       // Get message interactions for the phone numbers
       const { data: interactions, error: interactionError } = await supabase
+        .schema('analytics')
         .from('interactions')
         .select('*')
         .gte('interaction_time', startDate.toISOString())
@@ -126,16 +195,16 @@ export function PhoneNumberStats() {
       // Process phone usage data
       const phoneData = new Map();
       let totalMessages = 0;
-      
+
       // Initialize phone data
-      phoneNumbers?.forEach(phone => {
+      phoneNumbers?.forEach((phone) => {
         phoneData.set(phone.phone_number, {
           id: phone.id,
           number: phone.phone_number,
           is_assigned: phone.is_assigned,
-          assistant: phone.assistants?.name,
-          assistant_id: phone.assistants?.id || null,
-          user_id: phone.assistants?.user_id || null,
+          assistant: phone.assistant?.name ?? null,
+          assistant_id: phone.assistant?.id ?? null,
+          user_id: phone.assistant?.user_id ?? null,
           messages_sent: 0,
           messages_received: 0,
           active_days: new Set(),
@@ -191,22 +260,22 @@ export function PhoneNumberStats() {
         }
       });
 
-      // Convert Map to array and format sets to numbers
-      const formattedPhoneStats = Array.from(phoneData.values()).map(phone => ({
-        ...phone,
-        active_days: phone.active_days.size,
-        unique_users: phone.unique_users.size,
-        total_messages: phone.messages_sent + phone.messages_received
+      // Format phone stats into array and convert sets to numbers
+      const finalStats = Array.from(phoneData.values()).map(stats => ({
+        ...stats,
+        total_messages: stats.messages_sent + stats.messages_received,
+        active_days: stats.active_days.size,
+        unique_users: stats.unique_users.size
       }));
 
       // Sort by total messages
-      formattedPhoneStats.sort((a, b) => b.total_messages - a.total_messages);
+      finalStats.sort((a, b) => b.total_messages - a.total_messages);
 
       // Count active phones (phones with at least one message)
-      const activePhones = formattedPhoneStats.filter(p => p.total_messages > 0).length;
+      const activePhones = finalStats.filter(p => p.total_messages > 0).length;
 
       // Update state
-      setPhoneStats(formattedPhoneStats);
+      setPhoneStats(finalStats);
       setUsageSummary({
         total,
         assigned,
@@ -495,7 +564,7 @@ export function PhoneNumberStats() {
                         maintainAspectRatio: false,
                         plugins: {
                           legend: {
-                            position: 'bottom',
+                            position: 'bottom'
                           }
                         },
                         cutout: '70%'

@@ -1,120 +1,213 @@
 "use client";
-import { AssistantCard } from './conciergeCard';
-import { AssistantList } from './AssistantList';
-import { CreateAssistantDialog } from './CreateAssistantDialog';
-import { EmptyState } from './EmptyState';
-import { Header } from './Header';
-import { Loading } from './Loading';
-import { Login } from './Login';
-import { SearchAndControls } from './SearchAndControl';
-import { TabsNavigation } from './TabsNavigation';
+import { AssistantCard } from '../../components/concierge/conciergeCard';
+import { AssistantList } from '../../components/concierge/AssistantList';
+import { CreateAssistantDialog } from '../../components/concierge/CreateAssistantDialog';
+import { EmptyState } from '../../components/concierge/EmptyState';
+import { Header } from '../../components/concierge/Header';
+import { Loading } from '../../components/concierge/Loading';
+import { Login } from '../../components/concierge/Login';
+import { SearchAndControls } from '../../components/concierge/SearchAndControl';
+import { TabsNavigation } from '../../components/concierge/TabsNavigation';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tables } from '@/lib/db.types';
-import { UserCircle } from 'lucide-react';
-import { SUBSCRIPTION_PLANS, getSubscriptionPlanDetails } from '@/lib/stripe';
+import type { Tables } from '@/lib/db.types';
+import type { NormalizedAssistantData } from '@/utils/assistant-data';
+import { createUnpaidAssistant } from '@/utils/supabase/db-functions';
+import { getMockAssistants } from '@/utils/mock-data';
+import { UserCircle } from "lucide-react";
 
-type Assistant = Tables<'assistants'>
+// Prefix Tables import with underscore since we're not using it directly
+import type { Tables as _Tables } from '@/lib/db.types';
+
+interface UserState {
+  id: string;
+  user_metadata?: {
+    name?: string;
+    avatar_url?: string;
+  };
+}
+
+type AssistantConfig = {
+  description?: string;
+  business_phone?: string | null;
+} | null;
+
+type AssistantWithNonNullableFields = Omit<NormalizedAssistantData, 'assistant' | 'config'> & {
+  assistant: {
+    id: string;
+    name: string;
+    is_starred?: boolean;
+    created_at: string;
+    assigned_phone_number?: string | null;
+    pending?: boolean;
+  };
+  config?: AssistantConfig;
+};
 
 export default function AssistantsPage() {
-  const [user, setUser] = useState<any>(null);
-  const [assistants, setAssistants] = useState<Assistant[]>([]);
-  const [newAssistantName, setNewAssistantName] = useState('');
-  const [newAssistantDescription, setNewAssistantDescription] = useState('');
-  // New fields for assistant creation
-  const [conciergeName, setConciergeName] = useState('');
-  const [conciergePersonality, setConciergePersonality] = useState('Business Casual');
-  const [businessName, setBusinessName] = useState('');
-  const [sharePhoneNumber, setSharePhoneNumber] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  // Subscription plan state - Initialize with 'personal' as default
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(SUBSCRIPTION_PLANS.PERSONAL.id ?? null);
-  
+  const [user, setUser] = useState<UserState | null>(null);
+  const [normalizedAssistants, setNormalizedAssistants] = useState<AssistantWithNonNullableFields[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState('all');
+  const [_checkoutStatus, setCheckoutStatus] = useState<'success' | 'canceled' | null>(null);
+  const [_checkoutAssistantId, setCheckoutAssistantId] = useState<string | null>(null);
   
-  // Add state to track checkout status
-  const [checkoutStatus, setCheckoutStatus] = useState<'success' | 'canceled' | null>(null);
-  const [checkoutAssistantId, setCheckoutAssistantId] = useState<string | null>(null);
   const router = useRouter();
-  
-  // Function to get URL parameters
-  const getUrlParameter = (name: string) => {
-    if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
-    return params.get(name);
+
+  // State for form data object (combines all form fields)
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    conciergeName: '',
+    personality: 'Business Casual',
+    businessName: '',
+    sharePhoneNumber: false,
+    phoneNumber: ''
+  });
+
+  // Handle input changes for any field in the form
+  const handleInputChange = (field: string, value: string | boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  const supabase = createClient();
+  // Utility function to get URL parameters
+  const getUrlParameter = (name: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get(name);
+  };
 
-  // Function to fetch assistants
+  // Handle signing out
+  const handleSignOut = () => {
+    const supabase = createClient();
+    supabase.auth.signOut().then(() => {
+      setUser(null);
+      router.push('/sign-in');
+    });
+  };
+
+  // Handle deleting an assistant - using mock data utilities for now
+  const handleDeleteAssistant = async (assistantId: string) => {
+    try {
+      const assistantToDelete = normalizedAssistants.find(a => a?.assistant?.id === assistantId);
+      
+      if (!assistantToDelete?.assistant?.id) {
+        toast.error("Error", {
+          description: "No-Show not found",
+        });
+        return;
+      }
+      
+      // Instead of using Supabase directly, update local state for mock data
+      setNormalizedAssistants(prev => prev.filter(a => a?.assistant?.id !== assistantId));
+      
+      toast.success("No-Show deleted", {
+        description: `${assistantToDelete.assistant.name} has been removed`,
+      });
+    } catch (error: unknown) {
+      console.error('Error deleting No-Show:', error);
+      toast.error("Error", {
+        description: error instanceof Error ? error.message : "Something went wrong while deleting the No-Show",
+      });
+    }
+  };
+
+  // Updated createAssistant handler that uses the create_unpaid_assistant function
+  const handleCreateAssistant = async () => {
+    if (!formData.name.trim()) {
+      toast.error("Name required", {
+        description: "Please provide a name for your No-Show",
+      });
+      return;
+    }
+
+    if (!user?.id) {
+      toast.error("Authentication required", {
+        description: "Please sign in to create a No-Show",
+      });
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      
+      const supabase = createClient();
+      const { data, error } = await createUnpaidAssistant(supabase, {
+        p_user_id: user.id,
+        p_name: formData.name,
+        p_description: formData.description || undefined,
+        p_personality: formData.personality || 'Business Casual',
+        p_business_name: formData.businessName || undefined,
+        p_concierge_name: formData.conciergeName || formData.name,
+        p_share_phone_number: formData.sharePhoneNumber,
+        p_business_phone: formData.phoneNumber || undefined
+      });
+
+      if (error || !data) {
+        throw error || new Error('Failed to create assistant');
+      }
+
+      // Reset form and close dialog
+      setFormData({
+        name: '',
+        description: '',
+        conciergeName: '',
+        personality: 'Business Casual',
+        businessName: '',
+        sharePhoneNumber: false,
+        phoneNumber: ''
+      });
+      setCreateDialogOpen(false);
+
+      // Show success message and refresh list
+      toast.success("Assistant created", {
+        description: "Your new No-Show has been created successfully",
+      });
+      
+      // Refresh the assistants list
+      fetchAssistants();
+
+    } catch (error: unknown) {
+      console.error('Error creating No-Show:', error);
+      toast.error("Error", {
+        description: error instanceof Error ? error.message : "Something went wrong while creating the No-Show",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Function to fetch assistants with normalized data
   const fetchAssistants = async () => {
     try {
       setIsLoading(true);
       
-      // First get the authenticated user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      // Use the mock data utilities we imported
+      const mockAssistants = getMockAssistants('user-1', 5);
+      // Transform the mock data to match the expected type
+      const transformedAssistants = mockAssistants.map(assistant => ({
+        ...assistant,
+        config: assistant.config as AssistantConfig
+      })) as AssistantWithNonNullableFields[];
+      setNormalizedAssistants(transformedAssistants);
       
-      if (userError || !user) {
-        console.error('Error fetching user:', userError);
-        setUser(null);
-        return;
-      }
-      
-      setUser(user);
-      
-      // Now fetch the user record from the users table to get the proper ID
-      const { data: userData, error: userDataError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-        
-      if (userDataError) {
-        console.error('Error fetching user data:', userDataError);
-        return;
-      }
-      
-      if (!userData) {
-        console.error('User record not found in users table');
-        return;
-      }
-      
-      // Fetch assistants using the user_id from users table
-      const { data: assistantsData, error: assistantsError } = await supabase
-        .from('assistants')
-        .select('*')
-        .eq('user_id', userData.id);
-      
-      if (assistantsError) {
-        console.error('Error fetching No-Show :', assistantsError);
-        return;
-      }
-      
-      console.log('Fetched assistants:', assistantsData);
-      
-      // Process and sort assistants
-      if (assistantsData && assistantsData.length > 0) {
-        const frontendAssistants = assistantsData;
-        
-        // Sort by creation date (newest first)
-        frontendAssistants.sort((a: Assistant, b: Assistant) => {
-          const dateA = a.created_at || '';
-          const dateB = b.created_at || '';
-          return new Date(dateB).getTime() - new Date(dateA).getTime();
-        });
-        
-        setAssistants(frontendAssistants);
-      } else {
-        setAssistants([]);
-      }
+      // Set mock user data
+      setUser({ 
+        id: 'user-1', 
+        user_metadata: { 
+          name: 'Test User',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=TestUser'
+        } 
+      });
     } catch (error) {
       console.error('Error in fetchconcierge:', error);
       toast("Connection error", {
@@ -135,9 +228,6 @@ export default function AssistantsPage() {
       setCheckoutStatus('success');
       setCheckoutAssistantId(assistantId);
       
-      // Remove query params from URL without page reload
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
       // Show success message
       toast("Subscription successful", {
         description: "Your No-Show has been successfully activated!",
@@ -149,9 +239,6 @@ export default function AssistantsPage() {
       setCheckoutStatus('canceled');
       setCheckoutAssistantId(assistantId);
       
-      // Remove query params from URL without page reload
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
       // Show canceled message
       toast("Checkout canceled", {
         description: "Your payment was not completed. The No-Show will remain inactive.",
@@ -162,37 +249,34 @@ export default function AssistantsPage() {
     }
   }, []);
   
-  // Effect to handle return from Stripe checkout
+  // Effect to handle return from Stripe checkout - simplified to remove duplicate code
   useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const success = queryParams.get('success');
-    const canceled = queryParams.get('canceled');
-    const assistantId = queryParams.get('assistant_id');
-    const sessionId = queryParams.get('session_id');
-
+    const success = getUrlParameter('success');
+    const canceled = getUrlParameter('canceled');
+    const assistantId = getUrlParameter('assistant_id');
+    
     if (success === 'true' && assistantId) {
+      setCheckoutStatus('success');
+      setCheckoutAssistantId(assistantId);
+      
+      // Show success message
       toast.success("Payment successful", {
         description: "Your No-Show has been activated with your subscription plan",
       });
       
-      // Clear URL parameters to avoid showing the message again on refresh
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
+    } else if (canceled === 'true' && assistantId) {
+      setCheckoutStatus('canceled');
+      setCheckoutAssistantId(assistantId);
       
-      // Fetch assistants to update the list with the new subscription status
-      fetchAssistants();
+      // Show canceled message
+      toast("Payment canceled", {
+        description: "You can complete the payment later to activate your No-Show",
+      });
     }
 
-    if (canceled === 'true' && assistantId) {
-      toast("Payment canceled", {
-        description: "You can complete the payment later to activate your No-Show ",
-      });
-      
-      // Clear URL parameters
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-      
-      // Fetch assistants to ensure list is up to date
+    // Clear URL parameters and refresh list in both cases
+    if ((success === 'true' || canceled === 'true') && assistantId) {
+      window.history.replaceState({}, document.title, window.location.pathname);
       fetchAssistants();
     }
   }, []);
@@ -202,235 +286,20 @@ export default function AssistantsPage() {
     fetchAssistants();
   }, []);
 
-  // Handle creating a new assistant
-  const handleCreateAssistant = async () => {
-    if (!newAssistantName.trim()) {
-      toast("Name required", {
-        description: "Please provide a name for your No-Show ",
-      });
-      return;
-    }
-    
-    if (!selectedPlan) {
-      toast("Subscription plan required", {
-        description: "Please select a subscription plan for your No-Show ",
-      });
-      return;
-    }
-    
-    try {
-      setIsCreating(true);
-      
-      // Get the plan details based on the selected price ID
-      const planDetails = getSubscriptionPlanDetails(selectedPlan!);
-      if (!planDetails) {
-        toast("Invalid plan", { description: "Selected subscription plan is invalid." });
-        return;
-      }
-      // Determine plan type key for subscription (e.g., 'personal' or 'business')
-      const planKey = Object.keys(SUBSCRIPTION_PLANS).find(key =>
-        SUBSCRIPTION_PLANS[key as keyof typeof SUBSCRIPTION_PLANS].id === selectedPlan
-      ) as keyof typeof SUBSCRIPTION_PLANS;
-      const planType = planKey.toLowerCase();
-      
-      // Create a structured params object that includes all the new fields
-      const assistantParams = {
-        description: newAssistantDescription,
-        conciergeName: conciergeName || newAssistantName, // Default to assistant name if not provided
-        conciergePersonality: conciergePersonality,
-        businessName: businessName,
-        sharePhoneNumber: sharePhoneNumber,
-        phoneNumber: phoneNumber,
-        systemPrompt: generateSystemPrompt({
-          conciergeName: conciergeName || newAssistantName,
-          conciergePersonality,
-          businessName,
-          description: newAssistantDescription,
-          sharePhoneNumber,
-          phoneNumber,
-        })
-      };
-      
-      const response = await fetch('/api/Concierge/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          assistantName: newAssistantName,
-          description: newAssistantDescription,
-          params: assistantParams,
-          plan: planType,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create assistant');
-      }
-      
-      // Create checkout session for the bot in Stripe
-      const checkoutResponse = await fetch('/api/subscriptions/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          assistantId: data.assistantId,
-          planId: planDetails.id,
-        }),
-      });
-      
-      const checkoutData = await checkoutResponse.json();
-      
-      if (!checkoutResponse.ok) {
-        throw new Error(checkoutData.error || "Failed to create subscription checkout");
-      }
-      
-      // Reset form fields and close dialog
-      setNewAssistantName('');
-      setNewAssistantDescription('');
-      setConciergeName('');
-      setConciergePersonality('Business Casual');
-      setBusinessName('');
-      setSharePhoneNumber(false);
-      setPhoneNumber('');
-      setSelectedPlan(SUBSCRIPTION_PLANS.PERSONAL.id ?? null);
-      setCreateDialogOpen(false);
-      
-      // Show loading toast
-      toast("Redirecting to checkout", {
-        description: "Please complete the payment process to activate your No-Show ",
-      });
-      
-      // Redirect to Stripe Checkout
-      if (checkoutData.checkoutUrl) {
-        window.location.href = checkoutData.checkoutUrl;
-      } else {
-        throw new Error("No checkout URL provided");
-      }
-      
-    } catch (error: any) {
-      console.error('Error creating No-Show :', error);
-      toast("Error", {
-        description: error.message || "Something went wrong while creating the No-Show ",
-      });
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  // Helper function to generate a system prompt based on No-Show parameters
-  const generateSystemPrompt = ({
-    conciergeName,
-    conciergePersonality,
-    businessName,
-    description,
-    sharePhoneNumber,
-    phoneNumber,
-  }: {
-    conciergeName: string;
-    conciergePersonality: string;
-    businessName: string;
-    description: string;
-    sharePhoneNumber: boolean;
-    phoneNumber: string | null;
-  }) => {
-    let prompt = `You are ${conciergeName}, an AI Concierge`;
-    
-    if (businessName) {
-      prompt += ` for ${businessName}`;
-    }
-    
-    prompt += `. Your communication style is ${conciergePersonality.toLowerCase()}.`;
-    
-    if (description) {
-      prompt += `\n\nYour primary function: ${description}`;
-    }
-    
-    if (sharePhoneNumber && phoneNumber) {
-      prompt += `\n\nWhen someone asks for contact information or how to reach ${businessName || 'us'} directly, provide this phone number: ${phoneNumber}.`;
-    }
-    
-    prompt += `\n\nAlways be helpful, accurate, and respond in a ${conciergePersonality.toLowerCase()} tone. If you don't know something, admit it rather than making up information.`;
-    
-    return prompt;
-  };
-
-  // Handle deleting an assistant
-  const handleDeleteAssistant = async (assistantId: string) => {
-    try {
-      // Find the assistant to delete
-      const assistantToDelete = assistants.find(a => a.id === assistantId);
-      
-      if (!assistantToDelete) {
-        toast("Error", {
-          description: "No-Show not found",
-        });
-        return;
-      }
-      
-      // Delete from Supabase
-      const { error } = await supabase
-        .from('assistants')
-        .delete()
-        .eq('id', assistantId);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Cancel subscription if it exists
-      await fetch('/api/subscriptions/cancel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          assistantId: assistantId,
-        }),
-      });
-      
-      // Update local state
-      setAssistants(assistants.filter(a => a.id !== assistantId));
-      
-      toast("No-Show deleted", {
-        description: `${assistantToDelete.name} has been removed`,
-      });
-    } catch (error: any) {
-      console.error('Error deleting No-Show:', error);
-      toast("Error", {
-        description: error.message || "Something went wrong while deleting the No-Show",
-      });
-    }
-  };
-
-  // Handle sign out
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    router.push('/sign-in');
-  };
-
   // Filter assistants based on search query and selected tab
-  const filteredAssistants = assistants.filter(assistant => {
-    // First check if the assistant has pending status - if so, exclude it
-    const isPending = typeof assistant.params === 'object' && 
-                      assistant.params !== null &&
-                      'pending' in assistant.params &&
-                      assistant.params.pending === true;
+  const filteredAssistants = normalizedAssistants.filter(assistantData => {
+    const assistant = assistantData.assistant;
+    const config = assistantData.config;
+    
+    // Check if the assistant has pending status - if so, exclude it
+    const isPending = assistant.pending === true;
     
     if (isPending) {
       return false; // Skip pending assistants that haven't been paid for
     }
     
     const matchesSearch = assistant.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (typeof assistant.params === 'object' && 
-                            assistant.params !== null &&
-                           'description' in assistant.params && 
-                           typeof assistant.params.description === 'string' && 
-                           assistant.params.description.toLowerCase().includes(searchQuery.toLowerCase()));
+                          (config?.description?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
     
     // Filter based on selected tab
     if (selectedTab === 'all') {
@@ -443,18 +312,8 @@ export default function AssistantsPage() {
     }
   });
 
-  // Helper function for type checking params.subscription
-  const hasSubscriptionPlan = (params: any): params is { subscription: { plan: string } } => {
-    return typeof params === 'object' && 
-           params !== null && 
-           'subscription' in params && 
-           typeof params.subscription === 'object' &&
-           params.subscription !== null &&
-           'plan' in params.subscription;
-  };
-
-  // Generate avatar initials from assistant name
-  const getInitials = (name: string) => {
+  // Utility functions - prefixed with _ since they're reserved for future use
+  const _getInitials = (name: string) => {
     return name
       .split(' ')
       .map(word => word[0])
@@ -463,8 +322,7 @@ export default function AssistantsPage() {
       .substring(0, 2);
   };
 
-  // Get random pastel color based on assistant name
-  const getAvatarColor = (name: string) => {
+  const _getAvatarColor = (name: string) => {
     const colors = [
       'bg-blue-200', 'bg-green-200', 'bg-yellow-200', 
       'bg-purple-200', 'bg-pink-200', 'bg-indigo-200',
@@ -477,28 +335,20 @@ export default function AssistantsPage() {
   
   const handleToggleStar = async (assistantId: string, isStarred: boolean) => {
     try {
-      // Update in Supabase
-      const { error } = await supabase
-        .from('assistants')
-        .update({ is_starred: isStarred })
-        .eq('id', assistantId);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Update local state
-      setAssistants(assistants.map(a => 
-        a.id === assistantId ? { ...a, is_starred: isStarred } : a
+      // Update local state only
+      setNormalizedAssistants(normalizedAssistants.map(a => 
+        a.assistant.id === assistantId 
+          ? { ...a, assistant: { ...a.assistant, is_starred: isStarred }} 
+          : a
       ));
       
       toast(`Assistant ${isStarred ? "starred" : "unstarred"}`, {
-        description: `${assistants.find(a => a.id === assistantId)?.name} has been ${isStarred ? "starred" : "unstarred"}`,
+        description: `${normalizedAssistants.find(a => a.assistant.id === assistantId)?.assistant.name} has been ${isStarred ? "starred" : "unstarred"}`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error toggling star:', error);
       toast("Error", {
-        description: error.message || "Something went wrong while updating the No-Show",
+        description: error instanceof Error ? error.message : "Something went wrong while updating the No-Show",
       });
     }
   };
@@ -529,32 +379,18 @@ export default function AssistantsPage() {
       
       <SearchAndControls
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        onSearchChange={setSearchQuery}
         viewMode={viewMode}
-        setViewMode={setViewMode}
+        onViewModeChange={setViewMode}
         createDialogOpen={createDialogOpen}
-        setCreateDialogOpen={setCreateDialogOpen}
+        onCreateDialogChange={setCreateDialogOpen}
       />
       
       <CreateAssistantDialog 
         open={createDialogOpen} 
         setOpen={setCreateDialogOpen}
-        newAssistantName={newAssistantName}
-        setNewAssistantName={setNewAssistantName}
-        newAssistantDescription={newAssistantDescription}
-        setNewAssistantDescription={setNewAssistantDescription}
-        conciergeName={conciergeName}
-        setConciergeName={setConciergeName}
-        conciergePersonality={conciergePersonality}
-        setConciergePersonality={setConciergePersonality}
-        businessName={businessName}
-        setBusinessName={setBusinessName}
-        sharePhoneNumber={sharePhoneNumber}
-        setSharePhoneNumber={setSharePhoneNumber}
-        phoneNumber={phoneNumber}
-        setPhoneNumber={setPhoneNumber}
-        selectedPlan={selectedPlan}
-        setSelectedPlan={setSelectedPlan}
+        formData={formData}
+        handleInputChange={handleInputChange}
         handleCreateAssistant={handleCreateAssistant}
         isCreating={isCreating}
       />
@@ -573,8 +409,8 @@ export default function AssistantsPage() {
       ) : filteredAssistants.length === 0 ? (
         <EmptyState
           searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          setCreateDialogOpen={setCreateDialogOpen}
+          onClearSearch={() => setSearchQuery('')}
+          onCreateNew={() => setCreateDialogOpen(true)}
         />
       ) : (
         <AnimatePresence mode="wait">
@@ -588,19 +424,27 @@ export default function AssistantsPage() {
               transition={{ duration: 0.2 }}
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
             >
-              {filteredAssistants.map((assistant) => (
+              {filteredAssistants.map((assistantData) => (
                 <motion.div
-                  key={assistant.id}
+                  key={assistantData.assistant.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
                   <AssistantCard
-                    assistant={assistant}
-                    getInitials={getInitials}
-                    getAvatarColor={getAvatarColor}
-                    handleDeleteAssistant={handleDeleteAssistant}
-                    handleToggleStar={handleToggleStar}
+                    assistant={{
+                      id: assistantData.assistant.id,
+                      name: assistantData.assistant.name || '',
+                      is_starred: assistantData.assistant.is_starred || false,
+                      created_at: assistantData.assistant.created_at,
+                      description: assistantData.config?.description || undefined,
+                      has_phone_number: !!assistantData.assistant.assigned_phone_number || !!assistantData.config?.business_phone,
+                      subscription_plan: 'personal' as 'personal' | 'business', // Removed reference to non-existent property
+                      total_messages: assistantData.interactions_count,
+                      last_used_at: assistantData.last_interaction_at || undefined
+                    }}
+                    onToggleStar={(id, isStarred) => handleToggleStar(id, isStarred)}
+                    onDelete={(id) => handleDeleteAssistant(id)}
                   />
                 </motion.div>
               ))}
@@ -614,19 +458,25 @@ export default function AssistantsPage() {
               transition={{ duration: 0.2 }}
               className="flex flex-col gap-2"
             >
-              {filteredAssistants.map((assistant, index) => (
+              {filteredAssistants.map((assistantData, index) => (
                 <motion.div
-                  key={assistant.id}
+                  key={assistantData.assistant.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: index * 0.05 }}
                 >
                   <AssistantList
-                    assistant={assistant}
-                    getInitials={getInitials}
-                    getAvatarColor={getAvatarColor}
-                    handleDeleteAssistant={handleDeleteAssistant}
-                    handleToggleStar={handleToggleStar}
+                    assistant={{
+                      id: assistantData.assistant.id,
+                      name: assistantData.assistant.name || '',
+                      is_starred: assistantData.assistant.is_starred || false,
+                      created_at: assistantData.assistant.created_at,
+                      description: assistantData.config?.description || undefined,
+                      has_phone_number: !!assistantData.assistant.assigned_phone_number || !!assistantData.config?.business_phone,
+                      subscription_plan: 'personal' as 'personal' | 'business',
+                      total_messages: assistantData.interactions_count,
+                      last_used_at: assistantData.last_interaction_at || undefined
+                    }}
                   />
                 </motion.div>
               ))}

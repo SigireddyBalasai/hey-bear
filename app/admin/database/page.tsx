@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle,CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -16,9 +16,7 @@ import {
   ArchiveIcon, 
   Calendar, 
   AlertCircle,
-  HardDrive,
-  Clock,
-  LineChart
+  Clock
 } from "lucide-react";
 
 type MaintenanceAction = 'vacuum' | 'refresh' | 'aggregate' | 'partition' | 'archive' | 'full';
@@ -28,6 +26,9 @@ interface TableSize {
   size_bytes: number;
   size_pretty: string;
   total_rows: number;
+  bloat_percentage: number;
+  table_size: string;
+  bloat_size: string;
 }
 
 interface TableRowCount {
@@ -50,6 +51,7 @@ export default function DatabasePage() {
   const [rowCounts, setRowCounts] = useState<TableRowCount[]>([]);
   const [indexStats, setIndexStats] = useState<IndexStat[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('tables');
 
   useEffect(() => {
     fetchDatabaseStats();
@@ -261,16 +263,6 @@ export default function DatabasePage() {
               <ArchiveIcon className="h-4 w-4" />
               {actionLoading === 'archive' ? 'Running...' : 'Archive Old Data'}
             </Button>
-            
-            <Button 
-              variant="default" 
-              className="flex justify-start gap-2"
-              onClick={() => runMaintenance('full')}
-              disabled={actionLoading !== null}
-            >
-              <Clock className="h-4 w-4" />
-              {actionLoading === 'full' ? 'Running...' : 'Run Full Maintenance'}
-            </Button>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
             Note: Some operations may take several minutes to complete
@@ -279,9 +271,29 @@ export default function DatabasePage() {
         
         <Card>
           <CardHeader>
-            <CardTitle>Largest Tables</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle>{activeTab === 'bloat' ? 'Table Bloat' : 'Largest Tables'}</CardTitle>
+              <div className="flex gap-2">
+                <Button 
+                  variant={activeTab === 'size' ? "secondary" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setActiveTab('size')}
+                >
+                  Size
+                </Button>
+                <Button 
+                  variant={activeTab === 'bloat' ? "secondary" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setActiveTab('bloat')}
+                >
+                  Bloat
+                </Button>
+              </div>
+            </div>
             <CardDescription>
-              Top 5 largest tables by size
+              {activeTab === 'bloat' 
+                ? 'Top 5 tables with highest bloat percentage' 
+                : 'Top 5 largest tables by size'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -289,7 +301,7 @@ export default function DatabasePage() {
               <div className="flex justify-center items-center h-48">
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : (
+            ) : activeTab === 'size' ? (
               <>
                 {largestTables.map((table, index) => (
                   <div key={table.table_name} className="mb-4">
@@ -307,15 +319,40 @@ export default function DatabasePage() {
                   </div>
                 ))}
               </>
+            ) : (
+              <>
+                {largestTables.map((table, index) => (
+                  <div key={table.table_name} className="mb-4">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium">{table.table_name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {table.bloat_percentage.toFixed(1)}% bloat
+                      </span>
+                    </div>
+                    <Progress 
+                      value={Math.min(Math.round(table.bloat_percentage), 100)} 
+                      className="h-2" 
+                      indicatorColor={
+                        table.bloat_percentage > 40 ? "bg-destructive" : 
+                        table.bloat_percentage > 20 ? "bg-amber-500" : undefined
+                      }
+                    />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Size: {table.table_size}, Bloat: {table.bloat_size}
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </CardContent>
         </Card>
       </div>
       
       <Tabs defaultValue="tables" className="w-full">
-        <TabsList className="grid grid-cols-3 mb-4">
+        <TabsList className="grid grid-cols-4 mb-4">
           <TabsTrigger value="tables">Tables</TabsTrigger>
           <TabsTrigger value="indexes">Indexes</TabsTrigger>
+          <TabsTrigger value="bloat">Table Bloat</TabsTrigger>
           <TabsTrigger value="info">Information</TabsTrigger>
         </TabsList>
         
@@ -387,6 +424,45 @@ export default function DatabasePage() {
           </Table>
         </TabsContent>
         
+        <TabsContent value="bloat" className="border rounded-md p-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Table Name</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Bloat Size</TableHead>
+                <TableHead className="text-right">Bloat %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    <RefreshCw className="h-8 w-8 animate-spin mx-auto" />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                largestTables.map((table) => (
+                  <TableRow key={table.table_name}>
+                    <TableCell className="font-medium">{table.table_name}</TableCell>
+                    <TableCell>{table.table_size}</TableCell>
+                    <TableCell>{table.bloat_size}</TableCell>
+                    <TableCell className="text-right">
+                      {table.bloat_percentage > 40 ? (
+                        <Badge variant="destructive">{table.bloat_percentage.toFixed(1)}%</Badge>
+                      ) : table.bloat_percentage > 20 ? (
+                        <Badge variant="default" className="bg-amber-500">{table.bloat_percentage.toFixed(1)}%</Badge>
+                      ) : (
+                        <Badge variant="secondary">{table.bloat_percentage.toFixed(1)}%</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TabsContent>
+        
         <TabsContent value="info" className="space-y-4">
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -407,23 +483,26 @@ export default function DatabasePage() {
           
           <Card>
             <CardHeader>
-              <CardTitle>Database Performance Tips</CardTitle>
+              <CardTitle>Database Optimization Features</CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-2">
               <p>
                 <strong>1. Regular Maintenance</strong> - Run the vacuum and analyze operations weekly to keep the database healthy.
               </p>
               <p>
-                <strong>2. Monitor Table Sizes</strong> - Tables growing rapidly may need more frequent partitioning or archiving.
+                <strong>2. Table Partitioning</strong> - Time-series data is automatically partitioned by month for optimal performance.
               </p>
               <p>
-                <strong>3. Check Unused Indexes</strong> - Indexes that are never used consume space and slow down inserts/updates.
+                <strong>3. Index Management</strong> - Review and remove unused indexes to reduce overhead during writes.
               </p>
               <p>
-                <strong>4. Archive Old Data</strong> - Consider archiving data older than 12 months to maintain performance.
+                <strong>4. Foreign Key Indexes</strong> - Automatically indexes foreign keys to prevent performance bottlenecks.
               </p>
               <p>
-                <strong>5. Refresh Materialized Views</strong> - Materialized views should be refreshed regularly for accurate reporting.
+                <strong>5. Materialized Views</strong> - Common aggregate queries are pre-computed and cached for faster reporting.
+              </p>
+              <p>
+                <strong>6. Table Bloat Monitoring</strong> - Identifies tables with high bloat that need vacuum/reindexing.
               </p>
             </CardContent>
           </Card>

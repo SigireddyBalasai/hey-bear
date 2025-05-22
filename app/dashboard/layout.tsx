@@ -1,4 +1,4 @@
-import { DataProvider } from './DataContext';
+import { DataProvider } from '@/components/dashboard/DataContext';
 
 export default function DashboardLayout({
   children,

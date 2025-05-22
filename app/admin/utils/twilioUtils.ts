@@ -2,6 +2,27 @@ import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { Tables } from '@/lib/db.types';
 
+interface TwilioNumber {
+  phoneNumber: string;
+  friendlyName: string;
+  capabilities: {
+    sms?: boolean;
+    voice?: boolean;
+    mms?: boolean;
+  };
+}
+
+interface DatabaseNumber {
+  number: string;
+  isAssigned: boolean;
+}
+
+interface PhoneNumbersData {
+  twilioNumbers: TwilioNumber[];
+  dbNumbers: DatabaseNumber[];
+  unmanagedNumbers: TwilioNumber[];
+}
+
 /**
  * Fetch all available phone numbers from the pool
  */
@@ -29,6 +50,7 @@ export async function fetchAssignedPhoneNumbers() {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
+      .schema("assistants")
       .from('assistants')
       .select(`
         id,
@@ -36,7 +58,7 @@ export async function fetchAssignedPhoneNumbers() {
         assigned_phone_number,
         params,
         user_id,
-        users:user_id (
+        users (
           auth_user_id,
           id
         )
@@ -92,26 +114,6 @@ export async function addPhoneNumber(phoneNumber: string) {
       throw error;
     }
     
-    // Add to the phone number pool as well
-    const { data: userData } = await supabase.auth.getUser();
-    
-    if (!userData.user?.id) {
-      throw new Error('User not authenticated');
-    }
-    
-    const { data: adminData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', userData.user.id)
-      .single();
-    
-    // Get the inserted phone number ID
-    const { data: insertedPhone } = await supabase
-      .from('phone_numbers')
-      .select('id')
-      .eq('phone_number', phoneNumber)
-      .single();
-    
     toast.success('Phone number added successfully');
     return true;
   } catch (error) {
@@ -153,12 +155,13 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
     
     // Update assistant record
     const { error: assistantError } = await supabase
+      .schema("assistants")
       .from('assistants')
       .update({ assigned_phone_number: phoneData.phone_number })
       .eq('id', assistantId);
     
     if (assistantError) {
-      console.error('Error updating No-show:', assistantError);
+      console.error('Error updating assistant:', assistantError);
       
       // Rollback phone number assignment
       await supabase
@@ -211,24 +214,26 @@ export async function unassignPhoneNumber(phoneNumber: string) {
     
     // Find assistants using this phone number
     const { data: assistants, error: assistantError } = await supabase
+      .schema('assistants')
       .from('assistants')
       .select('id')
       .eq('assigned_phone_number', phoneNumber);
     
     if (assistantError) {
-      console.error('Error finding No-show:', assistantError);
+      console.error('Error finding assistant:', assistantError);
       throw assistantError;
     }
     
-    // Clear assigned phone number from No-show
+    // Clear assigned phone number from assistant
     if (assistants && assistants.length > 0) {
       const { error: clearError } = await supabase
+        .schema('assistants')
         .from('assistants')
         .update({ assigned_phone_number: null })
         .eq('assigned_phone_number', phoneNumber);
       
       if (clearError) {
-        console.error('Error clearing phone number from No-show:', clearError);
+        console.error('Error clearing phone number from assistant:', clearError);
         throw clearError;
       }
     }
@@ -296,16 +301,13 @@ export async function fetchAssistantsWithoutPhoneNumbers() {
     const supabase = createClient();
     
     // Get assistants without an assigned phone number
-    const { data, error } = await supabase
+    const { data: assistants, error } = await supabase
+      .schema('assistants')
       .from('assistants')
       .select(`
         id,
         name,
-        user_id,
-        users (
-          id,
-          auth_user_id
-        )
+        user_id
       `)
       .is('assigned_phone_number', null)
       .order('created_at', { ascending: false });
@@ -315,22 +317,29 @@ export async function fetchAssistantsWithoutPhoneNumbers() {
       throw error;
     }
     
-    // Enrich with user details
-    const enrichedData = await Promise.all((data || []).map(async (assistant) => {
-      if (assistant.users && assistant.users.auth_user_id) {
-        try {
-          const { data: userData } = await supabase.auth.admin.getUserById(
-            assistant.users.auth_user_id
+    // Fetch user data separately to avoid relation issues
+    const enrichedData = await Promise.all((assistants || []).map(async (assistant) => {
+      try {
+        const { data: userData } = await supabase
+          .schema('users')
+          .from('users')
+          .select('auth_user_id')
+          .eq('id', assistant.user_id)
+          .single();
+          
+        if (userData?.auth_user_id) {
+          const { data: authData } = await supabase.auth.admin.getUserById(
+            userData.auth_user_id
           );
           
           return {
             ...assistant,
-            owner: userData?.user?.email || 'Unknown',
-            owner_name: userData?.user?.user_metadata?.full_name || 'Unknown'
+            owner: authData?.user?.email || 'Unknown',
+            owner_name: authData?.user?.user_metadata?.full_name || 'Unknown'
           };
-        } catch (e) {
-          console.error('Error fetching user data:', e);
         }
+      } catch (e) {
+        console.error('Error fetching user data:', e);
       }
       return assistant;
     }));
@@ -340,5 +349,83 @@ export async function fetchAssistantsWithoutPhoneNumbers() {
     console.error('Failed to fetch assistants:', error);
     toast.error('Failed to load assistants');
     return [];
+  }
+}
+
+/**
+ * Fetch phone numbers from both Twilio API and database
+ */
+export async function fetchAllPhoneNumbers(): Promise<PhoneNumbersData> {
+  try {
+    const supabase = createClient();
+    
+    // Get numbers from database
+    const { data: phoneNumbers, error: dbError } = await supabase
+      .from('phone_numbers')
+      .select('phone_number, is_assigned');
+    
+    if (dbError) throw dbError;
+
+    // Get numbers from Twilio through API
+    const response = await fetch('/api/twilio/list');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch Twilio numbers');
+    }
+    
+    const twilioData = await response.json();
+    if (!twilioData.success) {
+      throw new Error(twilioData.error || 'Unknown error');
+    }
+
+    const dbNumbersList = (phoneNumbers || []).map(p => ({
+      number: p.phone_number,
+      isAssigned: p.is_assigned ?? false // Handle null case by defaulting to false
+    }));
+    
+    const twilioNumbersList = twilioData.twilioNumbers || [];
+    
+    // Find unmanaged numbers (in Twilio but not in DB)
+    const unmanagedNumbersList = twilioNumbersList.filter(
+      (twilio: TwilioNumber) => !dbNumbersList.some(db => db.number === twilio.phoneNumber)
+    );
+
+    return {
+      twilioNumbers: twilioNumbersList,
+      dbNumbers: dbNumbersList,
+      unmanagedNumbers: unmanagedNumbersList
+    };
+  } catch (error) {
+    console.error('Error fetching phone numbers:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add an unmanaged Twilio number to the database
+ */
+export async function importPhoneNumber(phoneNumber: string): Promise<void> {
+  try {
+    // Validate phone number format
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      throw new Error('Invalid phone number format');
+    }
+
+    const supabase = createClient();
+    
+    // Insert into database
+    const { error: insertError } = await supabase
+      .from('phone_numbers')
+      .insert({
+        phone_number: phoneNumber,
+        is_assigned: false,
+        created_at: new Date().toISOString()
+      });
+
+    if (insertError) throw insertError;
+  } catch (error) {
+    console.error('Error adding phone number:', error);
+    throw error;
   }
 }
