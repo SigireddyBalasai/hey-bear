@@ -1,6 +1,6 @@
 "use client";
-
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,7 @@ export function TwilioIntegrationStatus() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkTwilioStatus();
-  }, []);
-
-  const checkTwilioStatus = async () => {
+  const checkTwilioStatus = useCallback(async () => {
     setIsRefreshing(true);
     try {
       // Get phone numbers data
@@ -30,7 +26,7 @@ export function TwilioIntegrationStatus() {
       if (error) throw error;
       
       const total = phoneNumbers?.length || 0;
-      const assigned = phoneNumbers?.filter(n => n.is_assigned)?.length || 0;
+      const assigned = phoneNumbers?.filter(n => n.is_assigned).length || 0;
       
       setNumbers({ total, assigned });
       
@@ -49,7 +45,11 @@ export function TwilioIntegrationStatus() {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    checkTwilioStatus();
+  }, [checkTwilioStatus]);
 
   return (
     <Card className={`overflow-hidden border-l-4 ${

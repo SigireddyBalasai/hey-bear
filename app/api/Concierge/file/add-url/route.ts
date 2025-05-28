@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { getPineconeClient } from '@/lib/pinecone';
 import * as fs from 'fs';
@@ -8,27 +9,31 @@ import * as path from 'path';
 
 // Create a logger function for consistent log formatting
 const logger = {
-    info: (message: string, data?: any) => {
+    info: (message: string, data?: unknown) => {
         console.log(`[CRAWL INFO] ${new Date().toISOString()} - ${message}`, data ? data : '');
     },
-    error: (message: string, error?: any) => {
+    error: (message: string, error?: unknown) => {
         console.error(`[CRAWL ERROR] ${new Date().toISOString()} - ${message}`, error ? error : '');
     },
-    warn: (message: string, data?: any) => {
+    warn: (message: string, data?: unknown) => {
         console.warn(`[CRAWL WARNING] ${new Date().toISOString()} - ${message}`, data ? data : '');
     },
-    debug: (message: string, data?: any) => {
+    debug: (message: string, data?: unknown) => {
         console.debug(`[CRAWL DEBUG] ${new Date().toISOString()} - ${message}`, data ? data : '');
     },
-    http: (direction: 'REQUEST' | 'RESPONSE', method: string, url: string, status?: number, details?: any) => {
-        const timestamp = new Date().toISOString();
-        const statusText = status ? `[${status}]` : '';
-        console.log(`[CRAWL HTTP ${direction}] ${timestamp} - ${method} ${url} ${statusText}`, details ? details : '');
+    http: (direction: 'REQUEST' | 'RESPONSE', method: string, url: string, status?: number, details?: unknown) => {
+        console.log(`[CRAWL HTTP] ${new Date().toISOString()} - ${direction} - ${method} ${url}${status ? ` - ${status}` : ''}`, details ? details : '');
     }
 };
 
 // Log HTTP requests in curl format for easier debugging/reproduction
-const logAsCurl = (method: string, url: string, headers: Record<string, string>, body?: any) => {
+
+// Set maxDuration to 60 seconds to comply with Vercel hobby plan limitations
+export const maxDuration = 60;
+const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY || '';
+
+// Helper function to log requests as cURL commands for easy debugging
+const logAsCurl = (method: string, url: string, headers: Record<string, string>, body?: unknown) => {
     let curlCmd = `curl -X ${method} "${url}" \\\n`;
     
     // Add headers
@@ -52,10 +57,6 @@ const logAsCurl = (method: string, url: string, headers: Record<string, string>,
     
     logger.debug('Equivalent curl command:', curlCmd);
 };
-
-// Set maxDuration to 60 seconds to comply with Vercel hobby plan limitations
-export const maxDuration = 60;
-const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY!;
 const FIRECRAWL_BASE_URL = 'http://34.30.131.11:11235';
 
 // Define types for Firecrawl responses based on the observed response structure
@@ -79,12 +80,12 @@ interface FirecrawlResult {
         fit_html: string;
     };
     media?: {
-        images: any[];
-        videos: any[];
-        audios: any[];
+        images: unknown[];
+        videos: unknown[];
+        audios: unknown[];
     };
     links?: {
-        internal: any[];
+        internal: unknown[];
         external: Array<{
             href: string;
             text: string;
@@ -94,7 +95,6 @@ interface FirecrawlResult {
     metadata?: {
         title?: string;
         description?: string;
-        keywords?: string | null;
         author?: string | null;
     };
     success: boolean;
@@ -102,12 +102,11 @@ interface FirecrawlResult {
     status_code?: number;
 }
 
-// Custom HTTP client with logging
-async function fetchWithLogging(url: string, options: RequestInit = {}) {
+// Make HTTP request with enhanced logging
+const fetchWithLogging = async (url: string, options: RequestInit) => {
     const method = options.method || 'GET';
     const headers = options.headers as Record<string, string> || {};
     const body = options.body ? JSON.parse(options.body as string) : undefined;
-    
     logger.http('REQUEST', method, url, undefined, {
         headers: Object.keys(headers),
         body: body
@@ -132,7 +131,7 @@ async function fetchWithLogging(url: string, options: RequestInit = {}) {
             } catch {
                 responseData = { text: responseText.substring(0, 500) + (responseText.length > 500 ? '...' : '') };
             }
-        } catch (e) {
+        } catch {
             responseData = { error: 'Could not read response body' };
         }
         
@@ -155,10 +154,16 @@ async function fetchWithLogging(url: string, options: RequestInit = {}) {
 }
 
 export async function POST(req: NextRequest) {
-    logger.info('Received URL crawl request');
+    if (!FIRECRAWL_API_KEY) {
+        logger.error('FIRECRAWL_API_KEY is not set');
+        return NextResponse.json({ error: "Server configuration error: Missing Firecrawl API key." }, { status: 500 });
+    }
+
     const supabase = await createClient();
-    const requestIp = req.headers.get('x-forwarded-for') || 'unknown-ip';
-    const userAgent = req.headers.get('user-agent') || 'unknown-agent';
+    
+    // Get request metadata
+    const requestIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
     
     logger.debug('Request details', { ip: requestIp, userAgent });
 
@@ -201,7 +206,7 @@ export async function POST(req: NextRequest) {
         const { assistantId, pinecone_name, url } = body;
         
         if (!assistantId || !pinecone_name || !url) {
-            const missingFields = [];
+            const missingFields: string[] = [];
             if (!assistantId) missingFields.push('assistantId');
             if (!pinecone_name) missingFields.push('pinecone_name');
             if (!url) missingFields.push('url');
@@ -217,7 +222,7 @@ export async function POST(req: NextRequest) {
         try {
             new URL(url);
             logger.info(`URL format valid: ${url}`);
-        } catch (e) {
+        } catch {
             logger.error('Invalid URL format', { url });
             return NextResponse.json(
                 { error: 'Invalid URL format' },
@@ -228,6 +233,7 @@ export async function POST(req: NextRequest) {
         // Verify assistant exists
         logger.info(`Verifying assistant exists: ${assistantId}`);
         const { data: assistant, error: assistantError } = await supabase
+            .schema('assistants')
             .from('assistants')
             .select('*')
             .eq('id', assistantId)
@@ -242,16 +248,13 @@ export async function POST(req: NextRequest) {
         }
 
         if (!assistant) {
-            logger.error(`Assistant not found with ID ${assistantId}`);
+            logger.error(`Assistant not found with ID: ${assistantId}`);
             return NextResponse.json(
-                { error: 'No-show not found or you do not have permission to modify it' },
+                { error: 'Assistant not found' },
                 { status: 404 }
             );
         }
         
-        logger.info(`Assistant verified: ${assistant.name}`);
-
-        // Crawl the URL content
         logger.info(`Starting to crawl URL: ${url}`);
         
         // Fixed authorization header format based on curl example
@@ -295,7 +298,7 @@ export async function POST(req: NextRequest) {
             
             try {
                 errorData = await crawlResponse.json();
-            } catch (e) {
+            } catch {
                 errorData = { message: 'Could not parse error response' };
             }
             
@@ -319,9 +322,9 @@ export async function POST(req: NextRequest) {
         let taskResult: FirecrawlTaskResponse | null = null;
         let status = 'pending';
         let pollCount = 0;
-        const maxPolls = 25; // Reduced from 30 to fit within 60-second timeout
+        const maxPolls = 40; // Maximum polling attempts
         const startTime = Date.now();
-        const timeoutMs = 50000; // 50 seconds timeout to leave buffer for processing
+        const timeoutMs = 50000; // 50 seconds to stay under 60s limit
         
         while (status !== 'completed' && status !== 'failed' && pollCount < maxPolls) {
             // Check if we're approaching the timeout
@@ -345,7 +348,7 @@ export async function POST(req: NextRequest) {
                 let errorData;
                 try {
                     errorData = await taskResponse.json();
-                } catch (e) {
+                } catch {
                     errorData = { message: 'Could not parse error response' };
                 }
                 
@@ -371,9 +374,9 @@ export async function POST(req: NextRequest) {
         }
         
         if (status === 'failed') {
-            logger.error('Crawl task failed', taskResult);
+            logger.error('Crawl task failed', { task_id, status, taskResult });
             return NextResponse.json(
-                { 
+                {
                     error: 'Crawl task failed',
                     message: taskResult?.result?.error_message || 'The crawl task failed without a specific error message' 
                 },
@@ -381,9 +384,7 @@ export async function POST(req: NextRequest) {
             );
         }
         
-        if (!taskResult || status !== 'completed') {
-            logger.error('Crawl task did not complete in time', { task_id, status });
-            
+        if (status !== 'completed') {
             // Instead of returning an error, provide a way to check the status later
             return NextResponse.json({
                 status: 'pending',
@@ -539,28 +540,23 @@ export async function POST(req: NextRequest) {
                 title: resultData?.metadata?.title || '',
                 contentLength: contentLength
             });
-        } catch (error: any) {
-            // Clean up file if it exists and there was an error
-            if (fs.existsSync(tempFilePath)) {
-                logger.debug('Cleaning up temporary file after error');
-                fs.unlinkSync(tempFilePath);
+        } catch (error: unknown) { 
+            logger.error('Error processing crawl data', error);
+            let detailMessage = 'An error occurred during content upload';
+            if (error instanceof Error) {
+                detailMessage = error.message;
             }
-            
-            logger.error('Error uploading URL content to Pinecone', error);
-            return NextResponse.json(
-                { 
-                    error: 'Failed to upload URL content',
-                    message: error.message || 'An error occurred during content upload'  
-                }, 
-                { status: 500 }
-            );
+            return NextResponse.json({
+                error: 'Failed to process crawled content',
+                details: detailMessage
+            }, { status: 500 });
         }
-    } catch (e: any) {
-        logger.error('Unexpected error in crawl endpoint', e);
-        return NextResponse.json({ 
-            error: 'Internal server error',
-            message: e.message || 'An unexpected error occurred',
-            stack: process.env.NODE_ENV === 'development' ? e.stack : undefined
-        }, { status: 500 });
+    } catch (e: unknown) { 
+        logger.error('Error in POST /api/Concierge/file/add-url:', e);
+        let errorMessage = 'An unexpected error occurred.';
+        if (e instanceof Error) {
+            errorMessage = e.message;
+        }
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

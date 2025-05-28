@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import twilio from 'twilio';
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     // Check authentication and admin permissions
     const supabase = await createClient();
@@ -14,6 +14,7 @@ export async function GET(req: Request) {
 
     // Check admin status - Fix the issue by checking auth_user_id not user.id
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)  // Use auth_user_id instead of user.id
@@ -83,13 +84,14 @@ export async function GET(req: Request) {
         dbNumbers: dbNumbers || [],
         unmanagedNumbers: unmanagedNumbers
       });
-    } catch (twilioError: any) {
+    } catch (twilioError: unknown) {
       console.error('Twilio API error:', twilioError);
+      const errorMessage = twilioError instanceof Error ? twilioError.message : 'Unknown error';
       
       // Return database numbers even if Twilio API fails
       return NextResponse.json({
         success: false, 
-        error: `Failed to fetch Twilio phone numbers: ${twilioError.message}`,
+        error: `Failed to fetch Twilio phone numbers: ${errorMessage}`,
         twilioNumbers: [],
         dbNumbers: dbNumbers || [],
         unmanagedNumbers: []
@@ -97,12 +99,13 @@ export async function GET(req: Request) {
         status: 500
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error listing phone numbers:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to list phone numbers';
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to list phone numbers'
+        error: errorMessage
       },
       { status: 500 }
     );

@@ -1,21 +1,59 @@
-import { ArrowLeft, Bell, Settings } from 'lucide-react';
+"use client";
+
+import React from 'react';
+import { ArrowLeft, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { User } from "@supabase/supabase-js";
+import { NotificationIndicator } from './NotificationIndicator';
+
+import { createClient } from '@/utils/supabase/client';
+
 
 interface AdminHeaderProps {
-  user: any;
+  user: User | null;
 }
 
 export function AdminHeader({ user }: AdminHeaderProps) {
+  const router = useRouter();
+  const supabase = createClient();
+
+  if (!user) {
+    return null; // Or a loading indicator, or some fallback UI
+  }
+
   const userInitials = user.email
     ? user.email.slice(0, 2).toUpperCase()
-    : 'U';
-    
+    : 'AD';
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      router.push('/sign-in');
+      toast.success('Successfully signed out');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Failed to sign out');
+    }
+  };
+
   return (
     <div className="flex items-center justify-between mb-8">
       <div>
@@ -31,16 +69,44 @@ export function AdminHeader({ user }: AdminHeaderProps) {
       </div>
       
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon">
-          <Bell className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon">
-          <Settings className="h-4 w-4" />
-        </Button>
-        <Avatar>
-          <AvatarImage src="" />
-          <AvatarFallback>{userInitials}</AvatarFallback>
-        </Avatar>
+        <NotificationIndicator userId={user.id} />
+        
+        <Link href="/admin/settings">
+          <Button variant="outline" size="icon">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </Link>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Avatar className="h-8 w-8 cursor-pointer">
+              <AvatarImage src={user.user_metadata?.avatar_url ?? ''} />
+              <AvatarFallback>{userInitials}</AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.email ?? 'No email'}</p>
+                <p className="text-xs leading-none text-muted-foreground">Administrator</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <Link href="/admin/settings/profile">
+              <DropdownMenuItem>Profile Settings</DropdownMenuItem>
+            </Link>
+            <Link href="/admin/settings">
+              <DropdownMenuItem>Admin Settings</DropdownMenuItem>
+            </Link>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-600 cursor-pointer"
+              onClick={handleSignOut}
+            >
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

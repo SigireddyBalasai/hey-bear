@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +45,7 @@ import {
 } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
 import { TwilioMessageDetails } from './TwilioMessageDetails';
+import type { Database } from '@/lib/db.types';
 
 // Register Chart.js components
 ChartJS.register(
@@ -60,9 +61,69 @@ ChartJS.register(
   Filler
 );
 
+// Define custom types for interactions
+type DatabaseWithInteractions = Database & {
+  Tables: {
+    interactions: {
+      Row: {
+        id: string;
+        interaction_time: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        chat: Record<string, any>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        [key: string]: any;
+      };
+      Insert: {
+        interaction_time?: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        chat?: Record<string, any>;
+      };
+      Update: {
+        interaction_time?: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        chat?: Record<string, any>;
+      };
+    };
+  };
+};
+
+type _InteractionRow = DatabaseWithInteractions['Tables']['interactions']['Row'];
+
+// Update the type to match Supabase's join return type
+interface AssistantDetails {
+  id: string;
+  name: string;
+  user_id: string;
+}
+
+type _PhoneNumberWithAssistant = Database['public']['Tables']['phone_numbers']['Row'] & {
+  assistant: AssistantDetails | null;
+};
+
+type PhoneNumberStat = {
+  id: string;
+  phone_number: string;
+  number: string;
+  assistant_name?: string;
+  assistant?: string;
+  total_interactions: number;
+  unique_contacts: number;
+  last_interaction?: string;
+  is_assigned: boolean;
+  messages_sent: number;
+  messages_received: number;
+  total_messages: number;
+  active_days: number;
+  unique_users: number;
+  first_message?: string;
+  last_message?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+};
+
 export function PhoneNumberStats() {
   const [isLoading, setIsLoading] = useState(true);
-  const [phoneStats, setPhoneStats] = useState<any[]>([]);
+  const [phoneStats, setPhoneStats] = useState<PhoneNumberStat[]>([]);
   const [usageSummary, setUsageSummary] = useState({
     total: 0,
     assigned: 0,
@@ -76,25 +137,53 @@ export function PhoneNumberStats() {
   const [selectedPhoneNumber, setSelectedPhoneNumber] = useState<string | null>(null);
   const [isMessageDetailsOpen, setIsMessageDetailsOpen] = useState(false);
 
-  useEffect(() => {
-    loadPhoneStats();
-  }, [timeframe]);
-
-  const loadPhoneStats = async () => {
+  const loadPhoneStats = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // First, get all phone numbers from the database
-      const { data: phoneNumbers, error: phoneError } = await supabase
+      // First, get all phone numbers with assistant details
+      const { data: phoneNumbers } = await supabase
         .from('phone_numbers')
-        .select('*, assistants(id, name, user_id)');
-      
-      if (phoneError) throw phoneError;
+        .select(`
+          id,
+          phone_number,
+          is_assigned,
+          assistant:assistants (
+            id,
+            name,
+            user_id
+          )
+        `).returns<Array<{
+          id: string;
+          phone_number: string;
+          is_assigned: boolean;
+          assistant: {
+            id: string;
+            name: string;
+            user_id: string;
+          } | null;
+        }>>();
+
+      // Format the data
+      const _formattedPhoneStats = (phoneNumbers ?? []).map((phone) => ({
+        id: phone.id,
+        number: phone.phone_number,
+        is_assigned: phone.is_assigned,
+        assistant: phone.assistant?.name ?? null,
+        assistant_id: phone.assistant?.id ?? null,
+        user_id: phone.assistant?.user_id ?? null,
+        messages_sent: 0,
+        messages_received: 0,
+        active_days: new Set<string>(),
+        first_message: null,
+        last_message: null,
+        unique_users: new Set<string>()
+      }));
 
       // Calculate basic stats
-      const assigned = phoneNumbers?.filter(p => p.is_assigned).length || 0;
-      const total = phoneNumbers?.length || 0;
+      const assigned = phoneNumbers?.filter(p => p.is_assigned).length ?? 0;
+      const total = phoneNumbers?.length ?? 0;
       
       // Calculate timeframe based on selection
       const now = new Date();
@@ -116,6 +205,7 @@ export function PhoneNumberStats() {
 
       // Get message interactions for the phone numbers
       const { data: interactions, error: interactionError } = await supabase
+        .schema('analytics')
         .from('interactions')
         .select('*')
         .gte('interaction_time', startDate.toISOString())
@@ -126,16 +216,16 @@ export function PhoneNumberStats() {
       // Process phone usage data
       const phoneData = new Map();
       let totalMessages = 0;
-      
+
       // Initialize phone data
-      phoneNumbers?.forEach(phone => {
+      phoneNumbers?.forEach((phone) => {
         phoneData.set(phone.phone_number, {
           id: phone.id,
           number: phone.phone_number,
           is_assigned: phone.is_assigned,
-          assistant: phone.assistants?.name,
-          assistant_id: phone.assistants?.id || null,
-          user_id: phone.assistants?.user_id || null,
+          assistant: phone.assistant?.name ?? null,
+          assistant_id: phone.assistant?.id ?? null,
+          user_id: phone.assistant?.user_id ?? null,
           messages_sent: 0,
           messages_received: 0,
           active_days: new Set(),
@@ -146,14 +236,14 @@ export function PhoneNumberStats() {
       });
 
       // Count interactions
-      interactions?.forEach(interaction => {
+      interactions.forEach(interaction => {
         try {
-          const chatData = JSON.parse(interaction.chat || "");
+          const chatData = JSON.parse(interaction.chat ?? "");
           let phoneNumber = null;
           
           // Determine phone number from interaction
           if (typeof chatData === 'object' && chatData !== null) {
-            phoneNumber = chatData.to || chatData.from;
+            phoneNumber = chatData.to ?? chatData.from;
           }
 
           if (phoneNumber && phoneData.has(phoneNumber)) {
@@ -191,22 +281,22 @@ export function PhoneNumberStats() {
         }
       });
 
-      // Convert Map to array and format sets to numbers
-      const formattedPhoneStats = Array.from(phoneData.values()).map(phone => ({
-        ...phone,
-        active_days: phone.active_days.size,
-        unique_users: phone.unique_users.size,
-        total_messages: phone.messages_sent + phone.messages_received
+      // Format phone stats into array and convert sets to numbers
+      const finalStats = Array.from(phoneData.values()).map(stats => ({
+        ...stats,
+        total_messages: stats.messages_sent + stats.messages_received,
+        active_days: stats.active_days.size,
+        unique_users: stats.unique_users.size
       }));
 
       // Sort by total messages
-      formattedPhoneStats.sort((a, b) => b.total_messages - a.total_messages);
+      finalStats.sort((a, b) => b.total_messages - a.total_messages);
 
       // Count active phones (phones with at least one message)
-      const activePhones = formattedPhoneStats.filter(p => p.total_messages > 0).length;
+      const activePhones = finalStats.filter(p => p.total_messages > 0).length;
 
       // Update state
-      setPhoneStats(formattedPhoneStats);
+      setPhoneStats(finalStats);
       setUsageSummary({
         total,
         assigned,
@@ -222,7 +312,12 @@ export function PhoneNumberStats() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase, timeframe]);
+  
+  // Call loadPhoneStats when timeframe changes
+  useEffect(() => {
+    loadPhoneStats();
+  }, [timeframe, loadPhoneStats]);
 
   // Format phone number for display
   const formatPhoneNumber = (phoneNumber: string) => {
@@ -277,13 +372,13 @@ export function PhoneNumberStats() {
   };
 
   // Calculate average messages per day for a phone
-  const getMessagesPerDay = (phone: any) => {
+  const getMessagesPerDay = (phone: { total_messages: number; active_days: number }) => {
     if (!phone.active_days || phone.active_days === 0) return 0;
     return (phone.total_messages / phone.active_days).toFixed(1);
   };
 
   // Calculate activity ratio (active days / timeframe days)
-  const getActivityRatio = (phone: any) => {
+  const getActivityRatio = (phone: { active_days: number }) => {
     let totalDays = 30; // Default
     
     switch (timeframe) {
@@ -299,7 +394,7 @@ export function PhoneNumberStats() {
   };
 
   // Format date for display
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -329,7 +424,7 @@ export function PhoneNumberStats() {
       ...phoneStats.map(phone => [
         phone.number,
         phone.is_assigned ? 'Yes' : 'No',
-        phone.assistant || 'N/A',
+        phone.assistant ?? 'N/A',
         phone.messages_sent,
         phone.messages_received,
         phone.total_messages,
@@ -495,7 +590,7 @@ export function PhoneNumberStats() {
                         maintainAspectRatio: false,
                         plugins: {
                           legend: {
-                            position: 'bottom',
+                            position: 'bottom'
                           }
                         },
                         cutout: '70%'

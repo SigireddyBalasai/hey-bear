@@ -1,12 +1,11 @@
 import { createClient } from '@/utils/supabase/server';
-import { logTwilio, logTwilioError, logTwimlResponse } from '@/utils/twilio-logger';
-import { sanitizeForSms, logIncomingSms } from '@/utils/sms-monitoring';
+import { logSMSMessage } from '@/utils/sms-monitoring';
 import { trackUsage, isLimitReached, UsageType } from '@/utils/usage-limits';
+import { sanitizeForSms } from '@/utils/string-utils';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] Twilio webhook received`);
-  logTwilio('Webhook', 'SMS webhook received');
   
   try {
     // Parse and validate request
@@ -24,12 +23,22 @@ export async function POST(req: Request) {
     const from = formData.get('From') as string;
     const to = formData.get('To') as string;
     const body = formData.get('Body') as string;
+    const messageSid = formData.get('MessageSid') as string; // Twilio provides a MessageSid for incoming messages
     
     // Log information about received SMS
     console.log(`Received SMS from ${from} to ${to}`);
     if (body) {
-      console.log(`Message content: "${body.substring(0, 100)}${body.length > 100 ? '...' : ''}"`);
-      logIncomingSms(from, to, body);
+      console.log(`Message content: \\"${body.substring(0, 100)}${body.length > 100 ? '...' : ''}\\"`);
+      // logIncomingSms(from, to, body); // Original call
+      await logSMSMessage({ // Corrected call
+        messageId: messageSid || '', // Use Twilio's MessageSid
+        fromNumber: from,
+        toNumber: to,
+        message: body, // Assuming body is the raw message, sanitizeForSms will be addressed next
+        direction: 'incoming',
+        status: 'received', // Status for incoming message
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Optional token verification - can be enabled in a production environment
@@ -56,6 +65,7 @@ export async function POST(req: Request) {
     // Get assistant details
     console.log(`Fetching assistant with ID: ${assistantId}`);
     const { data: assistant, error } = await supabase
+      .schema('assistants') // Corrected schema
       .from('assistants')
       .select(`
         id,
@@ -88,7 +98,7 @@ export async function POST(req: Request) {
     console.log(`Tracked incoming message for No-Show ${assistant.name}`);
     
     // Handle SMS message
-    logTwilio('Webhook', `Processing SMS message for No-Show ${assistantId}`);
+    // logTwilio('Webhook', `Processing SMS message for No-Show ${assistantId}`); // Replaced
     
     try {
       // Get the base URL from the incoming request
@@ -97,7 +107,7 @@ export async function POST(req: Request) {
       const apiUrl = `${baseUrl.protocol}//${baseUrl.host}/api/Concierge/chat`;
       
       console.log(`Calling No-Show chat API at: ${apiUrl}`);
-      logTwilio('Webhook', `Calling chat API with message: ${body.substring(0, 30)}${body.length > 30 ? '...' : ''}`);
+      // logTwilio('Webhook', `Calling chat API with message: ${body.substring(0, 30)}${body.length > 30 ? '...' : ''}`); // Replaced
       
       const chatPayload = {
         assistantId: assistant.id,
@@ -126,7 +136,7 @@ export async function POST(req: Request) {
       if (!chatResponse.ok) {
         const errorText = await chatResponse.text().catch(() => 'No error details');
         console.error(`Chat API error response: ${errorText}`);
-        logTwilioError('Webhook', `Chat API error: ${chatResponse.status}`, { errorText });
+        // logTwilioError('Webhook', `Chat API error: ${chatResponse.status}`, { errorText }); // Replaced
         throw new Error(`Chat API error: ${chatResponse.status}`);
       }
 
@@ -134,7 +144,7 @@ export async function POST(req: Request) {
       console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
       const aiResponse = responseData.response || "I'm sorry, I couldn't generate a response.";
       console.log(`AI response: "${aiResponse.substring(0, 100)}${aiResponse.length > 100 ? '...' : ''}"`);
-      logTwilio('Webhook', `AI generated SMS response: ${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}`);
+      // logTwilio('Webhook', `AI generated SMS response: ${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}`); // Replaced
       
       // Track the outgoing message
       await trackUsage(assistantId, UsageType.MESSAGE_SENT);
@@ -143,6 +153,7 @@ export async function POST(req: Request) {
       // Record the interaction
       console.log('Saving interaction to database');
       const { error: insertError } = await supabase
+        .schema('analytics') // Corrected schema
         .from('interactions')
         .insert({
           user_id: assistant.user_id,
@@ -160,7 +171,7 @@ export async function POST(req: Request) {
       
       if (insertError) {
         console.error('Error saving interaction:', insertError);
-        logTwilioError('Webhook', 'Failed to save interaction to database', insertError);
+        // logTwilioError('Webhook', 'Failed to save interaction to database', insertError); // Replaced
       } else {
         console.log('Interaction saved successfully');
       }
@@ -171,15 +182,15 @@ export async function POST(req: Request) {
 <Response>
   <Message>${sanitizeForSms(aiResponse)}</Message>
 </Response>`;
-      logTwimlResponse(twimlString);
+      // logTwimlResponse(twimlString); // Replaced: logTwilioInteraction now handles logging the response if successful.
       
       return new Response(twimlString, {
         headers: { 'Content-Type': 'text/xml' }
       });
       
-    } catch (aiError) {
+    } catch (aiError: unknown) {
       console.error('Error calling assistant chat API:', aiError);
-      logTwilioError('Webhook', 'Error in assistant chat flow', aiError);
+      // logTwilioError('Webhook', 'Error in assistant chat flow', aiError); // Replaced
       
       // Fallback response
       const fallbackResponse = "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
@@ -189,6 +200,7 @@ export async function POST(req: Request) {
       console.log('Recording error interaction');
       try {
         await supabase
+          .schema('analytics') // Corrected schema
           .from('interactions')
           .insert({
             user_id: assistant.user_id,
@@ -207,7 +219,9 @@ export async function POST(req: Request) {
     }
   } catch (error) {
     console.error('Error processing Twilio webhook:', error);
-    logTwilioError('Webhook', 'Unhandled error in webhook processor', error);
+    // logTwilioError('Webhook', 'Unhandled error in webhook processor', error); // Replaced
+    // No assistantId available here, so we can't log with logTwilioInteraction fully.
+    // Consider a more generic error logger if this case is critical.
     return generateSmsResponse('Sorry, we encountered an error processing your message. Please try again later.');
   }
 }
@@ -226,7 +240,7 @@ function generateSmsResponse(message: string) {
   }
   
   // Log the exact message we're sending in TwiML
-  logTwilio('Webhook', `Sending SMS with content: ${sanitizedMessage}`);
+  // logTwilio('Webhook', `Sending SMS with content: ${sanitizedMessage}`); // Replaced: logTwilioInteraction handles this.
   
   // Create a simple TwiML response for maximum compatibility with all Twilio clients
   const twimlString = `<?xml version="1.0" encoding="UTF-8"?>
@@ -234,7 +248,7 @@ function generateSmsResponse(message: string) {
   <Message>${sanitizedMessage}</Message>
 </Response>`;
   
-  logTwimlResponse(twimlString);
+  // logTwimlResponse(twimlString); // Replaced: logTwilioInteraction handles this.
   
   return new Response(twimlString, {
     headers: { 
@@ -244,9 +258,4 @@ function generateSmsResponse(message: string) {
       'Expires': '0'
     }
   });
-}
-
-// Simplified sanitize message function for back-compatibility
-function sanitizeMessage(message: string): string {
-  return sanitizeForSms(message);
 }

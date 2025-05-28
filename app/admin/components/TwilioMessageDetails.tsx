@@ -1,6 +1,6 @@
 "use client";
-
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import {
   Dialog,
@@ -25,6 +25,27 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+type Message = {
+  id: string;
+  interaction_time: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chat: any;
+  from_phone?: string;
+  to_phone?: string;
+  message_body?: string;
+  direction?: 'inbound' | 'outbound';
+  request?: string | null;
+  response?: string | null;
+  token_usage?: number | null;
+  cost_estimate?: number | null;
+};
+
+type Assistant = {
+  id: string;
+  name: string;
+  user_id: string;
+};
+
 interface TwilioMessageDetailsProps {
   phoneNumber: string;
   open: boolean;
@@ -32,28 +53,22 @@ interface TwilioMessageDetailsProps {
 }
 
 export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessageDetailsProps) {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [assistant, setAssistant] = useState<any>(null);
+  const [assistant, setAssistant] = useState<Assistant | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const supabase = createClient();
   const messagesPerPage = 10;
 
-  // Fetch messages whenever phone number or page changes
-  useEffect(() => {
-    if (open && phoneNumber) {
-      fetchMessages();
-    }
-  }, [open, phoneNumber, currentPage]);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     setIsLoading(true);
     
     try {
       const { data: assistantData, error: assistantError } = await supabase
+        .schema('assistants')
         .from('assistants')
-        .select('id, name, user_id, params')
+        .select('id, name, user_id')
         .eq('assigned_phone_number', phoneNumber)
         .single();
         
@@ -69,6 +84,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
       
       // Get message count for pagination
       const { count, error: countError } = await supabase
+        .schema('analytics')
         .from('interactions')
         .select('id', { count: 'exact', head: true })
         .contains('chat', phoneNumber);
@@ -79,8 +95,14 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
       
       // Fetch messages for the current page
       const { data, error } = await supabase
+        .schema('analytics')
         .from('interactions')
-        .select('*, users(auth_user_id)')
+        .select(`
+          *,
+          users:public_users (
+            auth_user_id
+          )
+        `)
         .contains('chat', phoneNumber)
         .order('interaction_time', { ascending: false })
         .range(from, to);
@@ -89,14 +111,21 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
         throw error;
       }
       
-      setMessages(data || []);
+      setMessages(data ?? []);
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to load message history');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [phoneNumber, currentPage, supabase]);
+
+  // Fetch messages whenever phone number or page changes
+  useEffect(() => {
+    if (open && phoneNumber) {
+      fetchMessages();
+    }
+  }, [open, phoneNumber, currentPage, fetchMessages]);
 
   // Format phone number for display
   const formatPhoneNumber = (number: string) => {
@@ -174,7 +203,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
           </div>
         ) : (
           <div className="space-y-4">
-            {messages.map((message, index) => {
+            {messages.map((message, _index) => {
               const chatData = parseChatData(message.chat);
               const isIncoming = chatData.to === phoneNumber;
               
@@ -189,7 +218,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
                     </Badge>
                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {formatDate(message.interaction_time)}
+                      {formatDate(message.interaction_time ?? '')}
                     </div>
                   </div>
                   
@@ -215,11 +244,11 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
                       </div>
                     </div>
                     
-                    {message.token_usage > 0 && (
+                    {message.token_usage && message.token_usage > 0 && (
                       <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground mt-1">
                         <Coins className="h-3 w-3" />
                         <span>{message.token_usage.toLocaleString()} tokens</span>
-                        {message.cost_estimate > 0 && (
+                        {message.cost_estimate && message.cost_estimate > 0 && (
                           <span className="border-l pl-2 border-muted-foreground/20">
                             ${message.cost_estimate.toFixed(5)}
                           </span>

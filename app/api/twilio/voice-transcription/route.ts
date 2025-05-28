@@ -1,10 +1,8 @@
 import { createClient } from '@/utils/supabase/server';
-import { logTwilio, logTwilioError, logTwimlResponse } from '@/utils/twilio-logger';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] Twilio voice transcription webhook received`);
-  logTwilio('VoiceTranscription', 'Webhook received');
   
   try {
     // Extract parameters from the URL
@@ -20,21 +18,19 @@ export async function POST(req: Request) {
     // Log request details
     console.log(`Request URL: ${req.url}`);
     console.log(`Query parameters: ${JSON.stringify(Object.fromEntries(url.searchParams))}`);
-    logTwilio('VoiceTranscription', 'Query parameters', Object.fromEntries(url.searchParams));
     
     console.log(`Form data keys: ${Array.from(formData.keys()).join(', ')}`);
-    logTwilio('VoiceTranscription', `Form data keys: ${Array.from(formData.keys()).join(', ')}`);
     
     // Check if this is a direct call or a transcription result
     const speechResult = formData.get('SpeechResult') as string;
     
     // If it's a direct call (no speech result), start the greeting flow
     if (!speechResult && callSid) {
-      logTwilio('VoiceTranscription', 'Initial voice call detected - starting greeting flow');
+      console.log('[VoiceTranscription]', 'Initial voice call detected - starting greeting flow');
       
       // Validate required parameters
       if (!assistantId) {
-        logTwilioError('VoiceTranscription', 'Missing No-show parameter for initial voice call');
+        console.error('[VoiceTranscription]', 'Missing No-show parameter for initial voice call');
         return generateBasicVoiceResponse("I'm sorry, but this call is not properly configured. Please try again later.");
       }
       
@@ -43,12 +39,13 @@ export async function POST(req: Request) {
       try {
         supabase = await createClient();
       } catch (dbError) {
-        logTwilioError('VoiceTranscription', 'Failed to initialize Supabase client', dbError);
+        console.error('[VoiceTranscription]', 'Failed to initialize Supabase client', dbError);
         return generateBasicVoiceResponse("I'm sorry, we're experiencing technical difficulties. Please try again later.");
       }
       
       // Get assistant details
       const { data: assistant, error } = await supabase
+        .schema('assistants') // Added schema
         .from('assistants')
         .select(`
           id,
@@ -60,7 +57,7 @@ export async function POST(req: Request) {
         .single();
       
       if (error || !assistant) {
-        logTwilioError('VoiceTranscription', 'Failed to fetch assistant details', error);
+        console.error('[VoiceTranscription]', 'Failed to fetch assistant details', error);
         return generateBasicVoiceResponse("I'm sorry, I couldn't find the assistant you're trying to reach.");
       }
       
@@ -71,7 +68,7 @@ export async function POST(req: Request) {
     // Handle the speech recognition result
     if (speechResult) {
       console.log(`Transcribed speech: "${speechResult}"`);
-      logTwilio('VoiceTranscription', `Transcribed speech: "${speechResult}"`);
+      console.log('[VoiceTranscription]', `Transcribed speech: "${speechResult}"`);
       
       if (!assistantId || !from || !to) {
         console.error('Missing required parameters', { assistantId, from, to });
@@ -92,6 +89,7 @@ export async function POST(req: Request) {
       console.log(`Fetching assistant with ID: ${assistantId}`);
       
       const { data: assistant, error } = await supabase
+        .schema('assistants') // Added schema
         .from('assistants')
         .select(`
           id,
@@ -169,6 +167,7 @@ export async function POST(req: Request) {
           // Record the interaction in the database
           console.log('Saving voice interaction to database');
           const { error: insertError } = await supabase
+            .schema('analytics') // Added schema
             .from('interactions')
             .insert({
               user_id: assistant.user_id,
@@ -210,7 +209,7 @@ export async function POST(req: Request) {
       const speechError = formData.get('SpeechError') as string;
       if (speechError) {
         console.error(`Speech error reported by Twilio: ${speechError}`);
-        logTwilioError('VoiceTranscription', `Speech error reported by Twilio: ${speechError}`);
+        console.error('[VoiceTranscription]', `Speech error reported by Twilio: ${speechError}`);
       }
       
       // Generate TwiML for a simple reprompt without action URL
@@ -218,7 +217,7 @@ export async function POST(req: Request) {
     }
   } catch (error) {
     console.error('Error in voice transcription webhook:', error);
-    logTwilioError('VoiceTranscription', 'Error in webhook handler', error);
+    console.error('[VoiceTranscription]', 'Error in webhook handler', error);
     return generateVoiceResponse("I'm sorry, something went wrong. Please try again.");
   }
 }
@@ -233,7 +232,7 @@ function generateWelcomeWithGather(assistantName: string) {
   <Say voice="alice">I didn't hear anything. Please call again if you'd like to speak with me. Goodbye.</Say>
 </Response>`;
   
-  logTwimlResponse(twimlResponse);
+  console.log('[TwilioTwiML]', twimlResponse);
   
   return new Response(twimlResponse, {
     headers: { 'Content-Type': 'text/xml' }
@@ -244,7 +243,7 @@ function generateWelcomeWithGather(assistantName: string) {
 function generateVoiceResponseWithSimpleGather(message: string) {
   try {
     console.log(`Generating voice response with follow-up gather option`);
-    logTwilio('VoiceTranscription', `Generating voice response with follow-up gather option`);
+    console.log('[VoiceTranscription]', `Generating voice response with follow-up gather option`);
     
     // Sanitize the message for TwiML
     const sanitizedMessage = sanitizeMessage(message);
@@ -260,13 +259,13 @@ function generateVoiceResponseWithSimpleGather(message: string) {
   <Say voice="alice">Thank you for calling. Goodbye.</Say>
 </Response>`;
     
-    logTwimlResponse(twimlResponse);
+    console.log('[TwilioTwiML]', twimlResponse);
     return new Response(twimlResponse, {
       headers: { 'Content-Type': 'text/xml' }
     });
   } catch (error) {
     console.error('Error generating voice response with gather:', error);
-    logTwilioError('VoiceTranscription', 'Error generating voice response with gather', error);
+    console.error('[VoiceTranscription]', 'Error generating voice response with gather', error);
     
     // Fall back to simple response without gather
     return generateVoiceResponse(message);
@@ -283,7 +282,7 @@ function generateRepromptResponse() {
   <Say voice="alice">I still didn't hear anything. Please call back when you're ready to speak with me. Goodbye.</Say>
 </Response>`;
 
-  logTwimlResponse(twimlResponse);
+  console.log('[TwilioTwiML]', twimlResponse);
   return new Response(twimlResponse, {
     headers: { 'Content-Type': 'text/xml' }
   });
@@ -294,7 +293,7 @@ function truncateForVoice(message: string): string {
   // TwiML has limits on response size, so truncate if necessary
   // 1000 chars should be safe for most responses
   if (message.length > 1000) {
-    logTwilio('VoiceTranscription', `Truncating long response from ${message.length} to 1000 chars`);
+    console.log('[VoiceTranscription]', `Truncating long response from ${message.length} to 1000 chars`);
     return message.substring(0, 997) + "...";
   }
   return message;
@@ -304,7 +303,7 @@ function truncateForVoice(message: string): string {
 function generateVoiceResponse(message: string) {
   try {
     console.log(`Generating voice response with message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`);
-    logTwilio('VoiceTranscription', `Generating voice response: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`);
+    console.log('[VoiceTranscription]', `Generating voice response: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`);
     
     // Sanitize the message for TwiML
     const sanitizedMessage = sanitizeMessage(message);
@@ -317,7 +316,7 @@ function generateVoiceResponse(message: string) {
   <Say voice="alice">Thank you for calling. Goodbye.</Say>
 </Response>`;
     
-    logTwimlResponse(twimlResponse);
+    console.log('[TwilioTwiML]', twimlResponse);
     console.log(`Voice TwiML response length: ${twimlResponse.length} chars`);
     
     return new Response(twimlResponse, {
@@ -325,7 +324,7 @@ function generateVoiceResponse(message: string) {
     });
   } catch (error) {
     console.error('Error generating voice response:', error);
-    logTwilioError('VoiceTranscription', 'Error generating voice response', error);
+    console.error('[VoiceTranscription]', 'Error generating voice response', error);
     
     // Super simple fallback if everything else fails
     const fallbackResponse = `<?xml version="1.0" encoding="UTF-8"?>

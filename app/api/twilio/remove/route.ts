@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import Twilio from 'twilio';
-import { checkIsAdmin } from '@/utils/admin';
+import { isAdmin as checkIsAdmin } from '@/utils/admin'; // Renamed import
 
 const twilioClient = Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
@@ -13,9 +14,9 @@ export async function POST(req: NextRequest) {
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // Use the checkIsAdmin utility function
-  const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
+  const isUserAdmin = await checkIsAdmin(user.id); // Adjusted call
   
-  if (adminError || !isAdmin) {
+  if (!isUserAdmin) { // Adjusted condition
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
 

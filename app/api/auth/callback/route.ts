@@ -11,9 +11,10 @@ export async function GET(request: Request) {
     
     try {
       await supabase.auth.exchangeCodeForSession(code);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error exchanging code for session:', error);
-      return NextResponse.redirect(`${origin}/login?error=${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      return NextResponse.redirect(`${origin}/login?error=${errorMessage}`);
     }
   }
 

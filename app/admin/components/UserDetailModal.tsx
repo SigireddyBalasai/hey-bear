@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Database } from "@/lib/db.types";
+import type { Database } from "@/lib/db.types";
 
 // Use the same UserUsageStats type from UserUsageTable
 type UserUsageStats = Database['public']['Functions']['get_users_usage_stats']['Returns'][0] & {
@@ -47,7 +47,7 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
     if (!dateStr) return "N/A";
     try {
       return new Date(dateStr).toLocaleString();
-    } catch (e) {
+    } catch (_e) {
       return "Invalid date";
     }
   };
@@ -70,10 +70,10 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
             <h3 className="text-sm font-medium text-muted-foreground">User Information</h3>
             <div className="grid grid-cols-[20px_1fr] items-center gap-x-2 gap-y-1"></div>
               <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{userData.users?.full_name || "Unknown"}</span>
+              <span className="font-medium">{userData.users?.full_name ?? "Unknown"}</span>
               
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>{userData.users?.email || "No email"}</span>
+              <span>{userData.users?.email ?? "No email"}</span>
               
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
@@ -96,21 +96,21 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
               <div className="flex items-center gap-2">
                 <span>Messages:</span> 
                 <Badge variant="outline" className="font-mono">
-                  {userData.message_count || 0}
+                  {userData.message_count ?? 0}
                 </Badge>
               </div>
               
               <Zap className="h-4 w-4 text-muted-foreground" />
               <div>
                 <span>Token usage:</span>{" "}
-                <span className="font-mono">{Number(userData.token_usage || 0).toLocaleString()}</span>
+                <span className="font-mono">{Number(userData.token_usage ?? 0).toLocaleString()}</span>
               </div>
               
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               <div>
                 <span>Cost estimate:</span>{" "}
-                <span className={`font-mono ${Number(userData.cost_estimate || 0) > 1 ? "text-amber-600 font-semibold" : ""}`}>
-                  ${Number(userData.cost_estimate || 0).toFixed(2)}
+                <span className={`font-mono ${Number(userData.cost_estimate ?? 0) > 1 ? "text-amber-600 font-semibold" : ""}`}>
+                  ${Number(userData.cost_estimate ?? 0).toFixed(2)}
                 </span>
               </div>
             </div>

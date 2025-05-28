@@ -1,5 +1,5 @@
 "use client";
-
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -21,11 +21,30 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+type TwilioNumber = {
+  phoneNumber: string;
+  friendlyName: string;
+  sid: string;
+  capabilities?: {
+    voice?: boolean;
+    sms?: boolean;
+    mms?: boolean;
+  };
+};
+
+type DbNumber = {
+  id: string;
+  phone_number: string;
+  assigned_phone_number?: string;
+  friendly_name?: string;
+  sid?: string;
+};
+
 export function TwilioNumbersList() {
   const [isLoading, setIsLoading] = useState(true);
-  const [twilioNumbers, setTwilioNumbers] = useState<any[]>([]);
-  const [dbNumbers, setDbNumbers] = useState<any[]>([]);
-  const [unmanagedNumbers, setUnmanagedNumbers] = useState<any[]>([]);
+  const [twilioNumbers, setTwilioNumbers] = useState<TwilioNumber[]>([]);
+  const [dbNumbers, setDbNumbers] = useState<DbNumber[]>([]);
+  const [unmanagedNumbers, setUnmanagedNumbers] = useState<TwilioNumber[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -39,18 +58,18 @@ export function TwilioNumbersList() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch Twilio numbers');
+        throw new Error(errorData.error ?? 'Failed to fetch Twilio numbers');
       }
       
       const data = await response.json();
       
       if (!data.success) {
-        throw new Error(data.error || 'Unknown error');
+        throw new Error(data.error ?? 'Unknown error');
       }
       
-      setTwilioNumbers(data.twilioNumbers || []);
-      setDbNumbers(data.dbNumbers || []);
-      setUnmanagedNumbers(data.unmanagedNumbers || []);
+      setTwilioNumbers(data.twilioNumbers ?? []);
+      setDbNumbers(data.dbNumbers ?? []);
+      setUnmanagedNumbers(data.unmanagedNumbers ?? []);
     } catch (error) {
       console.error('Error fetching Twilio numbers:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
@@ -73,7 +92,7 @@ export function TwilioNumbersList() {
       const data = await response.json();
       
       if (!response.ok) {
-        const errorMessage = data.error || `Failed with status: ${response.status}`;
+        const errorMessage = data.error ?? `Failed with status: ${response.status}`;
         console.error('Import error:', data);
         throw new Error(errorMessage);
       }
@@ -194,7 +213,7 @@ export function TwilioNumbersList() {
                   </div>
                   <div className="divide-y max-h-96 overflow-y-auto">
                     {twilioNumbers.map((phone, index) => {
-                      const isInDatabase = dbNumbers.some(dbPhone => dbPhone.number === phone.phoneNumber);
+                      const isInDatabase = dbNumbers.some(dbPhone => dbPhone.phone_number === phone.phoneNumber);
                       
                       return (
                         <div key={index} className="grid grid-cols-4 px-4 py-3 items-center">

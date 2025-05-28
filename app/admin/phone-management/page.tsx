@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
+import { Loading } from '@/components/concierge/Loading';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../Concierge/Loading';
-import { AdminSidebar } from '../AdminSidebar';
-import { AdminHeader } from '../AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Button } from '@/components/ui/button';
-import { PhoneNumberManagement } from '../components/PhoneNumberManagement';
-import { TwilioNumbersList } from '../components/TwilioNumbersList';
-import { PhoneNumberSettings } from '../components/PhoneNumberSettings';
+import { PhoneNumberManagement } from '@/components/admin/PhoneNumberManagement';
+import { TwilioNumbersList } from '@/components/admin/TwilioNumbersList';
+import { PhoneNumberSettings } from '@/components/admin/PhoneNumberSettings';
 import { 
   Phone, 
   ChevronLeft, 
@@ -22,7 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from '@/components/ui/separator';
 
 export default function PhoneManagementPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [twilioConfigured, setTwilioConfigured] = useState(true);
@@ -32,51 +33,7 @@ export default function PhoneManagementPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  // Check if current user is an admin
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        setIsLoading(true);
-        
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          console.error('Error fetching user:', userError);
-          setUser(null);
-          router.push('/sign-in');
-          return;
-        }
-        
-        setUser(user);
-        
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from('users')
-          .select('is_admin')
-          .eq('auth_user_id', user.id)
-          .single();
-          
-        if (userDataError || !userData?.is_admin) {
-          setIsAdmin(false);
-          router.push('/');
-          return;
-        }
-        
-        setIsAdmin(true);
-        checkTwilioConfig();
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-        router.push('/');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    checkAdminStatus();
-  }, []);
-
-  // Check if Twilio is configured
-  const checkTwilioConfig = async () => {
+  const checkTwilioConfig = useCallback(async () => {
     setIsSettingsLoading(true);
     try {
       console.log('Checking Twilio configuration...');
@@ -89,7 +46,7 @@ export default function PhoneManagementPage() {
         if (data.success && data.settings) {
           setTwilioConfigured(!!data.settings.accountSid);
         } else {
-          setTwilioConfigured(false);
+          setTwilioConfigured(false); 
         }
       } else {
         console.error('Failed to fetch Twilio settings:', response.status);
@@ -101,8 +58,51 @@ export default function PhoneManagementPage() {
     } finally {
       setIsSettingsLoading(false);
     }
-  };
-  
+  }, []);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        setIsLoading(true);
+        
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          console.error('Error fetching user:', userError);
+          setUser(null);
+          void router.push('/sign-in');
+          return;
+        }
+        
+        setUser(user);
+        
+        // Fetch user record to check admin status
+        const { data: userData, error: userDataError } = await supabase
+          .schema('users')
+          .from('users')
+          .select('is_admin')
+          .eq('auth_user_id', user.id)
+          .single();
+          
+        if (userDataError || !userData?.is_admin) {
+          setIsAdmin(false);
+          void router.push('/');
+          return;
+        }
+        
+        setIsAdmin(true);
+        await checkTwilioConfig();
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        void router.push('/');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    void checkAdminStatus();
+  }, [router, checkTwilioConfig, supabase]);
+
   // Handle tab change
   const handleTabChange = (value: string) => {
     setActiveTab(value);

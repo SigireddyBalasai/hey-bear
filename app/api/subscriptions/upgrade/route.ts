@@ -1,17 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { stripe } from '@/lib/stripe';
+import { getStripeInstance } from '@/lib/stripe';
 import { headers } from 'next/headers';
 import { SUBSCRIPTION_PLANS } from '@/lib/stripe';
 
-// Helper function for type checking params.subscription
-const hasSubscription = (params: any): params is { subscription: { stripeSubscriptionId?: string, plan?: string } } => {
-  return typeof params === 'object' && 
-         params !== null && 
-         'subscription' in params && 
-         typeof params.subscription === 'object' &&
-         params.subscription !== null;
-};
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,6 +31,7 @@ export async function GET(req: NextRequest) {
 
     // Get the user record from users table
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('*')
       .eq('auth_user_id', user.id)
@@ -49,6 +44,7 @@ export async function GET(req: NextRequest) {
     
     // Fetch the assistant to check ownership and current plan
     const { data: assistantData, error: assistantError } = await supabase
+      .schema('assistants')
       .from('assistants')
       .select('*')
       .eq('id', assistantId)
@@ -65,22 +61,35 @@ export async function GET(req: NextRequest) {
     }
     
     // Check if the assistant already has a Business plan
-    if (hasSubscription(assistantData.params) && 
-        assistantData.params.subscription.plan === 'business') {
+    // Note: Since the database doesn't have a params field, we need to fetch subscription data separately
+    
+    // Fetch subscription data for the assistant
+    // Using a type assertion to bypass type constraints
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: subscriptionData } = await (supabase as any)
+      .from('assistant_subscriptions')
+      .select('plan_id')
+      .eq('assistant_id', assistantId)
+      .single();
+      
+    if (subscriptionData?.plan_id === 'business') {
       return NextResponse.json({ error: 'No-Show is already on the Business plan' }, { status: 400 });
     }
     
     // Create a new customer in Stripe or use existing one
     let customerId;
     
-    if (typeof userData.metadata === 'object' && 
-        userData.metadata !== null && 
-        'stripe_customer_id' in userData.metadata) {
+    const userDataWithStripe = userData as typeof userData & { stripe_customer_id?: string };
+    if (userDataWithStripe.stripe_customer_id) {
       // Use existing customer
-      customerId = userData.metadata.stripe_customer_id as string;
+      customerId = userDataWithStripe.stripe_customer_id;
     } else {
       // Create a new customer
-      const customer = await stripe?.customers.create({
+      const stripeInstance = getStripeInstance();
+      if (!stripeInstance) {
+        throw new Error('Could not initialize Stripe client');
+      }
+      const customer = await stripeInstance.customers.create({
         email: user.email,
         name: user.email, // Use email as name if full_name is not available
         metadata: {
@@ -91,14 +100,13 @@ export async function GET(req: NextRequest) {
       customerId = customer?.id;
       
       // Update user record with Stripe customer ID
+      // Use a type-safe approach since the stripe_customer_id field might not be in the type definition
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateData: any = { stripe_customer_id: customerId };
       await supabase
+        .schema('users')
         .from('users')
-        .update({
-          metadata: {
-            ...(typeof userData.metadata === 'object' && userData.metadata !== null ? userData.metadata : {}),
-            stripe_customer_id: customerId
-          }
-        })
+        .update(updateData)
         .eq('id', userData.id);
     }
     
@@ -108,12 +116,25 @@ export async function GET(req: NextRequest) {
     
     // Check if there's an existing subscription to cancel
     let existingSubscriptionId;
-    if (hasSubscription(assistantData.params)) {
-      existingSubscriptionId = assistantData.params.subscription.stripeSubscriptionId;
+    // Fetch subscription data for the assistant if available - use type assertion
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingSubscription } = await (supabase as any)
+      .from('assistant_subscriptions')
+      .select('stripe_subscription_id')
+      .eq('assistant_id', assistantId)
+      .single();
+      
+    // Safe type checking
+    if (existingSubscription && typeof existingSubscription === 'object' && 'stripe_subscription_id' in existingSubscription) {
+      existingSubscriptionId = existingSubscription.stripe_subscription_id;
     }
     
     // Create a checkout session for the Business plan
-    const session = await stripe?.checkout.sessions.create({
+    const stripeInstance = getStripeInstance();
+    if (!stripeInstance) {
+      throw new Error('Could not initialize Stripe client');
+    }
+    const session = await stripeInstance.checkout.sessions.create({
       customer: customerId,
       line_items: [
         {
@@ -152,11 +173,12 @@ export async function GET(req: NextRequest) {
     // Redirect to the checkout page
     return NextResponse.redirect(session?.url || `${origin}/Concierge?error=checkout_failed`);
     
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Plan upgrade error:', error);
     return NextResponse.json({ 
       error: 'Failed to create upgrade session',
-      details: error.message 
+      details: errorMessage 
     }, { status: 500 });
   }
 }

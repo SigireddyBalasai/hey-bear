@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import { createClient } from '@/utils/supabase/server';
-import { checkIsAdmin } from '@/utils/admin';
+import { isAdmin as checkIsAdmin } from '@/utils/admin'; // Renamed import
 
 // Initialize Twilio client
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -18,15 +18,15 @@ export async function POST(request: Request) {
     }
 
     // Use the checkIsAdmin utility function
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
+    const isUserAdmin = await checkIsAdmin(user.id); // Adjusted call
     
-    if (adminError || !isAdmin) {
+    if (!isUserAdmin) { // Adjusted condition
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Parse request body
     const body = await request.json();
-    const { twilioSid, phoneNumber, adminId } = body;
+    const { twilioSid, phoneNumber, adminId: _adminId } = body;
 
     if (!twilioSid && !phoneNumber) {
       return NextResponse.json(
@@ -78,12 +78,12 @@ export async function POST(request: Request) {
       success: true,
       message: 'Phone number released successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error releasing phone number:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to release phone number'
+        error: error instanceof Error ? error.message : 'Failed to release phone number'
       },
       { status: 500 }
     );

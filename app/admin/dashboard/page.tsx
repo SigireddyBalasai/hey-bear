@@ -1,10 +1,11 @@
 "use client";
-
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Loading } from '../../Concierge/Loading';
+import { Loading } from '@/components/concierge/Loading';
 import { DollarSign, Users, MessageSquare, Activity } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,10 @@ import {
   Legend 
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
-import { AdminHeader } from '../components/AdminHeader';
-import { AdminSidebar } from '../components/AdminSidebar';
-import { TwilioIntegrationStatus } from '../components/TwilioIntegrationStatus';
-import { UnassignedNumbersWidget } from '../UnassignedNumbersWidget';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { TwilioIntegrationStatus } from '@/components/admin/TwilioIntegrationStatus';
+import { UnassignedNumbersWidget } from '@/components/admin/UnassignedNumbersWidget';
 
 // Register Chart.js components
 ChartJS.register(
@@ -38,15 +39,52 @@ ChartJS.register(
   Legend
 );
 
+// Define UsageChartItem type
+type UsageChartItem = {
+  date: string;
+  count: number;
+  tokens: number;
+  cost: number;
+};
+
+interface DashboardData {
+  usageChart: Array<UsageChartItem>; // Use UsageChartItem here
+  users?: { // Made optional
+    total: number;
+    activeToday: number;
+    activeThisWeek: number;
+  };
+  usage?: { // Made optional
+    totalMessages: number;
+    totalCost: number;
+  };
+}
+
 export default function AdminDashboardPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
   
   const router = useRouter();
   const supabase = createClient();
+
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await fetch('/api/admin/dashboard');
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+      const data = await response.json();
+      setDashboardData(data);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    }
+  }, [user?.id]);
 
   // Check if the current user is an admin
   useEffect(() => {
@@ -67,12 +105,13 @@ export default function AdminDashboardPage() {
         
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
+          .schema('users')
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)
           .single();
           
-        if (userDataError || !userData?.is_admin) {
+        if (userDataError || !userData.is_admin) {
           toast("Access Denied", {
             description: "You don't have permission to access the admin dashboard",
           });
@@ -83,7 +122,7 @@ export default function AdminDashboardPage() {
         
         setIsAdmin(true);
         
-        // Fetch dashboard data
+        // Fetch dashboard data once we know user is admin
         await fetchDashboardData();
         
       } catch (error) {
@@ -94,24 +133,8 @@ export default function AdminDashboardPage() {
       }
     };
     
-    checkAdminStatus();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      const response = await fetch('/api/admin/dashboard-summary');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-      
-      const data = await response.json();
-      setDashboardData(data);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    }
-  };
+    void checkAdminStatus();
+  }, [router, fetchDashboardData, supabase]); // Added supabase to dependency array
 
   // Fetch usage data for different timeframe
   const fetchTimeframeData = async (timeframe: string) => {
@@ -136,31 +159,18 @@ export default function AdminDashboardPage() {
       }>;
     }
 
-    // Define the shape of the dashboard data
-    interface DashboardData {
-      users?: {
-        total: number;
-        activeToday: number;
-        activeThisWeek: number;
-      };
-      usage?: {
-        totalMessages: number;
-        totalCost: number;
-      };
-      usageChart: Array<{
-        date: string;
-        count: number;
-        tokens: number;
-        cost: number;
-      }>;
-    }
-
     const data = await response.json() as TimeSeriesResponse;
     
-    setDashboardData((prev: DashboardData | null) => ({
-      ...prev,
-      usageChart: data.timeSeriesData
-    }));
+    setDashboardData((prev: DashboardData | null) => {
+      const newUsageChart = data.timeSeriesData;
+      // Explicitly construct the new state to align with DashboardData type
+      const result: DashboardData = {
+        usageChart: newUsageChart,
+        users: prev?.users,
+        usage: prev?.usage,
+      };
+      return result;
+    });
     } catch (error) {
       console.error('Error fetching timeframe data:', error);
       toast.error('Failed to load usage data');
@@ -179,20 +189,20 @@ export default function AdminDashboardPage() {
     }
     
     return {
-      labels: dashboardData.usageChart.map((item: any) => {
+      labels: dashboardData.usageChart.map((item: UsageChartItem) => { // Typed item
         const date = new Date(item.date);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       }),
       datasets: [
         {
           label: 'Message Count',
-          data: dashboardData.usageChart.map((item: any) => item.count),
+          data: dashboardData.usageChart.map((item: UsageChartItem) => item.count), // Typed item
           borderColor: 'rgb(53, 162, 235)',
           backgroundColor: 'rgba(53, 162, 235, 0.5)',
         },
         {
           label: 'Token Usage (hundreds)',
-          data: dashboardData.usageChart.map((item: any) => item.tokens / 100),
+          data: dashboardData.usageChart.map((item: UsageChartItem) => item.tokens / 100), // Typed item
           borderColor: 'rgb(255, 99, 132)',
           backgroundColor: 'rgba(255, 99, 132, 0.5)',
         }
@@ -227,9 +237,9 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-                <h3 className="text-2xl font-bold">{dashboardData?.users?.total || 0}</h3>
+                <h3 className="text-2xl font-bold">{dashboardData?.users?.total ?? 0}</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {dashboardData?.users?.activeToday || 0} active today
+                  {dashboardData?.users?.activeToday ?? 0} active today
                 </p>
               </div>
               <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -242,7 +252,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Users</p>
-                <h3 className="text-2xl font-bold">{dashboardData?.users?.activeThisWeek || 0}</h3>
+                <h3 className="text-2xl font-bold">{dashboardData?.users?.activeThisWeek ?? 0}</h3>
                 <p className="text-xs text-muted-foreground mt-1">Last 7 days</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
@@ -255,7 +265,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Messages</p>
-                <h3 className="text-2xl font-bold">{dashboardData?.usage?.totalMessages || 0}</h3>
+                <h3 className="text-2xl font-bold">{dashboardData?.usage?.totalMessages ?? 0}</h3>
                 <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center">
@@ -269,7 +279,7 @@ export default function AdminDashboardPage() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Cost Estimate</p>
                 <h3 className="text-2xl font-bold">
-                  ${(dashboardData?.usage?.totalCost || 0).toFixed(2)}
+                  ${(dashboardData?.usage?.totalCost ?? 0).toFixed(2)}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
               </div>
@@ -360,14 +370,14 @@ export default function AdminDashboardPage() {
                 <div className="h-80">
                   <Bar 
                     data={{
-                      labels: (dashboardData?.usageChart || []).map((item: any) => {
+                      labels: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => { // Typed item
                         const date = new Date(item.date);
                         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       }),
                       datasets: [
                         {
                           label: 'Token Usage',
-                          data: (dashboardData?.usageChart || []).map((item: any) => item.tokens),
+                          data: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => item.tokens), // Typed item
                           backgroundColor: 'rgba(53, 162, 235, 0.7)',
                           borderRadius: 4,
                         }
@@ -389,23 +399,21 @@ export default function AdminDashboardPage() {
             
             <TabsContent value="costs" className="space-y-4">
               <Card className="p-6 shadow-sm">
-                <h3 className="text-lg font-medium mb-2">Estimated Costs</h3>
-                <p className="text-muted-foreground mb-6 text-sm">Daily cost estimates based on token usage</p>
+                <h3 className="text-lg font-medium mb-2">Cost Breakdown</h3>
+                <p className="text-muted-foreground mb-6 text-sm">Estimated costs over time</p>
                 <div className="h-80">
-                  <Line 
+                  <Bar 
                     data={{
-                      labels: (dashboardData?.usageChart || []).map((item: any) => {
+                      labels: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => { // Typed item
                         const date = new Date(item.date);
                         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       }),
                       datasets: [
                         {
-                          label: 'Daily Cost ($)',
-                          data: (dashboardData?.usageChart || []).map((item: any) => item.cost),
-                          borderColor: 'rgb(255, 159, 64)',
-                          backgroundColor: 'rgba(255, 159, 64, 0.5)',
-                          tension: 0.3,
-                          fill: true,
+                          label: 'Estimated Cost ($)',
+                          data: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => item.cost), // Typed item
+                          backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                          borderRadius: 4,
                         }
                       ]
                     }}
@@ -414,21 +422,7 @@ export default function AdminDashboardPage() {
                       maintainAspectRatio: false,
                       scales: {
                         y: {
-                          beginAtZero: true,
-                          ticks: {
-                            callback: function(value) {
-                              return '$' + value;
-                            }
-                          }
-                        }
-                      },
-                      plugins: {
-                        tooltip: {
-                          callbacks: {
-                            label: function(context) {
-                              return `Cost: $${context.raw}`;
-                            }
-                          }
+                          beginAtZero: true
                         }
                       }
                     }}

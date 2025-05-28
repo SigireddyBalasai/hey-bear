@@ -14,6 +14,7 @@ export async function POST(req: Request) {
 
     // Check admin status
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('is_admin, id')
       .eq('auth_user_id', user.id)
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
 
       // Log the purchase as an interaction for auditing
       await supabase
+        .schema('analytics')
         .from('interactions')
         .insert({
           user_id: userData.id,
@@ -109,22 +111,24 @@ export async function POST(req: Request) {
           friendlyName: purchasedNumber.friendlyName
         }
       });
-    } catch (twilioError: any) {
+    } catch (twilioError: unknown) {
       console.error('Twilio API error when purchasing number:', twilioError);
+      const errorMessage = twilioError instanceof Error ? twilioError.message : 'Unknown Twilio error';
       return NextResponse.json(
         { 
           success: false, 
-          error: `Twilio API Error: ${twilioError.message}`
+          error: `Twilio API Error: ${errorMessage}`
         },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error purchasing phone number:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to purchase phone number';
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to purchase phone number'
+        error: errorMessage
       },
       { status: 500 }
     );

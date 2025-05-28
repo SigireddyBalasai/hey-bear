@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-
+import React from 'react';
 export const metadata: Metadata = {
   title: 'Admin Dashboard | Hey Bear',
   description: 'Admin dashboard for Hey Bear application',

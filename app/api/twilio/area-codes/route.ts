@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { checkIsAdmin } from '@/utils/admin';
+import { isAdmin as checkIsAdmin } from '@/utils/admin'; // Renamed import
 import twilio from 'twilio';
 
 // Simplified API that returns flat area code data for the UI to sort and group
@@ -15,9 +15,9 @@ export async function POST(request: Request) {
     }
 
     // Use the checkIsAdmin utility function instead of direct database query
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
+    const isUserAdmin = await checkIsAdmin(user.id); // Adjusted call
     
-    if (adminError || !isAdmin) {
+    if (!isUserAdmin) { // Adjusted condition
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -57,12 +57,12 @@ export async function POST(request: Request) {
       success: true,
       areaCodes,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching area codes:', error);
     
     // If Twilio API isn't available or configured, return empty results
-    if (error.code === 'ECONNREFUSED' || 
-        error.message.includes('Twilio') || 
+    if ((error && typeof error === 'object' && 'code' in error && error.code === 'ECONNREFUSED') || 
+        (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.includes('Twilio')) || 
         !process.env.TWILIO_ACCOUNT_SID) {
       return NextResponse.json({
         success: true,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to fetch area codes'
+        error: (error instanceof Error ? error.message : 'Failed to fetch area codes')
       },
       { status: 500 }
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,7 +73,7 @@ export function PhoneNumberSettings() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `Error ${response.status}: Failed to load settings`);
+        throw new Error(errorData.error ?? `Error ${response.status}: Failed to load settings`);
       }
       
       const data = await response.json();
@@ -112,7 +112,7 @@ export function PhoneNumberSettings() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save settings');
+        throw new Error(errorData.error ?? 'Failed to save settings');
       }
 
       toast.success('Twilio settings saved successfully');
@@ -145,12 +145,12 @@ export function PhoneNumberSettings() {
       if (response.ok && data.success) {
         setTestResult({
           success: true,
-          message: `Connected successfully! Account: ${data.accountName || 'Verified'}`
+          message: `Connected successfully! Account: ${data.accountName ?? 'Verified'}`
         });
       } else {
         setTestResult({
           success: false,
-          message: data.error || 'Failed to connect to Twilio API'
+          message: data.error ?? 'Failed to connect to Twilio API'
         });
       }
     } catch (error) {

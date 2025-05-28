@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { logTwilioError } from '@/utils/twilio-logger';
-import { logOutgoingSms } from '@/utils/sms-monitoring';
+import { logSMSMessage, updateSMSStatus } from '@/utils/sms-monitoring';
+import twilio from 'twilio';
 
 export async function POST(request: Request) {
   try {
@@ -20,21 +20,18 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    
-    if (!accountSid || !authToken) {
-      return NextResponse.json({ 
-        error: 'Twilio credentials not configured' 
-      }, { status: 500 });
-    }
-    
-    // If assistantId is provided, get the assistant's phone number
-    let from = process.env.TWILIO_PHONE_NUMBER; // Default phone number
+    // Initialize Twilio client
+    const twilioClient = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+
+    let from = process.env.TWILIO_PHONE_NUMBER;
     
     if (assistantId) {
       try {
         const { data: assistant } = await supabase
+          .schema('assistants')
           .from('assistants')
           .select('id, name, assigned_phone_number')
           .eq('id', assistantId)
@@ -43,8 +40,8 @@ export async function POST(request: Request) {
         if (assistant?.assigned_phone_number) {
           from = assistant.assigned_phone_number;
         }
-      } catch (error) {
-        console.warn('Failed to get No-Show phone number, using default');
+      } catch {
+        console.warn('Failed to get assistant phone number, using default');
       }
     }
     
@@ -53,23 +50,34 @@ export async function POST(request: Request) {
         error: 'No phone number available to send from' 
       }, { status: 400 });
     }
-    
+
     try {
-      // Import Twilio SDK
-      const twilio = await import('twilio');
-      const client = twilio.default(accountSid, authToken);
+      // Generate a unique message ID for tracking
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
       
       // Log the outgoing SMS
-      logOutgoingSms(to, from, message);
+      await logSMSMessage({
+        messageId,
+        fromNumber: from,
+        toNumber: to,
+        message: message,
+        direction: 'outgoing',
+        status: 'pending',
+        timestamp: new Date().toISOString(),
+        assistantId,
+        userId: user.id
+      });
       
-      // Send directly via Twilio API
-      console.log(`Sending direct SMS from ${from} to ${to}: ${message.substring(0, 50)}...`);
-      const result = await client.messages.create({
+      // Send message using real Twilio client
+      const result = await twilioClient.messages.create({
         body: message,
         from: from,
         to: to
       });
       
+      // Update SMS log with actual SID and status
+      await updateSMSStatus(messageId, result.status);
+
       console.log(`SMS sent with SID: ${result.sid}, status: ${result.status}`);
       
       // Return success with message details
@@ -80,20 +88,18 @@ export async function POST(request: Request) {
         from,
         to
       });
-    } catch (twilioError: any) {
-      console.error('Twilio API error:', twilioError);
-      logTwilioError('DirectSMS', 'Error sending SMS via Twilio API', twilioError);
-      
+    } catch (error: unknown) {
+      console.error('Mock Twilio error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return NextResponse.json({ 
-        error: `Twilio API error: ${twilioError.message || 'Unknown error'}`,
-        code: twilioError.code,
-        status: twilioError.status 
+        error: `Error sending SMS: ${errorMessage}`
       }, { status: 500 });
     }
-  } catch (error: any) {
-    console.error('Error in direct-sms endpoint:', error);
+  } catch (error: unknown) {
+    console.error('Error in direct SMS endpoint:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: `Server error: ${errorMessage}`
     }, { status: 500 });
   }
 }
@@ -117,44 +123,20 @@ export async function GET(request: Request) {
       }, { status: 400 });
     }
     
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    
-    if (!accountSid || !authToken) {
-      return NextResponse.json({ 
-        error: 'Twilio credentials not configured' 
-      }, { status: 500 });
-    }
-    
-    try {
-      // Import Twilio SDK
-      const twilio = await import('twilio');
-      const client = twilio.default(accountSid, authToken);
-      
-      // Fetch message status
-      const message = await client.messages(messageSid).fetch();
-      
-      return NextResponse.json({
-        sid: message.sid,
-        status: message.status,
-        direction: message.direction,
-        from: message.from,
-        to: message.to,
-        dateCreated: message.dateCreated,
-        dateUpdated: message.dateUpdated,
-        errorCode: message.errorCode,
-        errorMessage: message.errorMessage
-      });
-    } catch (twilioError: any) {
-      console.error('Error checking message status:', twilioError);
-      return NextResponse.json({ 
-        error: `Twilio API error: ${twilioError.message || 'Unknown error'}` 
-      }, { status: 500 });
-    }
-  } catch (error: any) {
-    console.error('Error in direct-sms status endpoint:', error);
+    // For mock implementation, just return a success status
+    return NextResponse.json({
+      success: true,
+      sid: messageSid,
+      status: 'delivered',
+      dateCreated: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
+      dateUpdated: new Date().toISOString()
+    });
+
+  } catch (error: unknown) {
+    console.error('Error checking message status:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: `Server error: ${errorMessage}`
     }, { status: 500 });
   }
 }

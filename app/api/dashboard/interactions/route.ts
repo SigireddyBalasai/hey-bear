@@ -1,21 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
-
-// Define the Interaction interface
-export interface Interaction {
-  id: string;
-  date: string;
-  phoneNumber: string;
-  message: string;
-  response: string;
-  type: string;
-  responseTime: string;
-  assistant_id: string | undefined;
-  user_id: string | undefined;
-  duration: number | undefined;
-  interaction_time: string | undefined;
-  chat: string | null | undefined; // Modified to accept null values
-}
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
+import type { TransformedInteraction } from '@/app/dashboard/types';
 
 // Helper function to format response time
 function formatResponseTime(durationMs: number): string {
@@ -44,8 +30,9 @@ export async function GET(req: NextRequest) {
 
     // Start building the query
     let query = supabase
+      .schema('analytics')
       .from('interactions')
-      .select('*, assistants(name)')
+      .select('*')
       .order('interaction_time', { ascending: false });
 
     // Apply filters if provided
@@ -57,10 +44,21 @@ export async function GET(req: NextRequest) {
       query = query.or(`request.ilike.%${searchTerm}%,response.ilike.%${searchTerm}%`);
     }
 
-    // Get the total count first
-    const { count, error: countError } = await supabase
+    // Get the total count with the same filters applied
+    let countQuery = supabase
+      .schema('analytics')
       .from('interactions')
       .select('id', { count: 'exact', head: true });
+
+    if (assistantId) {
+      countQuery = countQuery.eq('assistant_id', assistantId);
+    }
+
+    if (searchTerm) {
+      countQuery = countQuery.or(`request.ilike.%${searchTerm}%,response.ilike.%${searchTerm}%`);
+    }
+
+    const { count, error: countError } = await countQuery;
 
     if (countError) {
       throw countError;
@@ -77,8 +75,8 @@ export async function GET(req: NextRequest) {
       throw error;
     }
 
-    // Transform to Interaction format
-    const interactions: Interaction[] = (chatData || []).map(chat => {
+    // Transform to TransformedInteraction format
+    const interactions: TransformedInteraction[] = (chatData || []).map(chat => {
       const date = new Date(chat.interaction_time || new Date());
       const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().substring(2)}`;
       
@@ -110,7 +108,9 @@ export async function GET(req: NextRequest) {
         user_id: chat.user_id ?? undefined,
         duration: chat.duration ?? undefined,
         interaction_time: chat.interaction_time ?? undefined,
-        chat: chat.chat // Allow null values
+        chat: chat.chat,
+        assistant_name: null,
+        status: 'Completed',
       };
     });
 

@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Search, Calendar, Filter, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import FilterComponent from './FilterComponent';
-import StatCard from './StatCard';
-import PlanUsage from './PlanUsage';
-import InteractionLog from './InteractionLog';
-import { useData } from './DataContext';
+import FilterComponent from '@/components/dashboard/FilterComponent';
+import StatCard from '@/components/dashboard/StatCard';
+import PlanUsage from '@/components/dashboard/PlanUsage';
+import InteractionLog from '@/components/dashboard/InteractionLog';
+import { useData } from '@/components/dashboard/DataContext';
 import { createClient } from '@/utils/supabase/client';
 import { 
   Select,
@@ -21,7 +21,7 @@ import {
 
 const ConciergeInteractionDashboard = () => {
   const { 
-    allInteractions, 
+    allInteractions: _allInteractions, // Not used directly, InteractionLog fetches its own data
     stats, 
     dateRange, 
     isLoading, 
@@ -31,7 +31,7 @@ const ConciergeInteractionDashboard = () => {
     setCurrentPage,
     searchTerm,
     setSearchTerm,
-    totalItems,
+    totalItems: _totalItems, 
     totalPages: apiTotalPages,
     fetchInteractions,
     pageSize,
@@ -41,8 +41,8 @@ const ConciergeInteractionDashboard = () => {
   
   const [activeTab, setActiveTab] = useState('table');
   const [showFilters, setShowFilters] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [assistantName, setAssistantName] = useState('');
+  const [_userName, setUserName] = useState('');
+  const [_assistantName, setAssistantName] = useState('');
   
   const supabase = createClient();
   
@@ -62,9 +62,9 @@ const ConciergeInteractionDashboard = () => {
       
       if (user) {
         // Use the user's name from their profile data - could be from Google login
-        if (user.user_metadata && user.user_metadata.full_name) {
+        if (user.user_metadata?.full_name) {
           setUserName(user.user_metadata.full_name);
-        } else if (user.user_metadata && user.user_metadata.name) {
+        } else if (user.user_metadata?.name) {
           setUserName(user.user_metadata.name);
         } else {
           setUserName('User');
@@ -73,6 +73,7 @@ const ConciergeInteractionDashboard = () => {
         // If assistantId is available, fetch the assistant's name
         if (assistantId) {
           const { data, error } = await supabase
+            .schema('assistants')
             .from('assistants')
             .select('name')
             .eq('id', assistantId)
@@ -96,7 +97,7 @@ const ConciergeInteractionDashboard = () => {
       searchTerm: searchTerm,
       assistantId: assistantId || undefined // Pass assistantId here
     });
-  }, [currentPage, pageSize, searchTerm, assistantId]);
+  }, [currentPage, pageSize, searchTerm, assistantId, fetchInteractions]);
   
   useEffect(() => {
     setCurrentPage(1); // Reset to page 1 when changing page size
@@ -113,7 +114,7 @@ const ConciergeInteractionDashboard = () => {
     setPageSize(Number(value));
   };
 
-  const getPaginationNumbers = () => {
+  const _getPaginationNumbers = () => {
     const result = [];
     
     result.push(1);
@@ -244,28 +245,28 @@ const ConciergeInteractionDashboard = () => {
           title="Total Interactions" 
           value={stats.totalInteractions} 
           description="Total messages or requests received by your No-show"
-          loading={isLoading}
+          isLoading={isLoading} // Changed from loading
         />
         
         <StatCard 
           title="Active Contacts" 
           value={stats.activeContacts} 
           description="Unique phone numbers that have interacted with your No-show"
-          loading={isLoading}
+          isLoading={isLoading} // Changed from loading
         />
         
         <StatCard 
           title="Interactions Per Contact" 
           value={stats.interactionsPerContact.toFixed(1)} 
           description="Average number of interactions per unique contact"
-          loading={isLoading}
+          isLoading={isLoading} // Changed from loading
         />
         
         <StatCard 
           title="Average Response Time" 
           value={stats.averageResponseTime} 
           description="Average time for your No-show to respond to a message"
-          loading={isLoading}
+          isLoading={isLoading} // Changed from loading
         />
       </div>
 
@@ -311,17 +312,12 @@ const ConciergeInteractionDashboard = () => {
         </div>
         
         <InteractionLog 
-          isLoading={isLoading} 
-          interactions={allInteractions} 
+          loading={isLoading} 
           activeTab={activeTab} 
           setActiveTab={handleTabChange} 
-          startIndex={0} // Not needed with API pagination
-          endIndex={allInteractions.length} // Not needed with API pagination
-          allInteractions={allInteractions} 
           currentPage={currentPage} 
           totalPages={apiTotalPages} 
-          changePage={changePage} 
-          getPaginationNumbers={getPaginationNumbers} 
+          onPageChange={changePage}
         />
       </div>
     </div>

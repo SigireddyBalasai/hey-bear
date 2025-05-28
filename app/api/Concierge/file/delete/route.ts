@@ -1,6 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
+import type { PostgrestError } from '@supabase/supabase-js';
+import type { Database } from '@/lib/db.types'; // Import Database type
+
+// Define the type for the data expected from Supabase using db.types.ts
+type AssistantConfigFromDb = Database['assistants']['Tables']['assistant_configs']['Row'];
+type AssistantFromDb = Database['assistants']['Tables']['assistants']['Row'];
+
+type TypedAssistantWithSpecificConfig = AssistantFromDb & {
+  // !inner join in select means assistant_configs object is expected
+  assistant_configs: AssistantConfigFromDb; // Changed from Pick to full type
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,21 +42,37 @@ export async function POST(req: NextRequest) {
     let assistantPineconeName = pinecone_name;
     
     if (!assistantPineconeName) {
-      // Fetch the assistant from the database
       const { data: assistantData, error: assistantError } = await supabase
+        .schema('assistants')
         .from('assistants')
-        .select('pinecone_name')
+        .select('id, assistant_configs!inner(*)') // Fetch all columns from assistant_configs
         .eq('id', assistantId)
-        .single();
+        .single<TypedAssistantWithSpecificConfig>(); // Use the new type
       
-      if (assistantError || !assistantData) {
-        console.error('Error fetching No-Show:', assistantError);
-        return NextResponse.json({ error: 'No-Show not found' }, { status: 404 });
+      if (assistantError) {
+        console.error('Error fetching assistant data or configuration:', assistantError);
+        const errorCode = (assistantError as PostgrestError)?.code;
+        return NextResponse.json({ error: 'Failed to fetch assistant configuration', details: assistantError.message }, { status: errorCode === 'PGRST116' ? 404 : 500 });
+      }
+
+      if (!assistantData) {
+          console.error('Assistant data is unexpectedly null after a successful query for ID:', assistantId);
+          return NextResponse.json({ error: 'Assistant not found (unexpected null data)' }, { status: 404 });
       }
       
-      assistantPineconeName = assistantData.pinecone_name;
-      if (!assistantPineconeName) {
-        return NextResponse.json({ error: 'Invalid No-Show configuration' }, { status: 500 });
+      // assistant_configs is guaranteed by !inner join and TypedAssistantWithSpecificConfig type.
+      // pinecone_name itself can be null in the database.
+      const fetchedPineconeName = assistantData.assistant_configs.pinecone_name;
+
+      if (fetchedPineconeName) {
+        assistantPineconeName = fetchedPineconeName;
+      } else {
+        // This branch means pinecone_name was explicitly NULL in the database.
+        console.warn(`pinecone_name is null in assistant_configs for assistant ID: ${assistantId}. Fetched data:`, assistantData);
+      }
+
+      if (!assistantPineconeName) { // True if pinecone_name from body was falsy AND fetchedPineconeName was null
+        return NextResponse.json({ error: 'Pinecone configuration (pinecone_name) not found for assistant.' }, { status: 500 });
       }
     }
     
@@ -62,15 +90,23 @@ export async function POST(req: NextRequest) {
         message: 'File deletion initiated',
         fileId: fileId
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting file:', error);
+      let errorMessage = 'An unknown error occurred';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       return NextResponse.json(
-        { error: `Failed to delete file: ${error.message}` }, 
+        { error: `Failed to delete file: ${errorMessage}` }, 
         { status: 500 }
       );
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('Unexpected error:', e);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    let errorMessage = 'An internal server error occurred';
+    if (e instanceof Error) {
+      errorMessage = e.message;
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

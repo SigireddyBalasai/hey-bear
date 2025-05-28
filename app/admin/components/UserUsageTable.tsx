@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -43,18 +43,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Database } from "@/lib/db.types";
 
-// Define a type for the user stats return type from the database function
-type UserUsageStats = Database['public']['Functions']['get_users_usage_stats']['Returns'][0] & {
+// Define a type for the user stats directly
+interface UserUsageStats {
+  id?: string;
+  user_id?: string;
   users?: {
-    full_name?: string;
-    email?: string;
+    full_name?: string | null | undefined; // Allow null or undefined
+    email?: string | null | undefined;     // Allow null or undefined
+    created_at?: string | null | undefined; // Allow null or undefined
+    last_active?: string | null | undefined; // Allow null or undefined
   };
-  date?: string;
+  date?: string | null | undefined; // Allow null or undefined
   message_count?: number;
-  id?: string; // Add id property to fix the key error
-};
+  token_usage?: number;
+  cost_estimate?: number;
+}
 
 interface UserUsageTableProps {
   usageData: UserUsageStats[];
@@ -84,8 +88,8 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
       // Guard against missing data
       if (!item.users) return false;
       
-      const email = item.users?.email || '';
-      const fullName = item.users?.full_name || '';
+      const email = item.users.email ?? '';
+      const fullName = item.users.full_name ?? '';
       
       return email.toLowerCase().includes(searchTerm.toLowerCase()) || 
              fullName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -98,8 +102,8 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
       }
       
       if (sortField === 'user') {
-        const nameA = a.users?.full_name?.toLowerCase() || '';
-        const nameB = b.users?.full_name?.toLowerCase() || '';
+        const nameA = a.users?.full_name?.toLowerCase() ?? '';
+        const nameB = b.users?.full_name?.toLowerCase() ?? '';
         return sortDirection === 'asc' 
           ? nameA.localeCompare(nameB)
           : nameB.localeCompare(nameA);
@@ -107,14 +111,14 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
       
       if (sortField === 'messages' || sortField === 'tokens' || sortField === 'cost') {
         const fieldMap: Record<string, keyof UserUsageStats> = {
-          'messages': 'interactions_count', // Note the 's' in interactions_count
-          'tokens': 'input_tokens', // Using input_tokens as base measure
+          'messages': 'message_count', // Note the 's' in interactions_count
+          'tokens': 'token_usage', // Using input_tokens as base measure
           'cost': 'cost_estimate'
         };
         
         const field = fieldMap[sortField];
-        const valueA = Number(a?.[field] || 0);
-        const valueB = Number(b?.[field] || 0);
+        const valueA = Number(a?.[field] ?? 0);
+        const valueB = Number(b?.[field] ?? 0);
         
         return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       }
@@ -130,7 +134,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
   };
   
   // Get initials
-  const getInitials = (name: string = '') => {
+  const getInitials = (name?: string | null) => { // Allow name to be string, null, or undefined
     if (!name) return 'UN';
     
     return name
@@ -142,7 +146,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
   };
 
   // Format date safely
-  const formatDate = (dateStr?: string) => {
+  const formatDate = (dateStr?: string | null) => { // Allow null for dateStr
     if (!dateStr) return {
       short: 'N/A',
       year: ''
@@ -154,7 +158,8 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
         short: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         year: date.toLocaleDateString('en-US', { year: 'numeric' })
       };
-    } catch (_) {
+    } catch (error) { // Changed _ to error
+      console.error("Error formatting date:", error); // Optional: log the error
       return { short: 'Invalid date', year: '' };
     }
   };
@@ -239,14 +244,14 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8 border">
-                        <AvatarImage src="" alt={item.users?.full_name || "User"} />
+                        <AvatarImage src="" alt={item.users?.full_name ?? "User"} />
                         <AvatarFallback className="text-xs">
                           {getInitials(item.users?.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{item.users?.full_name || "Unknown"}</div>
-                        <div className="text-xs text-muted-foreground">{item.users?.email || "No email"}</div>
+                        <div className="font-medium">{item.users?.full_name ?? "Unknown"}</div>
+                        <div className="text-xs text-muted-foreground">{item.users?.email ?? "No email"}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -258,15 +263,15 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge variant={item.message_count && item.message_count > 50 ? "default" : "outline"} className="font-mono">
-                      {item.message_count || 0}
+                      {item.message_count ?? 0}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {(item.token_usage || 0).toLocaleString()}
+                    {(item.token_usage ?? 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    <span className={item.cost_estimate > 1 ? "text-amber-600 font-semibold" : ""}>
-                      ${item.cost_estimate?.toFixed(2) || "0.00"}
+                    <span className={(item.cost_estimate !== undefined && item.cost_estimate > 1) ? "text-amber-600 font-semibold" : ""}>
+                      ${item.cost_estimate?.toFixed(2) ?? "0.00"}
                     </span>
                   </TableCell>
                   <TableCell>

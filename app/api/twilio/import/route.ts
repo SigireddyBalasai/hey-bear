@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     // Check admin status directly instead of using the utility function
     // This matches how it's done in the list endpoint that works
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('is_admin, id')
       .eq('auth_user_id', user.id)  // Use auth_user_id, not user.id
@@ -71,12 +72,12 @@ export async function POST(req: Request) {
       message: 'Phone number imported successfully',
       number: number
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error importing phone number:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to import phone number'
+        error: (error instanceof Error ? error.message : 'Failed to import phone number')
       },
       { status: 500 }
     );

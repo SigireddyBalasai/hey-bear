@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     
     // Find the assistant
     const { data: assistant, error: assistantError } = await supabase
+      .schema('assistants')
       .from('assistants')
       .select('id, name, user_id, assigned_phone_number')
       .eq('id', assistantId)
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
     
     // Record the interaction
     await supabase
+      .schema('analytics')
       .from('interactions')
       .insert({
         user_id: assistant.user_id,
@@ -63,10 +65,10 @@ export async function POST(req: Request) {
       status: twilioResponse.status
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error sending SMS via Twilio:', error);
     return NextResponse.json({ 
-      error: error.message || 'Failed to send SMS'
+      error: (error instanceof Error ? error.message : 'Failed to send SMS')
     }, { status: 500 });
   }
 }

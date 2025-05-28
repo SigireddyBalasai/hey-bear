@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const supabase = await createClient();
     
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     // Fetch all unassigned phone numbers
     const { data: numbers, error } = await supabase
       .from('phone_numbers')
-      .select('id, number')
+      .select('id, phone_number')
       .eq('is_assigned', false)
       .order('created_at', { ascending: false });
       
@@ -28,8 +28,10 @@ export async function GET(req: Request) {
     }
     
     return NextResponse.json({ numbers: numbers || [] });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching available phone numbers:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    }, { status: 500 });
   }
 }

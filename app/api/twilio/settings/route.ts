@@ -12,7 +12,7 @@ type TwilioSettings = {
 };
 
 // Get current settings
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     // Check authentication and admin permissions
     const supabase = await createClient();
@@ -27,6 +27,7 @@ export async function GET(req: Request) {
 
     // Check admin status - directly query the users table
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -59,12 +60,12 @@ export async function GET(req: Request) {
       success: true,
       settings
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching Twilio settings:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to fetch Twilio settings'
+        error: error instanceof Error ? error.message : 'Failed to fetch Twilio settings'
       },
       { status: 500 }
     );
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
 
     // Check admin status - directly using auth_user_id
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -120,12 +122,12 @@ export async function POST(req: Request) {
       success: true,
       message: 'Settings saved successfully'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error saving Twilio settings:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to save Twilio settings'
+        error: error instanceof Error ? error.message : 'Failed to save Twilio settings'
       },
       { status: 500 }
     );

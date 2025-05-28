@@ -1,75 +1,153 @@
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/utils/supabase/server';
+import type { Tables, Database } from '@/lib/db.types';
 
-/**
- * Gets the internal user ID from the auth user ID
- * This is necessary because our database schema uses user_id but the auth system uses auth_user_id
- */
-export async function getUserIdFromAuthId(authUserId: string): Promise<string | null> {
-  const supabase = await createClient();
-  
+type Interaction = Tables<{ schema: 'analytics'; table:'interactions' }>
+type InteractionInsert = Database['analytics']['Tables']['interactions']['Insert']
+
+export async function getInteractions(assistantId?: string, userId?: string, limit: number = 100): Promise<Interaction[]> {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', authUserId)
-      .single();
-      
-    if (error || !data) {
-      console.error('Error getting user ID from auth ID:', error);
-      return null;
+    const supabase = await createClient();
+    let query = supabase
+      .schema('analytics')
+      .from('interactions')
+      .select('*')
+      .order('interaction_time', { ascending: false })
+      .limit(limit);
+
+    if (assistantId) {
+      query = query.eq('assistant_id', assistantId);
     }
-    
-    return data.id;
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching interactions:', error);
+      throw error;
+    }
+
+    return data || [];
   } catch (error) {
-    console.error('Exception getting user ID from auth ID:', error);
-    return null;
+    console.error('Error in getInteractions:', error);
+    throw error;
   }
 }
 
-/**
- * Record an interaction in the database using the correct user ID mapping
- */
+export async function getInteractionStats(assistantId: string): Promise<{
+  total: number;
+  errorCount: number;
+  avgResponseTime: number;
+  totalTokens: number;
+}> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .schema('analytics')
+      .from('interactions')
+      .select('duration, is_error, token_usage')
+      .eq('assistant_id', assistantId);
+
+    if (error) {
+      console.error('Error fetching interaction stats:', error);
+      throw error;
+    }
+
+    const stats = (data || []).reduce((acc, curr) => ({
+      total: acc.total + 1,
+      errorCount: acc.errorCount + (curr.is_error ? 1 : 0),
+      totalDuration: acc.totalDuration + (curr.duration || 0),
+      totalTokens: acc.totalTokens + (curr.token_usage || 0)
+    }), { total: 0, errorCount: 0, totalDuration: 0, totalTokens: 0 });
+
+    return {
+      total: stats.total,
+      errorCount: stats.errorCount,
+      avgResponseTime: stats.total ? stats.totalDuration / stats.total : 0,
+      totalTokens: stats.totalTokens
+    };
+  } catch (error) {
+    console.error('Error in getInteractionStats:', error);
+    throw error;
+  }
+}
+
 export async function recordInteraction(
-  authUserId: string,
-  assistantId: string | null,
-  chat: string,
-  request: string,
+  authUserId: string, // Changed from userId to authUserId to reflect it's from auth.getUser()
+  assistantId: string,
+  chat: string | null, // More specific type instead of any
+  userRequest: string,
   response: string,
   tokenUsage: number,
   costEstimate: number,
   duration: number,
-  isError: boolean = false
-) {
-  const supabase = await createClient();
-  
+  isError: boolean
+): Promise<boolean> {
   try {
-    // First get the internal user ID from the auth user ID
-    const userId = await getUserIdFromAuthId(authUserId);
-    
-    if (!userId) {
-      throw new Error(`Could not find user with auth_user_id: ${authUserId}`);
+    const supabase = await createClient();
+
+    // Get the application user ID from the auth user ID
+    const { data: appUser, error: appUserError } = await supabase
+      .schema('users')
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .single();
+
+    if (appUserError || !appUser) {
+      console.error('Error fetching application user ID for interaction:', appUserError);
+      return false;
     }
-    
-    // Now insert the interaction with the correct user_id
-    const { error } = await supabase.from('interactions').insert({
-      user_id: userId,
+
+    const interactionData: InteractionInsert = {
+      user_id: appUser.id, // Use the application user ID
       assistant_id: assistantId,
-      chat,
-      request,
-      response,
+      chat: chat,
+      request: userRequest, // Required field
+      response: response, // Required field
       token_usage: tokenUsage,
       cost_estimate: costEstimate,
-      duration,
-      is_error: isError
-    });
-    
-    if (error) {
-      throw error;
+      duration: duration,
+      is_error: isError,
+      interaction_time: new Date().toISOString(),
+      // monthly_period can be derived or set here if needed, similar to logTwilioInteraction
+    };
+
+    const { error: insertError } = await supabase
+      .schema('analytics')
+      .from('interactions')
+      .insert(interactionData);
+
+    if (insertError) {
+      console.error('Error recording interaction:', insertError);
+      return false;
     }
-    
     return true;
   } catch (error) {
-    console.error('Error saving interaction to Supabase:', error);
+    console.error('Error in recordInteraction:', error);
     return false;
+  }
+}
+
+export async function deleteInteraction(interactionId: string): Promise<void> {
+  try {
+    const supabase = await createClient();
+    
+    const { error } = await supabase
+      .schema('analytics')
+      .from('interactions')
+      .delete()
+      .eq('id', interactionId);
+
+    if (error) {
+      console.error('Error deleting interaction:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in deleteInteraction:', error);
+    throw error;
   }
 }

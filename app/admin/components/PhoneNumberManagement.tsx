@@ -1,5 +1,5 @@
 "use client";
-
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -34,14 +34,40 @@ import {
   unassignPhoneNumber,
   fetchAssistantsWithoutPhoneNumbers
 } from "../utils/twilioUtils";
+import type { Database } from '@/lib/db.types';
 
 interface PhoneNumberManagementProps {
   initialTab?: string;
 }
 
+// Enhanced PhoneNumber type for UI components
+interface PhoneNumber {
+  id?: string;
+  phone_number: string | null;
+  assistant_name?: string;
+  assigned_at?: string;
+  is_assigned?: boolean | null;
+  country?: string | null;
+  assistants?: {
+    name: string;
+    owner_name?: string;
+    id: string;
+    user_id: string;
+  };
+}
+
+// Assistant type from the database
+type AssistantRow = Database['assistants']['Tables']['assistants']['Row'];
+interface Assistant extends Partial<AssistantRow> {
+  id: string;
+  name: string;
+  user_id: string;
+  owner_name?: string;
+}
+
 export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberManagementProps) {
-  const [assignedNumbers, setAssignedNumbers] = useState<any[]>([]);
-  const [assistants, setAssistants] = useState<any[]>([]);
+  const [assignedNumbers, setAssignedNumbers] = useState<PhoneNumber[]>([]);
+  const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const [areaCode, setAreaCode] = useState('');
@@ -74,7 +100,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
   }, []);
 
   // Add a new phone number
-  const handleAddPhoneNumber = async () => {
+  const _handleAddPhoneNumber = async () => {
     if (!newPhoneNumber) {
       toast.error('Please enter a phone number');
       return;
@@ -88,7 +114,12 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
   };
 
   // Unassign a phone number
-  const handleUnassignPhoneNumber = async (phoneNumber: string) => {
+  const handleUnassignPhoneNumber = async (phoneNumber: string | null) => {
+    if (!phoneNumber) {
+      toast.error('No phone number to unassign');
+      return;
+    }
+    
     const confirmed = window.confirm(
       `Are you sure you want to unassign this phone number?`
     );
@@ -136,10 +167,10 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to assign phone number');
+        throw new Error(errorData.error ?? 'Failed to assign phone number');
       }
 
-      const data = await response.json();
+      const _data = await response.json();
       toast.success(`Phone number assigned successfully to assistant`);
       
       // Reset selection
@@ -204,17 +235,17 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
                     {assignedNumbers.map((phone) => (
                       <div key={phone.id} className="grid grid-cols-3 px-4 py-3 items-center">
                         <div>
-                          <div className="font-medium">{phone.assistants?.name || 'Unknown'}</div>
+                          <div className="font-medium">{phone.assistants?.name ?? 'Unknown'}</div>
                           <div className="text-sm text-muted-foreground flex items-center gap-1">
                             <UserCircle className="h-3 w-3" />
-                            {phone.assistants?.owner_name || 'Unknown owner'}
+                            {phone.assistants?.owner_name ?? 'Unknown owner'}
                           </div>
                         </div>
                         <div>
-                          <div className="font-mono">{formatPhoneNumber(phone.number)}</div>
+                          <div className="font-mono">{formatPhoneNumber(phone.phone_number)}</div>
                           <div className="text-xs text-muted-foreground mt-1">
                             <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                              {formatCountryFromNumber(phone.number)}
+                              {formatCountryFromNumber(phone.phone_number)}
                             </Badge>
                           </div>
                         </div>
@@ -222,7 +253,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
                           <Button 
                             variant="outline"
                             size="sm"
-                            onClick={() => handleUnassignPhoneNumber(phone.number)}
+                            onClick={() => handleUnassignPhoneNumber(phone.phone_number)}
                           >
                             <Unplug className="h-3.5 w-3.5 mr-1" />
                             Unassign
@@ -253,7 +284,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
                     <SelectContent>
                       {assistants.map(assistant => (
                         <SelectItem key={assistant.id} value={assistant.id}>
-                          {assistant.name} ({assistant.owner_name || 'Unknown'})
+                          {assistant.name} ({assistant.owner_name ?? 'Unknown'})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -323,7 +354,9 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
 }
 
 // Helper function to format country code from phone number
-function formatCountryFromNumber(phoneNumber: string): string {
+function formatCountryFromNumber(phoneNumber: string | null): string {
+  if (!phoneNumber) return 'Unknown';
+  
   if (phoneNumber.startsWith('+1')) return 'United States/Canada';
   if (phoneNumber.startsWith('+44')) return 'United Kingdom';
   if (phoneNumber.startsWith('+61')) return 'Australia';
@@ -339,7 +372,9 @@ function formatCountryFromNumber(phoneNumber: string): string {
 }
 
 // Add this helper function if it doesn't exist yet
-function formatPhoneNumber(phoneNumber: string): string {
+function formatPhoneNumber(phoneNumber: string | null): string {
+  if (!phoneNumber) return 'No Number';
+  
   if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
     return `(${phoneNumber.substring(2, 5)}) ${phoneNumber.substring(5, 8)}-${phoneNumber.substring(8)}`;
   }

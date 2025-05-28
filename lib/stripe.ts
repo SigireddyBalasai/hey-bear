@@ -7,7 +7,7 @@ const isClient = typeof window !== 'undefined';
 let stripe: Stripe | undefined;
 if (!isClient) {
   // Only initialize on the server
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
     apiVersion: '2025-03-31.basil',
   });
 }
@@ -16,37 +16,29 @@ if (!isClient) {
 export { stripe };
 
 // Client-side Stripe instance and utilities
-let stripePromise: Promise<Stripe | null>;
+let stripePromise: Promise<Stripe | null> | undefined;
 
 // Get the Stripe publishable key for client-side usage
 export const getStripePublishableKey = (): string => {
-  return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+  return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 };
 
 // Initialize Stripe on the client side
-export const getStripe = (): Promise<Stripe | null> => {
-  if (!stripePromise) {
+export const getStripe = (): Promise<Stripe | null> =>
+  stripePromise ??= (() => {
     const publishableKey = getStripePublishableKey();
-    
     if (!publishableKey) {
       console.error('Stripe publishable key is missing');
       return Promise.resolve(null);
     }
-    
-    stripePromise = Promise.resolve(
-      new Stripe(publishableKey, {
-        apiVersion: '2025-03-31.basil',
-      })
-    );
-  }
-  return stripePromise;
-};
+    return Promise.resolve(new Stripe(publishableKey, { apiVersion: '2025-03-31.basil' }));
+  })();
 
 // Define subscription plans using NEXT_PUBLIC_ environment variables for client access
 export const SUBSCRIPTION_PLANS = {
   PERSONAL: {
     name: 'Personal',
-    id: process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PLAN_ID || process.env.STRIPE_PERSONAL_PLAN_ID,
+    id: process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PLAN_ID ?? process.env.STRIPE_PERSONAL_PLAN_ID,
     price: 13.99,
     features: [
       'Document upload',
@@ -64,7 +56,7 @@ export const SUBSCRIPTION_PLANS = {
   },
   BUSINESS: {
     name: 'Business',
-    id: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PLAN_ID || process.env.STRIPE_BUSINESS_PLAN_ID,
+    id: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PLAN_ID ?? process.env.STRIPE_BUSINESS_PLAN_ID,
     price: 34.99,
     features: [
       'Document upload',
@@ -92,7 +84,7 @@ export function formatPrice(price: number): string {
 }
 
 // Helper function to check if a subscription is active
-export const isSubscriptionActive = (subscription: any): boolean => {
+export const isSubscriptionActive = (subscription: { status?: string } | null | undefined): boolean => {
   if (!subscription) return false;
   return subscription.status === 'active' || subscription.status === 'trialing';
 };
@@ -102,4 +94,14 @@ export const getSubscriptionPlanDetails = (planId: string | undefined) => {
   if (planId === SUBSCRIPTION_PLANS.PERSONAL.id) return SUBSCRIPTION_PLANS.PERSONAL;
   if (planId === SUBSCRIPTION_PLANS.BUSINESS.id) return SUBSCRIPTION_PLANS.BUSINESS;
   return null;
+};
+
+// Get the server-side Stripe instance
+export const getStripeInstance = (): Stripe | undefined => {
+  if (typeof window !== 'undefined') {
+    console.warn('getStripeInstance should not be called client-side');
+    return undefined;
+  }
+  stripe ??= new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2025-03-31.basil' });
+  return stripe;
 };

@@ -10,7 +10,7 @@ interface FileStatusBadgeProps {
   percentDone?: number;
 }
 
-export function FileStatusBadge({ status, percentDone, className }: FileStatusBadgeProps) {
+export function FileStatusBadge({ status, percentDone: _percentDone, className: _className }: FileStatusBadgeProps) {
   switch (status) {
     case "ready":
       return (

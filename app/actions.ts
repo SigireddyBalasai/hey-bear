@@ -150,7 +150,7 @@ export const signInWithGoogleAction = async () => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  if (data?.url) {
+  if (data.url) {
     return redirect(data.url);
   }
 

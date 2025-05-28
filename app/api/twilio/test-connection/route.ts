@@ -14,6 +14,7 @@ export async function POST(req: Request) {
 
     // Check admin status directly without using the utility
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -57,20 +58,20 @@ export async function POST(req: Request) {
         success: true,
         accountName: account.friendlyName
       });
-    } catch (twilioError: any) {
+    } catch (twilioError: unknown) {
       console.error('Twilio API error:', twilioError);
       
       return NextResponse.json({
         success: false,
-        error: `Twilio API Error: ${twilioError.message}`
+        error: `Twilio API Error: ${twilioError instanceof Error ? twilioError.message : 'Unknown error'}`
       }, { status: 500 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error testing Twilio connection:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to test Twilio connection'
+        error: error instanceof Error ? error.message : 'Failed to test Twilio connection'
       },
       { status: 500 }
     );

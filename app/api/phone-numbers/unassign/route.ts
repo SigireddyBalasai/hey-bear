@@ -31,6 +31,7 @@ export async function POST(request: Request) {
 
     // Check if the user is authorized to modify this assistant
     const { data: assistantData, error: assistantError } = await supabase
+      .schema('assistants')
       .from('assistants')
       .select('user_id, assigned_phone_number')
       .eq('id', assistantId)
@@ -42,14 +43,15 @@ export async function POST(request: Request) {
     }
     
     // Check if assistant has this phone number assigned
-    const { data: assistantData, error: assistantError } = await supabase
+    const { data: assistantPhoneData, error: phoneCheckError } = await supabase
+      .schema('assistants')
       .from('assistants')
       .select('id, assigned_phone_number')
       .eq('id', assistantId)
       .eq('assigned_phone_number', phoneNumber)
       .single();
     
-    if (assistantError || !assistantData) {
+    if (phoneCheckError || !assistantPhoneData) {
       console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Phone number is not assigned to this assistant`);
       return NextResponse.json(
         { error: 'Phone number is not assigned to this assistant' }, 
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
     const { data: phoneNumberData, error: phoneNumberError } = await supabase
       .from('phone_numbers')
       .select('*')
-      .eq('number', phoneNumber)
+      .eq('phone_number', phoneNumber)
       .single();
     
     if (phoneNumberError || !phoneNumberData) {
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
     const { error: updatePhoneError } = await supabase
       .from('phone_numbers')
       .update({ is_assigned: false })
-      .eq('number', phoneNumber);
+      .eq('phone_number', phoneNumber);
     
     if (updatePhoneError) {
       console.error(`[${new Date().toISOString()}] Phone Number Unassignment - Update phone error:`, updatePhoneError);
@@ -103,6 +105,7 @@ export async function POST(request: Request) {
     
     // 3. Update assistant to remove phone number
     const { error: updateAssistantError } = await supabase
+      .schema('assistants')
       .from('assistants')
       .update({ assigned_phone_number: null })
       .eq('id', assistantId);
@@ -132,10 +135,10 @@ export async function POST(request: Request) {
       success: true,
       message: 'Phone number unassigned successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[${new Date().toISOString()}] Phone Number Unassignment - ERROR:`, error);
     return NextResponse.json(
-      { error: `Internal server error: ${error.message || 'Unknown error'}` }, 
+      { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` }, 
       { status: 500 }
     );
   }
@@ -233,13 +236,14 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
       try {
         await client.applications(twimlAppSid).remove();
         console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] TwiML app deleted successfully: ${twimlAppSid}`);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Failed to delete TwiML app:`, err);
-        if (err.code === 20404) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 20404) {
           // App not found is okay - it might have been deleted already
           console.log(`[TWILIO UNASSIGN][${new Date().toISOString()}] App ${twimlAppSid} already deleted or not found`);
         } else {
-          throw new Error(`Failed to delete TwiML app: ${err.message}`);
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          throw new Error(`Failed to delete TwiML app: ${message}`);
         }
       }
     } else {
@@ -254,12 +258,12 @@ async function updateTwilioWebhook(phoneNumber: string, webhookUrl: string | nul
       deletedApp: Boolean(twimlAppSid),
       currentSmsAppSid: updatedNumber.smsApplicationSid || 'none'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Error updating Twilio webhook:`, error);
-    if (error.code) {
+    if (error && typeof error === 'object' && 'code' in error) {
       console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Twilio error code: ${error.code}`);
     }
-    if (error.moreInfo) {
+    if (error && typeof error === 'object' && 'moreInfo' in error) {
       console.error(`[TWILIO UNASSIGN][${new Date().toISOString()}] Twilio error info: ${error.moreInfo}`);
     }
     throw error;

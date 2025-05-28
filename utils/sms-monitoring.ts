@@ -1,81 +1,133 @@
-/**
- * Utility functions for monitoring SMS messaging in Twilio
- */
-import { logTwilio, logTwilioError } from './twilio-logger';
+import { createClient } from '@/utils/supabase/server';
 
-/**
- * Logs details of an outgoing SMS message
- */
-export function logOutgoingSms(to: string, from: string, message: string, metadata?: any) {
-  const truncatedMessage = message.length > 100 
-    ? `${message.substring(0, 97)}...` 
-    : message;
-  
-  logTwilio('OutgoingSMS', `To: ${to}, From: ${from}, Message: ${truncatedMessage}`, metadata);
-}
+type SMSLog = {
+  messageId: string;
+  fromNumber: string;
+  toNumber: string;
+  message: string;
+  direction: 'incoming' | 'outgoing';
+  status: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+  assistantId?: string;
+  userId?: string;
+};
 
-/**
- * Logs details of an incoming SMS message
- */
-export function logIncomingSms(from: string, to: string, message: string, metadata?: any) {
-  const truncatedMessage = message.length > 100 
-    ? `${message.substring(0, 97)}...` 
-    : message;
-  
-  logTwilio('IncomingSMS', `From: ${from}, To: ${to}, Message: ${truncatedMessage}`, metadata);
-}
-
-/**
- * Check if a message appears to contain common SMS error patterns
- */
-export function checkSmsErrorPatterns(message: string): { hasErrors: boolean, errors: string[] } {
-  const errors: string[] = [];
-  
-  // Common error patterns
-  if (message.includes('Error ') || message.includes('Failed to ') || 
-      message.includes('unable to ') || message.includes('cannot be ')) {
-    errors.push('Contains error language');
-  }
-  
-  if (message.length > 1600) {
-    errors.push('Message exceeds 1600 character limit');
-  }
-  
-  // Check for potentially problematic characters
-  if (/[^\w\s.,?!;:()\-@#']/.test(message)) {
-    errors.push('Contains potential special characters that may affect delivery');
-  }
-  
-  return {
-    hasErrors: errors.length > 0,
-    errors
-  };
-}
-
-/**
- * Sanitize a message for SMS delivery - Twilio XML compatible
- */
-export function sanitizeForSms(message: string): string {
-  if (!message) return '';
-  
+export async function logSMSMessage(data: SMSLog): Promise<void> {
   try {
-    // Basic XML sanitization - only escape necessary characters
-    let sanitized = message
-      .replace(/&/g, '&amp;')   // XML encoding for &
-      .replace(/</g, '&lt;')    // XML encoding for <
-      .replace(/>/g, '&gt;')    // XML encoding for >
-      .trim();
+    const supabase = await createClient();
     
-    // Keep all other characters intact
-    
-    // Truncate if too long
-    if (sanitized.length > 1600) {
-      sanitized = sanitized.substring(0, 1597) + '...';
+    const { error } = await supabase
+      .schema('analytics')
+      .from('interactions')
+      .insert({
+        id: data.messageId,
+        assistant_id: data.assistantId ?? null,
+        user_id: data.userId ?? null,
+        request: `SMS ${data.direction}: ${data.message}`,
+        response: `Status: ${data.status}`,
+        chat: `SMS conversation between ${data.fromNumber} and ${data.toNumber}`,
+        interaction_time: data.timestamp,
+        created_at: data.timestamp,
+        updated_at: data.timestamp,
+        is_error: data.status === 'failed'
+      });
+
+    if (error) {
+      console.error('Error logging SMS to interactions:', error);
+      throw error;
     }
-    
-    return sanitized;
   } catch (error) {
-    logTwilioError('SMS', 'Error sanitizing SMS message', error);
-    return message; // Return original if sanitization fails
+    console.error('Error in logSMSMessage:', error);
+    throw error;
+  }
+}
+
+export async function updateSMSStatus(messageId: string, status: string): Promise<void> {
+  try {
+    const supabase = await createClient();
+    
+    const { error } = await supabase
+      .schema('analytics')
+      .from('interactions')
+      .update({ 
+        response: `Status: ${status}`,
+        is_error: status === 'failed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', messageId);
+
+    if (error) {
+      console.error('Error updating SMS status in interactions:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in updateSMSStatus:', error);
+    throw error;
+  }
+}
+
+export async function getSMSLogs(assistantId: string): Promise<SMSLog[]> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .schema('analytics')
+      .from('interactions')
+      .select('*')
+      .eq('assistant_id', assistantId)
+      .like('request', 'SMS %')
+      .order('interaction_time', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching SMS logs from interactions:', error);
+      throw error;
+    }
+
+    // Transform interactions data back to SMSLog format
+    return data.map(interaction => {
+      const isIncoming = interaction.request.includes('SMS incoming:');
+      const message = interaction.request.replace(/^SMS (incoming|outgoing): /, '');
+      const status = interaction.is_error ? 'failed' : 'delivered';
+      
+      return {
+        messageId: interaction.id,
+        fromNumber: '', // Would need to extract from chat field or store separately
+        toNumber: '', // Would need to extract from chat field or store separately
+        message,
+        direction: isIncoming ? 'incoming' : 'outgoing',
+        status,
+        timestamp: interaction.interaction_time ?? interaction.created_at ?? '',
+        assistantId: interaction.assistant_id ?? undefined,
+        userId: interaction.user_id ?? undefined
+      } as SMSLog;
+    });
+  } catch (error) {
+    console.error('Error in getSMSLogs:', error);
+    throw error;
+  }
+}
+
+export async function getFailedSMSCount(assistantId: string): Promise<number> {
+  try {
+    const supabase = await createClient();
+    
+    const { count, error } = await supabase
+      .schema('analytics')
+      .from('interactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('assistant_id', assistantId)
+      .like('request', 'SMS %')
+      .eq('is_error', true);
+
+    if (error) {
+      console.error('Error counting failed SMS from interactions:', error);
+      throw error;
+    }
+
+    return count ?? 0;
+  } catch (error) {
+    console.error('Error in getFailedSMSCount:', error);
+    throw error;
   }
 }

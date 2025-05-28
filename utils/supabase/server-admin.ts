@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/lib/db.types';
+import type { Database } from '@/lib/db.types';
 
 /**
  * Creates a Supabase client with public anon key but without requiring 

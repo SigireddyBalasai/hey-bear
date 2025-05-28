@@ -14,6 +14,7 @@ export async function POST(req: Request) {
 
     // Check admin status
     const { data: userData, error: userDataError } = await supabase
+      .schema('users')
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -49,8 +50,12 @@ export async function POST(req: Request) {
     const client = twilio(accountSid, authToken);
     
     // Build search parameters
-    const searchParams: any = {
-      areaCode,
+    const searchParams: {
+      areaCode: number;
+      limit: number;
+      smsEnabled?: boolean;
+    } = {
+      areaCode: parseInt(areaCode),
       limit: 10,
     };
     
@@ -76,20 +81,22 @@ export async function POST(req: Request) {
         success: true,
         numbers: formattedNumbers
       });
-    } catch (twilioError: any) {
+    } catch (twilioError: unknown) {
       console.error('Twilio API error:', twilioError);
+      const errorMessage = twilioError instanceof Error ? twilioError.message : 'Unknown Twilio error';
       
       return NextResponse.json({
         success: false,
-        error: `Twilio API Error: ${twilioError.message}`
+        error: `Twilio API Error: ${errorMessage}`
       }, { status: 500 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error searching for phone numbers:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to search for phone numbers';
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || 'Failed to search for phone numbers'
+        error: errorMessage
       },
       { status: 500 }
     );

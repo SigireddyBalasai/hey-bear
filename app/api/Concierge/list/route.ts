@@ -7,7 +7,7 @@ export async function GET() {
     const supabase = await createClient();
 
     const { data, error: authError } = await supabase.auth.getUser();
-    if (authError || !data || !data.user) {
+    if (authError || !data?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -26,8 +26,8 @@ export async function GET() {
       const allAssistants = Array.isArray(assistantsResponse?.assistants) ? assistantsResponse.assistants : [];
       
       // Filter assistants by user (assuming Pinecone supports metadata or naming convention)
-      const userAssistants = allAssistants.filter((a: any) => 
-        a && a.metadata && a.metadata.owner === user.id
+      const userAssistants = allAssistants.filter((a) => 
+        a && a.metadata && typeof a.metadata === 'object' && 'owner' in a.metadata && a.metadata.owner === user.id
       );
 
       return NextResponse.json({ assistants: userAssistants });
