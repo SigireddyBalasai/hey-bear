@@ -1,6 +1,6 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Bot, Plus, XCircle } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 
 type EmptyStateProps = {
   searchQuery: string;
@@ -13,11 +13,11 @@ export function EmptyState({ searchQuery, onClearSearch, onCreateNew }: EmptySta
 
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="bg-muted rounded-full p-4 mb-4">
+      <div className="mb-4 rounded-full bg-muted p-4">
         <Bot className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="text-xl font-semibold mb-2">No No-show found</h3>
-      <p className="text-muted-foreground max-w-md mb-6">
+      <h3 className="mb-2 text-xl font-semibold">No No-show found</h3>
+      <p className="mb-6 max-w-md text-muted-foreground">
         {hasSearchQuery
           ? `No No-show match your search for "${searchQuery}"`
           : "You don't have any No-show yet. Create your first one to get started."}

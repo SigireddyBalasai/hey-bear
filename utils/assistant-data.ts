@@ -1,14 +1,15 @@
-import { createClient } from '@/utils/supabase/server';
 import type { Tables, TablesUpdate } from '@/lib/db.types';
+import { createClient } from '@/utils/supabase/server';
+
 // SupabaseClient might be needed if we were to type the awaited client explicitly,
 // but the createClient from server is likely already typed.
 // import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Define related row types based on the database schema
-export type AssistantRow = Tables<{ schema: "assistants" }, "assistants">;
-export type AssistantSubscriptionRow = Tables<{ schema: "assistants" }, "assistant_subscriptions">;
-export type AssistantUsageLimitsRow = Tables<{ schema: "assistants" }, "assistant_usage_limits">;
-export type AssistantActivityRow = Tables<{ schema: "assistants" }, "assistant_activity">;
+export type AssistantRow = Tables<{ schema: 'assistants' }, 'assistants'>;
+export type AssistantSubscriptionRow = Tables<{ schema: 'assistants' }, 'assistant_subscriptions'>;
+export type AssistantUsageLimitsRow = Tables<{ schema: 'assistants' }, 'assistant_usage_limits'>;
+export type AssistantActivityRow = Tables<{ schema: 'assistants' }, 'assistant_activity'>;
 
 /**
  * Normalized structure for assistant data, combining information from multiple tables/views.
@@ -25,9 +26,9 @@ export interface NormalizedAssistantData {
   last_interaction_at: string | null; // Timestamp of the last interaction
 }
 
-export type AssistantConfigUpdateData = TablesUpdate<{ schema: "assistants" }, "assistant_configs">;
-export type AssistantConfigRow = Tables<{ schema: "assistants" }, "assistant_configs">;
-export type AssistantDetailViewRow = Tables<{ schema: "assistants" }, "assistant_detail_view">;
+export type AssistantConfigUpdateData = TablesUpdate<{ schema: 'assistants' }, 'assistant_configs'>;
+export type AssistantConfigRow = Tables<{ schema: 'assistants' }, 'assistant_configs'>;
+export type AssistantDetailViewRow = Tables<{ schema: 'assistants' }, 'assistant_detail_view'>;
 
 /**
  * Updates data in the 'assistant_configs' table for a given assistant ID.
@@ -38,7 +39,10 @@ export type AssistantDetailViewRow = Tables<{ schema: "assistants" }, "assistant
  * @param data The data to update.
  * @returns The updated assistant config row or null.
  */
-export async function updateAssistantConfig(assistantId: string, data: AssistantConfigUpdateData): Promise<AssistantConfigRow | null> {
+export async function updateAssistantConfig(
+  assistantId: string,
+  data: AssistantConfigUpdateData
+): Promise<AssistantConfigRow | null> {
   const supabase = await createClient(); // createClient() returns a Promise
 
   // The following .from() call expects 'assistant_configs' to be in the client's default schema (likely "public").
@@ -53,7 +57,9 @@ export async function updateAssistantConfig(assistantId: string, data: Assistant
 
   if (error) {
     console.error(`Error updating assistant_configs for assistant ${assistantId}:`, error.message);
-    throw new Error(`Failed to update assistant_configs for assistant ${assistantId}: ${error.message}`);
+    throw new Error(
+      `Failed to update assistant_configs for assistant ${assistantId}: ${error.message}`
+    );
   }
   return updatedData;
 }
@@ -65,7 +71,9 @@ export async function updateAssistantConfig(assistantId: string, data: Assistant
  * @param assistantId The ID of the assistant.
  * @returns The assistant detail view row or null.
  */
-export async function getAssistantDetail(assistantId: string): Promise<AssistantDetailViewRow | null> {
+export async function getAssistantDetail(
+  assistantId: string
+): Promise<AssistantDetailViewRow | null> {
   const supabase = await createClient(); // createClient() returns a Promise
 
   // The following .from() call expects 'assistant_detail_view' to be in the client's default schema.
@@ -77,12 +85,18 @@ export async function getAssistantDetail(assistantId: string): Promise<Assistant
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') { // Standard Supabase code for "Not found"
+    if (error.code === 'PGRST116') {
+      // Standard Supabase code for "Not found"
       console.log(`No assistant_detail_view data found for assistant ${assistantId}.`);
       return null;
     }
-    console.error(`Error fetching assistant_detail_data for assistant ${assistantId}:`, error.message);
-    throw new Error(`Failed to fetch assistant_detail_data for assistant ${assistantId}: ${error.message}`);
+    console.error(
+      `Error fetching assistant_detail_data for assistant ${assistantId}:`,
+      error.message
+    );
+    throw new Error(
+      `Failed to fetch assistant_detail_data for assistant ${assistantId}: ${error.message}`
+    );
   }
   return assistantData;
 }
@@ -93,7 +107,10 @@ export async function getAssistantDetail(assistantId: string): Promise<Assistant
  * @param data The data to update.
  * @returns The updated assistant row or null.
  */
-export async function updateAssistantData(assistantId: string, data: Partial<AssistantRow>): Promise<AssistantRow | null> {
+export async function updateAssistantData(
+  assistantId: string,
+  data: Partial<AssistantRow>
+): Promise<AssistantRow | null> {
   const supabase = await createClient();
 
   const { data: updatedData, error } = await supabase
@@ -106,9 +123,9 @@ export async function updateAssistantData(assistantId: string, data: Partial<Ass
 
   if (error) {
     console.error(`Error updating assistants table for assistant ${assistantId}:`, error.message);
-    throw new Error(`Failed to update assistants table for assistant ${assistantId}: ${error.message}`);
+    throw new Error(
+      `Failed to update assistants table for assistant ${assistantId}: ${error.message}`
+    );
   }
   return updatedData;
 }
-
-

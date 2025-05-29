@@ -1,10 +1,12 @@
-"use client";
+'use client';
+
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export interface Assistant {
   id: string;
@@ -25,43 +27,35 @@ export interface FilterComponentProps {
   setShowFilters?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const FilterComponent = ({ 
+const FilterComponent = ({
   assistants = [],
   isLoading = false,
-    selectedAssistantId = null,
-  fromDate = "",
-  toDate = "",
+  selectedAssistantId = null,
+  fromDate = '',
+  toDate = '',
   onFromDateChange = () => {},
   onToDateChange = () => {},
   onAssistantChange = () => {},
   onApplyFilters = () => {},
   onClose: _onClose = () => {},
-  setShowFilters: _setShowFilters
+  setShowFilters: _setShowFilters,
 }: FilterComponentProps) => {
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
           <div>
-            <label className="text-sm font-medium block mb-1">From Date</label>
-            <Input 
-              type="date" 
-              value={fromDate} 
-              onChange={(e) => onFromDateChange(e.target.value)} 
-            />
+            <label className="mb-1 block text-sm font-medium">From Date</label>
+            <Input type="date" value={fromDate} onChange={e => { onFromDateChange(e.target.value); }} />
           </div>
           <div>
-            <label className="text-sm font-medium block mb-1">To Date</label>
-            <Input 
-              type="date" 
-              value={toDate} 
-              onChange={(e) => onToDateChange(e.target.value)} 
-            />
+            <label className="mb-1 block text-sm font-medium">To Date</label>
+            <Input type="date" value={toDate} onChange={e => { onToDateChange(e.target.value); }} />
           </div>
           <div>
             <h3 className="mb-2 font-medium">Concierge</h3>
-            <RadioGroup 
-              value={selectedAssistantId || 'all'} 
+            <RadioGroup
+              value={selectedAssistantId ?? 'all'}
               className="flex flex-col space-y-1"
               onValueChange={onAssistantChange}
             >
@@ -69,7 +63,7 @@ const FilterComponent = ({
                 <RadioGroupItem value="all" id="Concierge-all" />
                 <Label htmlFor="Concierge-all">All Concierges</Label>
               </div>
-              
+
               {isLoading ? (
                 <div className="text-sm text-muted-foreground">Loading concierges...</div>
               ) : assistants.length > 0 ? (
@@ -85,7 +79,10 @@ const FilterComponent = ({
             </RadioGroup>
           </div>
           <div>
-            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" onClick={onApplyFilters}>
+            <Button
+              className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
+              onClick={onApplyFilters}
+            >
               Apply Filters
             </Button>
           </div>

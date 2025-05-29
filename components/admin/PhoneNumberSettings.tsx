@@ -1,8 +1,29 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from 'react';
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react';
+
+import {
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  EyeIcon,
+  EyeOffIcon,
+  Key,
+  RefreshCw,
+  Save,
+  Settings,
+  Shield,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -10,30 +31,11 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { 
-  AlertCircle, 
-  CheckCircle2, 
-  ExternalLink, 
-  Key, 
-  RefreshCw, 
-  Save, 
-  Shield,
-  EyeIcon,
-  EyeOffIcon,
-  Settings
-} from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 
 type TwilioSettings = {
   accountSid: string;
@@ -51,12 +53,12 @@ export function PhoneNumberSettings() {
     webhookUrl: '',
     webhookEnabled: true,
     smsEnabled: true,
-    voiceEnabled: false
+    voiceEnabled: false,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{success: boolean, message: string} | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showAuthToken, setShowAuthToken] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,12 +72,12 @@ export function PhoneNumberSettings() {
     try {
       console.log('Fetching Twilio settings...');
       const response = await fetch('/api/twilio/settings');
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `Error ${response.status}: Failed to load settings`);
+        throw new Error(errorData.error ?? `Error ${response.status}: Failed to load settings`);
       }
-      
+
       const data = await response.json();
       if (data.settings) {
         console.log('Settings loaded successfully');
@@ -112,7 +114,7 @@ export function PhoneNumberSettings() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save settings');
+        throw new Error(errorData.error ?? 'Failed to save settings');
       }
 
       toast.success('Twilio settings saved successfully');
@@ -136,27 +138,27 @@ export function PhoneNumberSettings() {
         },
         body: JSON.stringify({
           accountSid: settings.accountSid,
-          authToken: settings.authToken
+          authToken: settings.authToken,
         }),
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setTestResult({
           success: true,
-          message: `Connected successfully! Account: ${data.accountName || 'Verified'}`
+          message: `Connected successfully! Account: ${data.accountName ?? 'Verified'}`,
         });
       } else {
         setTestResult({
           success: false,
-          message: data.error || 'Failed to connect to Twilio API'
+          message: data.error ?? 'Failed to connect to Twilio API',
         });
       }
     } catch (error) {
       setTestResult({
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to connect to Twilio API'
+        message: error instanceof Error ? error.message : 'Failed to connect to Twilio API',
       });
     } finally {
       setIsTesting(false);
@@ -174,23 +176,23 @@ export function PhoneNumberSettings() {
           Configure your Twilio API credentials for phone number management
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {error ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error Loading Settings</AlertTitle>
-            <AlertDescription className="flex justify-between items-center">
+            <AlertDescription className="flex items-center justify-between">
               <div>{error}</div>
               <Button variant="outline" size="sm" onClick={loadSettings} className="ml-2">
-                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                <RefreshCw className="mr-1 h-3.5 w-3.5" />
                 Retry
               </Button>
             </AlertDescription>
           </Alert>
         ) : isLoading ? (
-          <div className="text-center py-6">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground/50" />
+          <div className="py-6 text-center">
+            <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground/50" />
             <p className="text-muted-foreground">Loading settings...</p>
           </div>
         ) : (
@@ -201,15 +203,15 @@ export function PhoneNumberSettings() {
                 <Input
                   id="accountSid"
                   value={settings.accountSid}
-                  onChange={(e) => setSettings({ ...settings, accountSid: e.target.value })}
+                  onChange={e => { setSettings({ ...settings, accountSid: e.target.value }); }}
                   placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="font-mono mt-1.5"
+                  className="mt-1.5 font-mono"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Find this on your Twilio dashboard under Account Info
                 </p>
               </div>
-              
+
               <div>
                 <Label htmlFor="authToken" className="flex items-center justify-between">
                   <span>Auth Token</span>
@@ -217,119 +219,132 @@ export function PhoneNumberSettings() {
                     variant="ghost"
                     size="sm"
                     className="h-6 w-6 p-0"
-                    onClick={() => setShowAuthToken(!showAuthToken)}
+                    onClick={() => { setShowAuthToken(!showAuthToken); }}
                   >
                     {showAuthToken ? (
                       <EyeOffIcon className="h-4 w-4" />
                     ) : (
                       <EyeIcon className="h-4 w-4" />
                     )}
-                    <span className="sr-only">
-                      {showAuthToken ? "Hide" : "Show"} auth token
-                    </span>
+                    <span className="sr-only">{showAuthToken ? 'Hide' : 'Show'} auth token</span>
                   </Button>
                 </Label>
                 <Input
                   id="authToken"
-                  type={showAuthToken ? "text" : "password"}
+                  type={showAuthToken ? 'text' : 'password'}
                   value={settings.authToken}
-                  onChange={(e) => setSettings({ ...settings, authToken: e.target.value })}
+                  onChange={e => { setSettings({ ...settings, authToken: e.target.value }); }}
                   placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="font-mono mt-1.5"
+                  className="mt-1.5 font-mono"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Never share or expose your auth token
                 </p>
               </div>
-              
+
               <div>
                 <Label htmlFor="webhookUrl">Webhook URL</Label>
                 <Input
                   id="webhookUrl"
                   value={settings.webhookUrl}
-                  onChange={(e) => setSettings({ ...settings, webhookUrl: e.target.value })}
+                  onChange={e => { setSettings({ ...settings, webhookUrl: e.target.value }); }}
                   placeholder="https://example.com/api/twilio/webhook"
-                  className="font-mono mt-1.5"
+                  className="mt-1.5 font-mono"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Automatically configured when you purchase phone numbers
                 </p>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                <div className="flex items-center gap-2 justify-between border rounded-md p-3">
+
+              <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="flex items-center justify-between gap-2 rounded-md border p-3">
                   <div>
-                    <Label htmlFor="webhookEnabled" className="mb-1.5 block">Webhooks</Label>
+                    <Label htmlFor="webhookEnabled" className="mb-1.5 block">
+                      Webhooks
+                    </Label>
                     <span className="text-sm text-muted-foreground">Enable webhook handling</span>
                   </div>
                   <Switch
                     id="webhookEnabled"
                     checked={settings.webhookEnabled}
-                    onCheckedChange={(checked) => setSettings({ ...settings, webhookEnabled: checked })}
+                    onCheckedChange={checked =>
+                      { setSettings({ ...settings, webhookEnabled: checked }); }
+                    }
                   />
                 </div>
-                <div className="flex items-center gap-2 justify-between border rounded-md p-3">
+                <div className="flex items-center justify-between gap-2 rounded-md border p-3">
                   <div>
-                    <Label htmlFor="smsEnabled" className="mb-1.5 block">SMS</Label>
+                    <Label htmlFor="smsEnabled" className="mb-1.5 block">
+                      SMS
+                    </Label>
                     <span className="text-sm text-muted-foreground">Enable SMS messaging</span>
                   </div>
                   <Switch
                     id="smsEnabled"
                     checked={settings.smsEnabled}
-                    onCheckedChange={(checked) => setSettings({ ...settings, smsEnabled: checked })}
+                    onCheckedChange={checked => { setSettings({ ...settings, smsEnabled: checked }); }}
                   />
                 </div>
-                <div className="flex items-center gap-2 justify-between border rounded-md p-3">
+                <div className="flex items-center justify-between gap-2 rounded-md border p-3">
                   <div>
-                    <Label htmlFor="voiceEnabled" className="mb-1.5 block">Voice</Label>
+                    <Label htmlFor="voiceEnabled" className="mb-1.5 block">
+                      Voice
+                    </Label>
                     <span className="text-sm text-muted-foreground">Enable voice calls</span>
                   </div>
                   <Switch
                     id="voiceEnabled"
                     checked={settings.voiceEnabled}
-                    onCheckedChange={(checked) => setSettings({ ...settings, voiceEnabled: checked })}
+                    onCheckedChange={checked => { setSettings({ ...settings, voiceEnabled: checked }); }}
                   />
                 </div>
               </div>
             </div>
 
             {testResult && (
-              <div className={`p-4 border rounded-md ${
-                testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-              }`}>
+              <div
+                className={`rounded-md border p-4 ${
+                  testResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                }`}
+              >
                 <div className="flex items-start gap-2">
                   {testResult.success ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600" />
                   ) : (
-                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                    <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
                   )}
                   <div>
-                    <h4 className={`font-medium ${
-                      testResult.success ? 'text-green-800' : 'text-red-800'
-                    }`}>
+                    <h4
+                      className={`font-medium ${
+                        testResult.success ? 'text-green-800' : 'text-red-800'
+                      }`}
+                    >
                       {testResult.success ? 'Connection Successful' : 'Connection Failed'}
                     </h4>
-                    <p className={`text-sm ${
-                      testResult.success ? 'text-green-700' : 'text-red-700'
-                    }`}>
+                    <p
+                      className={`text-sm ${
+                        testResult.success ? 'text-green-700' : 'text-red-700'
+                      }`}
+                    >
                       {testResult.message}
                     </p>
                   </div>
                 </div>
               </div>
             )}
-            
+
             <Alert className="border-yellow-300 bg-yellow-50 text-yellow-800 [&>svg]:text-yellow-600">
               <Key className="h-4 w-4" />
               <AlertTitle>Important: API Credentials</AlertTitle>
               <AlertDescription>
-                Your Twilio API credentials must be added to your server environment variables 
-                for proper functionality. Changes here will only take effect after restarting the server.
+                Your Twilio API credentials must be added to your server environment variables for
+                proper functionality. Changes here will only take effect after restarting the
+                server.
               </AlertDescription>
             </Alert>
-            
+
             <Separator className="my-4" />
-            
+
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="security">
                 <AccordionTrigger className="text-sm font-medium">
@@ -338,21 +353,27 @@ export function PhoneNumberSettings() {
                     Security Recommendations
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground space-y-2 pt-2">
+                <AccordionContent className="space-y-2 pt-2 text-sm text-muted-foreground">
                   <p>
                     Keep your Auth Token secure. Never share it or expose it in client-side code.
                   </p>
                   <p>
-                    Enable Twilio's request validation for webhooks to verify that incoming requests are from Twilio.
+                    Enable Twilio's request validation for webhooks to verify that incoming requests
+                    are from Twilio.
                   </p>
                   <p>
-                    For production use, store credentials in environment variables or a secure vault.
+                    For production use, store credentials in environment variables or a secure
+                    vault.
                   </p>
                   <div className="mt-4">
-                    <Button variant="outline" size="sm" onClick={() => 
-                      window.open('https://www.twilio.com/docs/usage/security', '_blank')
-                    }>
-                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        window.open('https://www.twilio.com/docs/usage/security', '_blank')
+                      }
+                    >
+                      <ExternalLink className="mr-1 h-3.5 w-3.5" />
                       Twilio Security Documentation
                     </Button>
                   </div>
@@ -362,28 +383,30 @@ export function PhoneNumberSettings() {
           </>
         )}
       </CardContent>
-      
+
       <CardFooter className="flex justify-between border-t pt-4">
-        <Button 
+        <Button
           variant="outline"
-          disabled={isTesting || !settings.accountSid || !settings.authToken || isLoading || !!error}
+          disabled={
+            isTesting || !settings.accountSid || !settings.authToken || isLoading || !!error
+          }
           onClick={testConnection}
         >
           {isTesting ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="mr-2 h-4 w-4" />
           )}
           Test Connection
         </Button>
-        <Button 
+        <Button
           onClick={saveSettings}
           disabled={isSaving || !settings.accountSid || !settings.authToken || isLoading || !!error}
         >
           {isSaving ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="mr-2 h-4 w-4" />
           )}
           Save Settings
         </Button>

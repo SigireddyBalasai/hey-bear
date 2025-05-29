@@ -1,43 +1,35 @@
-"use client";
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+'use client';
+
+import { useEffect, useState } from 'react';
+
+import { Globe, RefreshCw, ShoppingCart, Unplug, UserCircle } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Unplug, 
-  RefreshCw, 
-  UserCircle,
-  ShoppingCart,
-  Globe
-} from "lucide-react";
-import { toast } from "sonner";
-import { 
-  addPhoneNumber, 
-  fetchAssignedPhoneNumbers,
-  unassignPhoneNumber,
-  fetchAssistantsWithoutPhoneNumbers
-} from "../utils/twilioUtils";
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Database } from '@/lib/db.types';
 
+// Import missing icons
+
+import {
+  fetchAssignedPhoneNumbers,
+  fetchAssistantsWithoutPhoneNumbers,
+  unassignPhoneNumber,
+} from '../utils/twilioUtils';
+
 interface PhoneNumberManagementProps {
-  initialTab?: string;
+  readonly initialTab?: string;
 }
 
 // Enhanced PhoneNumber type for UI components
@@ -65,7 +57,7 @@ interface Assistant extends Partial<AssistantRow> {
   owner_name?: string;
 }
 
-export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberManagementProps) {
+export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberManagementProps) {
   const [assignedNumbers, setAssignedNumbers] = useState<PhoneNumber[]>([]);
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,16 +66,16 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
   const [isAssigning, setIsAssigning] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState('US');
   const [selectedAssistantForCountry, setSelectedAssistantForCountry] = useState('');
-  
+
   // Fetch all data
   const loadData = async () => {
     setIsLoading(true);
     try {
       const [assigned, unassignedAssistants] = await Promise.all([
         fetchAssignedPhoneNumbers(),
-        fetchAssistantsWithoutPhoneNumbers()
+        fetchAssistantsWithoutPhoneNumbers(),
       ]);
-      
+
       setAssignedNumbers(assigned);
       setAssistants(unassignedAssistants);
     } catch (error) {
@@ -99,19 +91,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
     loadData();
   }, []);
 
-  // Add a new phone number
-  const _handleAddPhoneNumber = async () => {
-    if (!newPhoneNumber) {
-      toast.error('Please enter a phone number');
-      return;
-    }
-
-    const success = await addPhoneNumber(newPhoneNumber);
-    if (success) {
-      setNewPhoneNumber('');
-      loadData();
-    }
-  };
+  // Removed unused _handleAddPhoneNumber function
 
   // Unassign a phone number
   const handleUnassignPhoneNumber = async (phoneNumber: string | null) => {
@@ -119,11 +99,9 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
       toast.error('No phone number to unassign');
       return;
     }
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to unassign this phone number?`
-    );
-    
+
+    const confirmed = globalThis.confirm(`Are you sure you want to unassign this phone number?`);
+
     if (confirmed) {
       const success = await unassignPhoneNumber(phoneNumber);
       if (success) {
@@ -150,7 +128,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
       } = {
         assistantId: selectedAssistantForCountry,
         countryCode: selectedCountry,
-        webhookUrl: `${window.location.origin}/api/twilio/webhook?assistantId=${selectedAssistantForCountry}`
+        webhookUrl: `${globalThis.location.origin}/api/twilio/webhook?assistantId=${selectedAssistantForCountry}`,
       };
 
       // Only add areaCode to the request if it's not empty
@@ -162,7 +140,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
       const response = await fetch('/api/phone-numbers/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -172,16 +150,18 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
 
       const _data = await response.json();
       toast.success(`Phone number assigned successfully to assistant`);
-      
+
       // Reset selection
       setSelectedAssistantForCountry('');
       setAreaCode('');
-      
+
       // Refresh phone number list
       loadData();
     } catch (error) {
       console.error('Error assigning phone number from country:', error);
-      toast.error(`Failed to assign number: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(
+        `Failed to assign number: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     } finally {
       setIsAssigning(false);
     }
@@ -196,28 +176,26 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
             <span>Phone Number Management</span>
           </div>
           <Button variant="outline" size="sm" onClick={loadData}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
         </CardTitle>
-        <CardDescription>
-          Manage phone numbers for your assistants
-        </CardDescription>
+        <CardDescription>Manage phone numbers for your assistants</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue={initialTab}>
-          <TabsList className="mb-4 w-full grid grid-cols-2">
+          <TabsList className="mb-4 grid w-full grid-cols-2">
             <TabsTrigger value="assigned">Assigned Numbers</TabsTrigger>
             <TabsTrigger value="assign">Assign Number</TabsTrigger>
           </TabsList>
-          
+
           {/* Assigned Numbers Tab */}
           <TabsContent value="assigned">
             <div className="space-y-4">
-              <div className="text-sm text-muted-foreground mb-2">
+              <div className="mb-2 text-sm text-muted-foreground">
                 These assistants have assigned phone numbers.
               </div>
-              
+
               {isLoading ? (
                 <div className="py-8 text-center">Loading assigned numbers...</div>
               ) : assignedNumbers.length === 0 ? (
@@ -226,36 +204,36 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
                 </div>
               ) : (
                 <div className="rounded-md border">
-                  <div className="grid grid-cols-3 px-4 py-3 bg-muted font-medium">
+                  <div className="grid grid-cols-3 bg-muted px-4 py-3 font-medium">
                     <div>Assistant</div>
                     <div>Phone Info</div>
                     <div className="text-right">Actions</div>
                   </div>
                   <div className="divide-y">
-                    {assignedNumbers.map((phone) => (
-                      <div key={phone.id} className="grid grid-cols-3 px-4 py-3 items-center">
+                    {assignedNumbers.map(phone => (
+                      <div key={phone.id} className="grid grid-cols-3 items-center px-4 py-3">
                         <div>
                           <div className="font-medium">{phone.assistants?.name ?? 'Unknown'}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <UserCircle className="h-3 w-3" />
                             {phone.assistants?.owner_name ?? 'Unknown owner'}
                           </div>
                         </div>
                         <div>
                           <div className="font-mono">{formatPhoneNumber(phone.phone_number)}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
+                          <div className="mt-1 text-xs text-muted-foreground">
                             <Badge variant="outline" className="bg-blue-50 text-blue-700">
                               {formatCountryFromNumber(phone.phone_number)}
                             </Badge>
                           </div>
                         </div>
                         <div className="flex justify-end gap-2">
-                          <Button 
+                          <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleUnassignPhoneNumber(phone.phone_number)}
                           >
-                            <Unplug className="h-3.5 w-3.5 mr-1" />
+                            <Unplug className="mr-1 h-3.5 w-3.5" />
                             Unassign
                           </Button>
                         </div>
@@ -266,18 +244,21 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
               )}
             </div>
           </TabsContent>
-          
+
           {/* Assign Number Tab */}
           <TabsContent value="assign">
             <div className="space-y-4">
-              <div className="text-sm text-muted-foreground mb-4">
+              <div className="mb-4 text-sm text-muted-foreground">
                 Assign a phone number from a selected country to your assistant.
               </div>
-              
+
               <div className="grid gap-4">
                 <div>
                   <Label htmlFor="assistant">Assistant</Label>
-                  <Select value={selectedAssistantForCountry} onValueChange={setSelectedAssistantForCountry}>
+                  <Select
+                    value={selectedAssistantForCountry}
+                    onValueChange={setSelectedAssistantForCountry}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select an assistant" />
                     </SelectTrigger>
@@ -317,31 +298,33 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
                     id="areaCode"
                     placeholder="e.g. 415"
                     value={areaCode}
-                    onChange={(e) => setAreaCode(e.target.value)}
+                    onChange={e => { setAreaCode(e.target.value); }}
                     className="font-mono"
                   />
                 </div>
-                
-                <Button 
-                  onClick={handleAssignFromCountry} 
+
+                <Button
+                  onClick={handleAssignFromCountry}
                   disabled={isAssigning || !selectedCountry || !selectedAssistantForCountry}
                 >
                   {isAssigning ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <ShoppingCart className="mr-2 h-4 w-4" />
                   )}
-                  {isAssigning ? "Assigning Number..." : "Assign Number from Country"}
+                  {isAssigning ? 'Assigning Number...' : 'Assign Number from Country'}
                 </Button>
-                
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded-md text-sm text-blue-800">
+
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
                   <p className="font-medium">Important Note</p>
                   <p className="mt-1">
-                    A phone number will be automatically selected from the chosen country and assigned to your assistant.
-                    If no number is available in our pool, one will be purchased from Twilio.
+                    A phone number will be automatically selected from the chosen country and
+                    assigned to your assistant. If no number is available in our pool, one will be
+                    purchased from Twilio.
                   </p>
                   <p className="mt-1">
-                    Purchasing numbers will immediately charge your Twilio account. Make sure you have proper billing setup in your Twilio account.
+                    Purchasing numbers will immediately charge your Twilio account. Make sure you
+                    have proper billing setup in your Twilio account.
                   </p>
                 </div>
               </div>
@@ -356,7 +339,7 @@ export function PhoneNumberManagement({ initialTab = "assigned" }: PhoneNumberMa
 // Helper function to format country code from phone number
 function formatCountryFromNumber(phoneNumber: string | null): string {
   if (!phoneNumber) return 'Unknown';
-  
+
   if (phoneNumber.startsWith('+1')) return 'United States/Canada';
   if (phoneNumber.startsWith('+44')) return 'United Kingdom';
   if (phoneNumber.startsWith('+61')) return 'Australia';
@@ -365,18 +348,18 @@ function formatCountryFromNumber(phoneNumber: string | null): string {
   if (phoneNumber.startsWith('+34')) return 'Spain';
   if (phoneNumber.startsWith('+39')) return 'Italy';
   if (phoneNumber.startsWith('+81')) return 'Japan';
-  
+
   // Get country code
-  const countryCode = phoneNumber.substring(0, 3); // +XX format
+  const countryCode = phoneNumber.slice(0, 3); // +XX format
   return `International (${countryCode})`;
 }
 
 // Add this helper function if it doesn't exist yet
 function formatPhoneNumber(phoneNumber: string | null): string {
   if (!phoneNumber) return 'No Number';
-  
+
   if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
-    return `(${phoneNumber.substring(2, 5)}) ${phoneNumber.substring(5, 8)}-${phoneNumber.substring(8)}`;
+    return `(${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5, 8)}-${phoneNumber.slice(8)}`;
   }
   return phoneNumber;
 }

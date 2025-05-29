@@ -1,34 +1,36 @@
-import type { NextRequest} from 'next/server';
-import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import type { NextRequest } from 'next/server';
+
 import { v4 as uuidv4 } from 'uuid';
+
 import type { Database } from '@/lib/db.types';
+import { createClient } from '@/utils/supabase/server';
 
 function generatePineconeName(base: string): string {
-  let prefix = base.toLowerCase().replace(/[^a-z0-9]/g, '-');
-  prefix = prefix.substring(0, 40);
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  let prefix = base.toLowerCase().replaceAll(/[^a-z0-9]/g, '-');
+  prefix = prefix.slice(0, 40);
+  const randomSuffix = Math.random().toString(36).slice(2, 8);
   return `${prefix}-${randomSuffix}`;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    
-    const { 
-      assistantName, 
-      description, 
+
+    const {
+      assistantName,
+      description,
       params = {},
       plan = 'personal', // Default plan
-      stripeCheckoutSessionId // Added for payment verification
+      stripeCheckoutSessionId, // Added for payment verification
     } = body;
-    
+
     if (!assistantName) {
       return NextResponse.json({ error: 'Assistant name is required' }, { status: 400 });
     }
-    
+
     let verifiedPlanId = plan;
-    let subscriptionStatus: Database['assistants']['Tables']['assistant_subscriptions']['Insert']['status'] = 'pending'; // Default status
+    let subscriptionStatus: Database['assistants']['Tables']['assistant_subscriptions']['Insert']['status'] =
+      'pending'; // Default status
 
     // If a plan other than personal is selected, verify payment
     if (plan !== 'personal' && stripeCheckoutSessionId) {
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
         // const paymentDetails = await verifyStripePayment(stripeCheckoutSessionId);
         // For demonstration, let's assume verification is successful if stripeCheckoutSessionId is present
         // and paymentDetails would return the actual plan_id confirmed by Stripe.
-        
+
         // Example: const { successful, actualPlanId } = await verifyStripePayment(stripeCheckoutSessionId);
         // if (successful) {
         //   verifiedPlanId = actualPlanId; // Use the plan confirmed by Stripe
@@ -49,27 +51,43 @@ export async function POST(req: NextRequest) {
 
         // For now, let's simulate a successful verification if stripeCheckoutSessionId is provided
         // In a real scenario, you MUST call Stripe API here to verify the session.
-        console.log(`Simulating Stripe payment verification for session: ${stripeCheckoutSessionId} and plan: ${plan}`);
+        console.log(
+          `Simulating Stripe payment verification for session: ${stripeCheckoutSessionId} and plan: ${plan}`
+        );
         verifiedPlanId = plan; // Assume plan from request is the one paid for after verification
         subscriptionStatus = 'active'; // Set status to active if payment is "verified"
-
       } catch (verificationError: unknown) {
         console.error('Stripe verification error:', verificationError);
-        return NextResponse.json({ error: 'Failed to verify payment', details: (verificationError instanceof Error) ? verificationError.message : String(verificationError) }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: 'Failed to verify payment',
+            details:
+              verificationError instanceof Error
+                ? verificationError.message
+                : String(verificationError),
+          },
+          { status: 500 }
+        );
       }
     } else if (plan !== 'personal' && !stripeCheckoutSessionId) {
       // If it's a paid plan, stripeCheckoutSessionId is required
-      return NextResponse.json({ error: 'Stripe Checkout Session ID is required for paid plans.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Stripe Checkout Session ID is required for paid plans.' },
+        { status: 400 }
+      );
     }
-    
+
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
       console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     try {
       const { data: userData, error: userFetchError } = await supabase
         .schema('users')
@@ -77,18 +95,18 @@ export async function POST(req: NextRequest) {
         .select('id')
         .eq('auth_user_id', user.id)
         .single();
-      
+
       if (userFetchError) {
         console.error('Error fetching user record:', userFetchError);
         return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
       }
-      
+
       const userId = userData.id;
       const pendingAssistantId = uuidv4();
-      
+
       const pinecone_name = generatePineconeName(assistantName);
       console.log(`Generated Pinecone name: ${pinecone_name}`);
-      
+
       const pendingAssistantData: Database['assistants']['Tables']['assistants']['Insert'] = {
         id: pendingAssistantId,
         user_id: userId,
@@ -101,10 +119,13 @@ export async function POST(req: NextRequest) {
         .schema('assistants')
         .from('assistants')
         .insert([pendingAssistantData]);
-      
+
       if (insertError) {
         console.error('Error saving pending assistant to Supabase:', insertError);
-        return NextResponse.json({ error: 'Failed to save pending assistant to database' }, { status: 500 });
+        return NextResponse.json(
+          { error: 'Failed to save pending assistant to database' },
+          { status: 500 }
+        );
       }
 
       // Insert consolidated config data into assistant_configs table
@@ -123,19 +144,27 @@ export async function POST(req: NextRequest) {
       if (configInsertError) {
         console.error('Error inserting assistant config:', configInsertError);
         // Attempt to delete the pending assistant if config insertion fails
-        await supabase.schema('assistants').from('assistants').delete().eq('id', pendingAssistantId);
-        return NextResponse.json({ error: 'Failed to save assistant configuration' }, { status: 500 });
+        await supabase
+          .schema('assistants')
+          .from('assistants')
+          .delete()
+          .eq('id', pendingAssistantId);
+        return NextResponse.json(
+          { error: 'Failed to save assistant configuration' },
+          { status: 500 }
+        );
       }
 
       // Insert subscription data
-      const subscriptionData: Database['assistants']['Tables']['assistant_subscriptions']['Insert'] = {
-        id: uuidv4(),
-        assistant_id: pendingAssistantId,
-        status: subscriptionStatus,
-        plan_id: verifiedPlanId,
-        created_at: new Date().toISOString(),
-        // Add any other default fields here
-      };
+      const subscriptionData: Database['assistants']['Tables']['assistant_subscriptions']['Insert'] =
+        {
+          id: uuidv4(),
+          assistant_id: pendingAssistantId,
+          status: subscriptionStatus,
+          plan_id: verifiedPlanId,
+          created_at: new Date().toISOString(),
+          // Add any other default fields here
+        };
 
       const { error: subscriptionInsertError } = await supabase
         .schema('assistants')
@@ -147,21 +176,29 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to save subscription data' }, { status: 500 });
       }
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: `Assistant ${assistantName} created as pending`,
         assistantId: pendingAssistantId,
-        pendingAssistantId: pendingAssistantId
+        pendingAssistantId: pendingAssistantId,
       });
     } catch (apiError: unknown) {
       console.error('API error during assistant creation:', apiError);
-      return NextResponse.json({ error: 'Failed to create assistant', details: apiError instanceof Error ? apiError.message : 'Unknown error' }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: 'Failed to create assistant',
+          details: apiError instanceof Error ? apiError.message : 'Unknown error',
+        },
+        { status: 500 }
+      );
     }
-    
   } catch (error: unknown) {
     console.error('Unexpected error in POST /api/Concierge/create:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }

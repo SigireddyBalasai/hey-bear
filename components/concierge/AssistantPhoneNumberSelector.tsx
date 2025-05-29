@@ -1,6 +1,15 @@
-"use client";
+'use client';
 
-import React,{ useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
+
+import { AlertTriangle, Check, Phone, PlusCircle, RefreshCw, X } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -9,23 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Phone, RefreshCw, PlusCircle, Check, X, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+} from '@/components/ui/select';
 
 interface AssistantPhoneNumberSelectorProps {
   assistantId: string;
@@ -48,15 +50,17 @@ type TwilioAppInfo = {
 };
 
 export function AssistantPhoneNumberSelector({
-    assistantId,
+  assistantId,
   onAssigned,
   currentPhoneNumber,
-  webhookUrl: _webhookUrl
+  webhookUrl: _webhookUrl,
 }: AssistantPhoneNumberSelectorProps) {
-  const [availableNumbers, setAvailableNumbers] = useState<Array<{ id: string; phone_number: string }>>([]);
+  const [availableNumbers, setAvailableNumbers] = useState<
+    Array<{ id: string; phone_number: string }>
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedNumber, setSelectedNumber] = useState<string>("");
-  const [webhook, setWebhook] = useState<string>("");
+  const [selectedNumber, setSelectedNumber] = useState<string>('');
+  const [webhook, setWebhook] = useState<string>('');
   const [useDefaultWebhook, setUseDefaultWebhook] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -64,14 +68,14 @@ export function AssistantPhoneNumberSelector({
 
   // Get default webhook URL
   const getDefaultWebhookUrl = useCallback(() => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const origin = typeof globalThis === 'undefined' ? '' : globalThis.location.origin;
     return `${origin}/api/twilio/webhook?assistantId=${assistantId}`;
   }, [assistantId]);
 
   // Format phone number for display
   const formatPhoneNumber = (phoneNumber: string) => {
     if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
-      return `(${phoneNumber.substring(2, 5)}) ${phoneNumber.substring(5, 8)}-${phoneNumber.substring(8)}`;
+      return `(${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5, 8)}-${phoneNumber.slice(8)}`;
     }
     return phoneNumber;
   };
@@ -81,14 +85,14 @@ export function AssistantPhoneNumberSelector({
     setIsLoading(true);
     try {
       const response = await fetch('/api/phone-numbers/available');
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch available phone numbers');
+        throw new Error(errorData.error ?? 'Failed to fetch available phone numbers');
       }
-      
+
       const { numbers } = await response.json();
-      setAvailableNumbers(numbers || []);
+      setAvailableNumbers(numbers ?? []);
     } catch (error) {
       console.error('Error fetching phone numbers:', error);
       toast.error('Failed to load available phone numbers');
@@ -110,7 +114,7 @@ export function AssistantPhoneNumberSelector({
       fetchAvailablePhoneNumbers();
       handleWebhookToggle(true);
     } else {
-      setSelectedNumber("");
+      setSelectedNumber('');
     }
   };
 
@@ -127,7 +131,7 @@ export function AssistantPhoneNumberSelector({
     }
 
     setIsAssigning(true);
-    
+
     try {
       const response = await fetch('/api/phone-numbers/assign', {
         method: 'POST',
@@ -137,14 +141,14 @@ export function AssistantPhoneNumberSelector({
         body: JSON.stringify({
           assistantId,
           phoneNumber: selectedNumber,
-          webhookUrl: webhook
+          webhookUrl: webhook,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to assign phone number');
+        throw new Error(data.error ?? 'Failed to assign phone number');
       }
 
       // Store TwiML app info if available
@@ -152,10 +156,10 @@ export function AssistantPhoneNumberSelector({
         // Make sure we have valid TwiML app data
         if (data.data.twilioDetails.twimlApp?.sid) {
           setTwilioAppInfo(data.data.twilioDetails);
-          
+
           toast.success('Phone number assigned with Twilio integration', {
-            description: `TwiML app created with SID: ${data.data.twilioDetails.twimlApp.sid.substring(0, 10)}...`,
-            duration: 5000
+            description: `TwiML app created with SID: ${data.data.twilioDetails.twimlApp.sid.slice(0, 10)}...`,
+            duration: 5000,
           });
         } else {
           setTwilioAppInfo(null);
@@ -164,20 +168,20 @@ export function AssistantPhoneNumberSelector({
       } else {
         toast.success('Phone number assigned successfully!');
       }
-      
+
       onAssigned(selectedNumber);
       setDialogOpen(false);
     } catch (error) {
       let errorMessage = 'Failed to assign phone number';
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Special case for schema errors
-        if (errorMessage.includes("Could not find the")) {
-          errorMessage = "Database schema issue. Please contact support.";
+        if (errorMessage.includes('Could not find the')) {
+          errorMessage = 'Database schema issue. Please contact support.';
         }
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setIsAssigning(false);
@@ -187,7 +191,7 @@ export function AssistantPhoneNumberSelector({
   // Clear/Unassign phone number
   const unassignPhoneNumber = async () => {
     if (!currentPhoneNumber) return;
-    
+
     setIsAssigning(true);
     try {
       const response = await fetch('/api/phone-numbers/unassign', {
@@ -197,20 +201,22 @@ export function AssistantPhoneNumberSelector({
         },
         body: JSON.stringify({
           assistantId,
-          phoneNumber: currentPhoneNumber
+          phoneNumber: currentPhoneNumber,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to unassign Twilio phone number');
+        throw new Error(errorData.error ?? 'Failed to unassign Twilio phone number');
       }
 
       toast.success('Twilio phone number removed successfully');
       setTwilioAppInfo(null);
-      onAssigned("");
+      onAssigned('');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to unassign Twilio phone number');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to unassign Twilio phone number'
+      );
     } finally {
       setIsAssigning(false);
     }
@@ -223,21 +229,25 @@ export function AssistantPhoneNumberSelector({
           <Phone className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-medium">Twilio SMS Number</h3>
         </div>
-        
+
         {currentPhoneNumber ? (
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1.5">
               <Phone className="h-3 w-3" />
               {formatPhoneNumber(currentPhoneNumber)}
             </Badge>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={unassignPhoneNumber} 
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={unassignPhoneNumber}
               disabled={isAssigning}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700"
             >
-              {isAssigning ? <RefreshCw className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              {isAssigning ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
             </Button>
           </div>
         ) : (
@@ -252,13 +262,14 @@ export function AssistantPhoneNumberSelector({
               <DialogHeader>
                 <DialogTitle>Assign Phone Number</DialogTitle>
                 <DialogDescription>
-                  Select a phone number to connect to this No-Show. This will enable SMS conversations.
+                  Select a phone number to connect to this No-Show. This will enable SMS
+                  conversations.
                 </DialogDescription>
               </DialogHeader>
-              
+
               {isLoading ? (
                 <div className="py-4 text-center">
-                  <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-muted-foreground" />
+                  <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">Loading available numbers...</p>
                 </div>
               ) : availableNumbers.length === 0 ? (
@@ -267,8 +278,8 @@ export function AssistantPhoneNumberSelector({
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>No phone numbers available</AlertTitle>
                     <AlertDescription>
-                      There are no unassigned phone numbers in the system.
-                      Contact an administrator to add more phone numbers.
+                      There are no unassigned phone numbers in the system. Contact an administrator
+                      to add more phone numbers.
                     </AlertDescription>
                   </Alert>
                 </div>
@@ -282,7 +293,7 @@ export function AssistantPhoneNumberSelector({
                           <SelectValue placeholder="Select a phone number" />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableNumbers.map((phone) => (
+                          {availableNumbers.map(phone => (
                             <SelectItem key={phone.id} value={phone.phone_number}>
                               {formatPhoneNumber(phone.phone_number)}
                             </SelectItem>
@@ -290,35 +301,36 @@ export function AssistantPhoneNumberSelector({
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id="useDefaultWebhook" 
+                        <Checkbox
+                          id="useDefaultWebhook"
                           checked={useDefaultWebhook}
-                          onCheckedChange={(checked) => handleWebhookToggle(checked as boolean)}
+                          onCheckedChange={checked => { handleWebhookToggle(checked as boolean); }}
                         />
                         <Label htmlFor="useDefaultWebhook">Use default webhook URL</Label>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="webhook">Webhook URL</Label>
-                        <Input 
-                          id="webhook" 
-                          value={webhook} 
-                          onChange={(e) => setWebhook(e.target.value)}
+                        <Input
+                          id="webhook"
+                          value={webhook}
+                          onChange={e => { setWebhook(e.target.value); }}
                           disabled={useDefaultWebhook}
                           placeholder="https://your-webhook-url.com/path"
                         />
                         <p className="text-xs text-muted-foreground">
-                          The webhook URL will handle both SMS messages and voice calls for this No-Show
+                          The webhook URL will handle both SMS messages and voice calls for this
+                          No-Show
                         </p>
                       </div>
                     </div>
-                    
-                    <div className="bg-muted rounded-md p-3 text-sm">
+
+                    <div className="rounded-md bg-muted p-3 text-sm">
                       <p>When you assign a phone number:</p>
-                      <ul className="list-disc list-inside mt-2 space-y-1">
+                      <ul className="mt-2 list-inside list-disc space-y-1">
                         <li>Users can interact with the No-Show via SMS</li>
                         <li>Voice callers will be prompted to use SMS instead</li>
                         <li>SMS messages will be forwarded to your webhook</li>
@@ -329,19 +341,21 @@ export function AssistantPhoneNumberSelector({
                   </div>
                 </div>
               )}
-              
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button variant="outline" onClick={() => { setDialogOpen(false); }}>
                   Cancel
                 </Button>
-                <Button 
-                  onClick={assignPhoneNumber} 
-                  disabled={isAssigning || !selectedNumber || !webhook || availableNumbers.length === 0}
+                <Button
+                  onClick={assignPhoneNumber}
+                  disabled={
+                    isAssigning || !selectedNumber || !webhook || availableNumbers.length === 0
+                  }
                 >
                   {isAssigning ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Check className="h-4 w-4 mr-2" />
+                    <Check className="mr-2 h-4 w-4" />
                   )}
                   Assign Number
                 </Button>
@@ -350,26 +364,43 @@ export function AssistantPhoneNumberSelector({
           </Dialog>
         )}
       </div>
-      
+
       {twilioAppInfo?.twimlApp && (
-        <Card className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+        <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-800 dark:text-green-200">Twilio Integration Details</CardTitle>
+            <CardTitle className="text-sm text-green-800 dark:text-green-200">
+              Twilio Integration Details
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-xs space-y-1 text-green-700 dark:text-green-300">
-            <p><strong>TwiML App:</strong> {twilioAppInfo.twimlApp.name || twilioAppInfo.twimlApp.friendlyName || 'SMS Handler'}</p>
-            <p><strong>App SID:</strong> {twilioAppInfo.twimlApp.sid ? `${twilioAppInfo.twimlApp.sid.substring(0, 8)}...` : 'Not available'}</p>
-            <p><strong>SMS URL:</strong> {twilioAppInfo.twimlApp.smsUrl || 'Not configured'}</p>
+          <CardContent className="space-y-1 text-xs text-green-700 dark:text-green-300">
+            <p>
+              <strong>TwiML App:</strong>{' '}
+              {twilioAppInfo.twimlApp.name ?? twilioAppInfo.twimlApp.friendlyName ?? 'SMS Handler'}
+            </p>
+            <p>
+              <strong>App SID:</strong>{' '}
+              {twilioAppInfo.twimlApp.sid
+                ? `${twilioAppInfo.twimlApp.sid.slice(0, 8)}...`
+                : 'Not available'}
+            </p>
+            <p>
+              <strong>SMS URL:</strong> {twilioAppInfo.twimlApp.smsUrl ?? 'Not configured'}
+            </p>
             {twilioAppInfo.phoneDetails?.voiceUrl && (
-              <p><strong>Voice URL:</strong> {twilioAppInfo.phoneDetails.voiceUrl}</p>
+              <p>
+                <strong>Voice URL:</strong> {twilioAppInfo.phoneDetails.voiceUrl}
+              </p>
             )}
-            <p><strong>Created:</strong> {twilioAppInfo.twimlApp.dateCreated 
-              ? new Date(twilioAppInfo.twimlApp.dateCreated).toLocaleString() 
-              : new Date().toLocaleString()}</p>
+            <p>
+              <strong>Created:</strong>{' '}
+              {twilioAppInfo.twimlApp.dateCreated
+                ? new Date(twilioAppInfo.twimlApp.dateCreated).toLocaleString()
+                : new Date().toLocaleString()}
+            </p>
           </CardContent>
         </Card>
       )}
-      
+
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
           <p>This No-Show can receive and respond to SMS messages via Twilio at this number.</p>

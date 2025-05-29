@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
+
+import { ChevronLeft, RefreshCw } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -6,21 +10,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { RefreshCw, ChevronLeft } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 
 interface CreateAssistantDialogProps {
   open: boolean;
@@ -47,16 +49,16 @@ export function CreateAssistantDialog({
   handleCreateAssistant,
   isCreating,
 }: CreateAssistantDialogProps) {
-  const [customerSessionSecret, setCustomerSessionSecret] = useState<string>("");
-  
+  const [customerSessionSecret, setCustomerSessionSecret] = useState<string>('');
+
   const personalityOptions = [
-    "Business Casual",
-    "Formal",
-    "Friendly",
-    "Professional",
-    "Casual",
-    "Enthusiastic",
-    "Technical",
+    'Business Casual',
+    'Formal',
+    'Friendly',
+    'Professional',
+    'Casual',
+    'Enthusiastic',
+    'Technical',
   ];
 
   // Fetch customer session when dialog opens
@@ -70,7 +72,7 @@ export function CreateAssistantDialog({
               'Content-Type': 'application/json',
             },
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             setCustomerSessionSecret(data.customer_session_client_secret);
@@ -82,28 +84,26 @@ export function CreateAssistantDialog({
         }
       }
     };
-    
+
     fetchCustomerSession();
   }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[600px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setOpen(false)}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => { setOpen(false); }}
               className="hover:bg-muted"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
               <DialogTitle>Create new no-show</DialogTitle>
-              <DialogDescription>
-                Create a new no-show to help with your tasks.
-              </DialogDescription>
+              <DialogDescription>Create a new no-show to help with your tasks.</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -117,7 +117,7 @@ export function CreateAssistantDialog({
               id="assistantName"
               placeholder="E.g., Sales Assistant, Support Bot"
               value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
+              onChange={e => { handleInputChange('name', e.target.value); }}
               className="w-full"
               autoFocus
             />
@@ -134,7 +134,7 @@ export function CreateAssistantDialog({
               id="conciergeName"
               placeholder="E.g., Alex, Sales Team"
               value={formData.conciergeName}
-              onChange={(e) => handleInputChange("conciergeName", e.target.value)}
+              onChange={e => { handleInputChange('conciergeName', e.target.value); }}
               className="w-full"
             />
             <p className="text-xs text-muted-foreground">
@@ -148,13 +148,13 @@ export function CreateAssistantDialog({
             </Label>
             <Select
               value={formData.personality}
-              onValueChange={(value) => handleInputChange("personality", value)}
+              onValueChange={value => { handleInputChange('personality', value); }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a personality style" />
               </SelectTrigger>
               <SelectContent className="max-h-[100px] overflow-y-auto">
-                {personalityOptions.map((option) => (
+                {personalityOptions.map(option => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
@@ -174,12 +174,10 @@ export function CreateAssistantDialog({
               id="businessName"
               placeholder="E.g., Acme Inc., John Smith"
               value={formData.businessName}
-              onChange={(e) => handleInputChange("businessName", e.target.value)}
+              onChange={e => { handleInputChange('businessName', e.target.value); }}
               className="w-full"
             />
-            <p className="text-xs text-muted-foreground">
-              How others know you by.
-            </p>
+            <p className="text-xs text-muted-foreground">How others know you by.</p>
           </div>
 
           <div className="space-y-2">
@@ -190,7 +188,7 @@ export function CreateAssistantDialog({
               id="description"
               placeholder="Describe what this No-show does..."
               value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
+              onChange={e => { handleInputChange('description', e.target.value); }}
               className="min-h-[80px] w-full"
             />
           </div>
@@ -201,14 +199,14 @@ export function CreateAssistantDialog({
                 <Label htmlFor="sharePhoneNumber" className="font-medium">
                   Share Your Phone Number
                 </Label>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Enabling this lets your No-show share the inputted number.
                 </p>
               </div>
               <Switch
                 id="sharePhoneNumber"
                 checked={formData.sharePhoneNumber}
-                onCheckedChange={(checked) => handleInputChange("sharePhoneNumber", checked)}
+                onCheckedChange={checked => { handleInputChange('sharePhoneNumber', checked); }}
               />
             </div>
 
@@ -219,16 +217,17 @@ export function CreateAssistantDialog({
                   type="tel"
                   placeholder="E.g., +1 (555) 123-4567"
                   value={formData.phoneNumber}
-                  onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                  onChange={e => { handleInputChange('phoneNumber', e.target.value); }}
                   className="w-full"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  This is useful if you want your No-show to redirect others to another number if they request it.
+                <p className="mt-1 text-xs text-muted-foreground">
+                  This is useful if you want your No-show to redirect others to another number if
+                  they request it.
                 </p>
               </div>
             )}
           </div>
-          
+
           <Separator className="my-4" />
         </div>
 
@@ -237,18 +236,18 @@ export function CreateAssistantDialog({
           {customerSessionSecret ? (
             <>
               {/* @ts-ignore: Stripe pricing table is a custom element */}
-              <stripe-pricing-table 
+              <stripe-pricing-table
                 pricing-table-id="prctbl_1RLSa3JBwNLaAmkcYljx7l0w"
                 publishable-key="pk_test_51NLOGiJBwNLaAmkcBWq2YISD7PdDcFqArna2ejERSB0e6BgdOpB9KgSGW0aVi8FmIRNnLWtSooTJhI2BwIrkSwAi00uNXm3gOy"
                 customer-session-client-secret={customerSessionSecret}
-                success-url={`${window.location.origin}/dashboard?payment=success`}
-                cancel-url={`${window.location.origin}/Concierge?payment=cancelled`}
+                success-url={`${globalThis.location.origin}/dashboard?payment=success`}
+                cancel-url={`${globalThis.location.origin}/Concierge?payment=cancelled`}
               >
-              {/* @ts-ignore: Stripe pricing table is a custom element */}
+                {/* @ts-ignore: Stripe pricing table is a custom element */}
               </stripe-pricing-table>
             </>
           ) : (
-            <div className="text-center py-8">
+            <div className="py-8 text-center">
               <p className="text-gray-500">Loading pricing options...</p>
             </div>
           )}
@@ -256,20 +255,17 @@ export function CreateAssistantDialog({
         {/* Stripe Pricing Table END */}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => { setOpen(false); }}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleCreateAssistant} 
-            disabled={isCreating || !formData.name.trim()}
-          >
+          <Button onClick={handleCreateAssistant} disabled={isCreating || !formData.name.trim()}>
             {isCreating ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                 Creating...
               </>
             ) : (
-              "Create No-show"
+              'Create No-show'
             )}
           </Button>
         </DialogFooter>

@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
+
 import { createClient } from '@/utils/supabase/server';
 
 export async function GET(_req: Request) {
   try {
     const supabase = await createClient();
-    
+
     // Authenticate the user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -18,7 +22,7 @@ export async function GET(_req: Request) {
       .select('id, phone_number')
       .eq('is_assigned', false)
       .order('created_at', { ascending: false });
-      
+
     if (error) {
       console.error('Error fetching available phone numbers:', error);
       return NextResponse.json(
@@ -26,12 +30,15 @@ export async function GET(_req: Request) {
         { status: 500 }
       );
     }
-    
-    return NextResponse.json({ numbers: numbers || [] });
+
+    return NextResponse.json({ numbers });
   } catch (error: unknown) {
-    console.error("Error fetching available phone numbers:", error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Unknown error occurred' 
-    }, { status: 500 });
+    console.error('Error fetching available phone numbers:', error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      },
+      { status: 500 }
+    );
   }
 }

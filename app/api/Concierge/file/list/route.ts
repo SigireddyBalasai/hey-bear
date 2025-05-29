@@ -1,9 +1,11 @@
-import type { NextRequest} from 'next/server';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// Added import
+
+import type { Database } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
-import type { PostgrestError } from '@supabase/supabase-js';
-import type { Database } from '@/lib/db.types'; // Added import
 
 // Define types based on db.types.ts
 type AssistantConfigFromDb = Database['assistants']['Tables']['assistant_configs']['Row'];
@@ -22,97 +24,109 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
     }
 
-    const { assistantId, pinecone_name: providedPineconeName } = body as { assistantId?: string, pinecone_name?: string }; // Type assertion for body
-    
+    const { assistantId, pinecone_name: providedPineconeName } = body as {
+      assistantId?: string;
+      pinecone_name?: string;
+    }; // Type assertion for body
+
     // Validate required fields
     if (!assistantId) {
       return NextResponse.json({ error: 'Missing assistantId' }, { status: 400 }); // Corrected error message
     }
-    
+
     const supabase = await createClient();
 
     // Check user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
       console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     // If pinecone_name wasn't provided in the request, fetch it from the database
-    let assistantPineconeName: string | null = providedPineconeName || null;
-    
+    let assistantPineconeName: string | null = providedPineconeName ?? null;
+
     if (!assistantPineconeName) {
       // Fetch the assistant and its configuration from the database
       const { data: assistantData, error: assistantError } = await supabase
         .schema('assistants') // Schema for the 'assistants' table
-        .from('assistants')   // The 'assistants' table
+        .from('assistants') // The 'assistants' table
         .select('id, assistant_configs!inner(*)') // Fetch all columns from assistant_configs
         .eq('id', assistantId)
         .single<TypedAssistantWithFullConfig>(); // Apply the updated type here
-      
+
       if (assistantError) {
         console.error('Error fetching assistant data or configuration:', assistantError);
-        const errorCode = (assistantError as PostgrestError)?.code;
-        return NextResponse.json({ error: 'Failed to fetch assistant configuration', details: assistantError.message }, { status: errorCode === 'PGRST116' ? 404 : 500 });
+        const errorCode = (assistantError).code;
+        return NextResponse.json(
+          { error: 'Failed to fetch assistant configuration', details: assistantError.message },
+          { status: errorCode === 'PGRST116' ? 404 : 500 }
+        );
       }
 
-      if (!assistantData) {
-          console.error('Assistant data is unexpectedly null after a successful query for ID:', assistantId);
-          return NextResponse.json({ error: 'Assistant not found (unexpected null data)' }, { status: 404 });
-      }
-      
       // Extract pinecone_name from the joined data
       // If assistantData is not null, assistant_configs is guaranteed to be present due to the inner join.
       if (assistantData.assistant_configs.pinecone_name) {
         assistantPineconeName = assistantData.assistant_configs.pinecone_name;
       } else {
-        console.warn(`pinecone_name is missing or null on assistant_configs for assistant ID: ${assistantId}. Fetched config:`, assistantData.assistant_configs);
+        console.warn(
+          `pinecone_name is missing or null on assistant_configs for assistant ID: ${assistantId}. Fetched config:`,
+          assistantData.assistant_configs
+        );
       }
 
       if (!assistantPineconeName) {
         // It's possible an assistant exists but has no pinecone_name configured yet.
         // Depending on business logic, this might be an error or a valid state where no files can be listed.
         // For now, treating as an error if pinecone_name is essential for listing files.
-        console.error('pinecone_name is missing for assistant ID:', assistantId, '(neither provided nor found in configuration).');
-        return NextResponse.json({ error: 'Invalid assistant configuration (pinecone_name is required but could not be determined)' }, { status: 500 });
+        console.error(
+          'pinecone_name is missing for assistant ID:',
+          assistantId,
+          '(neither provided nor found in configuration).'
+        );
+        return NextResponse.json(
+          {
+            error:
+              'Invalid assistant configuration (pinecone_name is required but could not be determined)',
+          },
+          { status: 500 }
+        );
       }
     }
-    
+
     // Ensure assistantPineconeName is not null or undefined before using it
     if (!assistantPineconeName) {
       // This case should ideally be caught by the logic above, but as a safeguard:
-      console.error('Critical error: assistantPineconeName is null or undefined before Pinecone Assistant initialization.');
+      console.error(
+        'Critical error: assistantPineconeName is null or undefined before Pinecone Assistant initialization.'
+      );
       return NextResponse.json({ error: 'Pinecone configuration error' }, { status: 500 });
     }
 
     try {
       // Get Pinecone client and list files for this assistant
       const pinecone = getPineconeClient();
-      if (!pinecone) {
-        return NextResponse.json({ error: 'Pinecone client initialization failed' }, { status: 500 });
-      }
-      
       const assistant = pinecone.Assistant(assistantPineconeName); // assistantPineconeName is guaranteed non-null
       const files = await assistant.listFiles();
 
       return NextResponse.json({ files });
-    } catch (error: unknown) { 
+    } catch (error: unknown) {
       console.error('Error listing assistant files:', error);
       let errorMessage = 'An unknown error occurred';
       if (error instanceof Error) {
         errorMessage = error.message;
       }
-      return NextResponse.json(
-        { error: `Failed to list files: ${errorMessage}` }, 
-        { status: 500 }
-      );
+      return NextResponse.json({ error: `Failed to list files: ${errorMessage}` }, { status: 500 });
     }
-  } catch (e: unknown) { 
-    console.error('Unexpected error:', e);
+  } catch (error: unknown) {
+    console.error('Unexpected error:', error);
     let errorMessage = 'An internal server error occurred';
-    if (e instanceof Error) {
-      errorMessage = e.message;
+    if (error instanceof Error) {
+      errorMessage = error.message;
     }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

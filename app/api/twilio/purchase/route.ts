@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+
 import twilio from 'twilio';
+
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(req: Request) {
   try {
     // Check authentication and admin permissions
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,8 +24,8 @@ export async function POST(req: Request) {
       .select('is_admin, id')
       .eq('auth_user_id', user.id)
       .single();
-      
-    if (userDataError || !userData?.is_admin) {
+
+    if (userDataError || !userData.is_admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -28,35 +33,29 @@ export async function POST(req: Request) {
     const { phoneNumber } = await req.json();
 
     if (!phoneNumber) {
-      return NextResponse.json(
-        { error: 'Phone number is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
 
     // Initialize Twilio client
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
-    
+
     if (!accountSid || !authToken) {
-      return NextResponse.json(
-        { error: 'Twilio credentials not configured' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Twilio credentials not configured' }, { status: 500 });
     }
-    
+
     const client = twilio(accountSid, authToken);
 
     try {
       // Set webhook URL for SMS - use environment variable or fallback to a default
-      const webhookUrl = process.env.TWILIO_WEBHOOK_URL || 
-                          `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook`;
+      const webhookUrl =
+        process.env.TWILIO_WEBHOOK_URL ?? `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook`;
 
       // Purchase the number with Twilio API
       const purchasedNumber = await client.incomingPhoneNumbers.create({
         phoneNumber: phoneNumber,
         smsUrl: webhookUrl,
-        smsMethod: 'POST'
+        smsMethod: 'POST',
       });
 
       // Add the phone number to the database
@@ -77,7 +76,7 @@ export async function POST(req: Request) {
         } catch (releaseError) {
           console.error('Failed to release number after DB error:', releaseError);
         }
-        
+
         return NextResponse.json(
           { error: 'Failed to add phone number to database' },
           { status: 500 }
@@ -94,12 +93,12 @@ export async function POST(req: Request) {
           user_id: userData.id,
           chat: 'system',
           request: 'Purchase phone number',
-          response: JSON.stringify({ 
-            action: 'purchase_phone_number', 
+          response: JSON.stringify({
+            action: 'purchase_phone_number',
             number: purchasedNumber.phoneNumber,
-            sid: purchasedNumber.sid
+            sid: purchasedNumber.sid,
           }),
-          interaction_time: new Date().toISOString()
+          interaction_time: new Date().toISOString(),
         });
 
       return NextResponse.json({
@@ -108,16 +107,17 @@ export async function POST(req: Request) {
         number: {
           ...number,
           sid: purchasedNumber.sid,
-          friendlyName: purchasedNumber.friendlyName
-        }
+          friendlyName: purchasedNumber.friendlyName,
+        },
       });
     } catch (twilioError: unknown) {
       console.error('Twilio API error when purchasing number:', twilioError);
-      const errorMessage = twilioError instanceof Error ? twilioError.message : 'Unknown Twilio error';
+      const errorMessage =
+        twilioError instanceof Error ? twilioError.message : 'Unknown Twilio error';
       return NextResponse.json(
-        { 
-          success: false, 
-          error: `Twilio API Error: ${errorMessage}`
+        {
+          success: false,
+          error: `Twilio API Error: ${errorMessage}`,
         },
         { status: 500 }
       );
@@ -126,9 +126,9 @@ export async function POST(req: Request) {
     console.error('Error purchasing phone number:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to purchase phone number';
     return NextResponse.json(
-      { 
-        success: false, 
-        error: errorMessage
+      {
+        success: false,
+        error: errorMessage,
       },
       { status: 500 }
     );

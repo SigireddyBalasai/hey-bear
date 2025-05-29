@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Cache directories
+.cache/
+.turbo/
+
+# Coverage reports
+coverage/
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# Generated files
+*.d.ts
+*.tsbuildinfo
+
+# Database
+supabase/
+
+# Logs
+*.log
+
+# Config files that shouldn't be formatted
+*.config.js
+*.config.ts

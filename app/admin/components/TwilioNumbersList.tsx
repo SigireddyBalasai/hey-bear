@@ -1,7 +1,12 @@
-"use client";
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
+'use client';
+
+import { useEffect, useState } from 'react';
+
+import { AlertTriangle, Check, ExternalLink, Phone, Plus, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -9,17 +14,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Phone, 
-  RefreshCw, 
-  Plus,
-  AlertTriangle,
-  Check,
-  ExternalLink
-} from "lucide-react";
-import { toast } from "sonner";
+} from '@/components/ui/card';
 
 type TwilioNumber = {
   phoneNumber: string;
@@ -52,21 +47,21 @@ export function TwilioNumbersList() {
   const fetchTwilioNumbers = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch('/api/twilio/list');
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error ?? 'Failed to fetch Twilio numbers');
       }
-      
+
       const data = await response.json();
-      
+
       if (!data.success) {
         throw new Error(data.error ?? 'Unknown error');
       }
-      
+
       setTwilioNumbers(data.twilioNumbers ?? []);
       setDbNumbers(data.dbNumbers ?? []);
       setUnmanagedNumbers(data.unmanagedNumbers ?? []);
@@ -86,17 +81,17 @@ export function TwilioNumbersList() {
       const response = await fetch('/api/twilio/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber })
+        body: JSON.stringify({ phoneNumber }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         const errorMessage = data.error ?? `Failed with status: ${response.status}`;
         console.error('Import error:', data);
         throw new Error(errorMessage);
       }
-      
+
       toast.success('Phone number added to database');
       fetchTwilioNumbers(); // Refresh data
     } catch (error) {
@@ -121,15 +116,13 @@ export function TwilioNumbersList() {
             <span>Twilio Account Phone Numbers</span>
           </div>
           <Button variant="outline" size="sm" onClick={fetchTwilioNumbers} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </CardTitle>
-        <CardDescription>
-          All phone numbers from your Twilio account
-        </CardDescription>
+        <CardDescription>All phone numbers from your Twilio account</CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         {error ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
@@ -137,13 +130,13 @@ export function TwilioNumbersList() {
               <AlertTriangle className="h-5 w-5 text-amber-600" />
               <div>
                 <p className="font-medium">Connection Error</p>
-                <p className="text-sm mt-1">{error}</p>
+                <p className="mt-1 text-sm">{error}</p>
               </div>
             </div>
           </div>
         ) : isLoading ? (
           <div className="py-8 text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground/50" />
+            <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground/50" />
             <p className="text-muted-foreground">Loading phone numbers from Twilio...</p>
           </div>
         ) : (
@@ -151,36 +144,37 @@ export function TwilioNumbersList() {
             {/* Unmanaged Numbers Section */}
             {unmanagedNumbers.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium mb-2 flex items-center gap-1">
+                <h3 className="mb-2 flex items-center gap-1 text-sm font-medium">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                   Unmanaged Twilio Numbers
                 </h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  These phone numbers exist in your Twilio account but are not yet added to the database.
+                <p className="mb-4 text-xs text-muted-foreground">
+                  These phone numbers exist in your Twilio account but are not yet added to the
+                  database.
                 </p>
-                
+
                 <div className="rounded-md border">
-                  <div className="grid grid-cols-3 px-4 py-3 bg-muted font-medium text-sm">
+                  <div className="grid grid-cols-3 bg-muted px-4 py-3 text-sm font-medium">
                     <div>Phone Number</div>
                     <div>Friendly Name</div>
                     <div className="text-right">Actions</div>
                   </div>
                   <div className="divide-y">
                     {unmanagedNumbers.map((phone, index) => (
-                      <div key={index} className="grid grid-cols-3 px-4 py-3 items-center">
+                      <div key={index} className="grid grid-cols-3 items-center px-4 py-3">
                         <div className="font-mono text-sm">{phone.phoneNumber}</div>
                         <div className="text-sm">{phone.friendlyName}</div>
                         <div className="flex justify-end">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => addToDatabase(phone.phoneNumber)}
                             disabled={isImporting}
                           >
                             {isImporting ? (
-                              <RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" />
+                              <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
                             ) : (
-                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              <Plus className="mr-1 h-3.5 w-3.5" />
                             )}
                             Import
                           </Button>
@@ -191,52 +185,63 @@ export function TwilioNumbersList() {
                 </div>
               </div>
             )}
-            
+
             {/* All Twilio Numbers */}
             <div>
-              <h3 className="text-sm font-medium mb-2">All Twilio Account Numbers</h3>
-              <p className="text-xs text-muted-foreground mb-4">
+              <h3 className="mb-2 text-sm font-medium">All Twilio Account Numbers</h3>
+              <p className="mb-4 text-xs text-muted-foreground">
                 Complete list of phone numbers in your Twilio account.
               </p>
-              
+
               {twilioNumbers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground border rounded-md">
+                <div className="rounded-md border py-8 text-center text-muted-foreground">
                   No phone numbers found in your Twilio account.
                 </div>
               ) : (
-                <div className="rounded-md border overflow-hidden">
-                  <div className="grid grid-cols-4 px-4 py-3 bg-muted font-medium text-sm">
+                <div className="overflow-hidden rounded-md border">
+                  <div className="grid grid-cols-4 bg-muted px-4 py-3 text-sm font-medium">
                     <div>Phone Number</div>
                     <div>Friendly Name</div>
                     <div>Capabilities</div>
                     <div>Status</div>
                   </div>
-                  <div className="divide-y max-h-96 overflow-y-auto">
+                  <div className="max-h-96 divide-y overflow-y-auto">
                     {twilioNumbers.map((phone, index) => {
-                      const isInDatabase = dbNumbers.some(dbPhone => dbPhone.phone_number === phone.phoneNumber);
-                      
+                      const isInDatabase = dbNumbers.some(
+                        dbPhone => dbPhone.phone_number === phone.phoneNumber
+                      );
+
                       return (
-                        <div key={index} className="grid grid-cols-4 px-4 py-3 items-center">
+                        <div key={index} className="grid grid-cols-4 items-center px-4 py-3">
                           <div className="font-mono text-sm">{phone.phoneNumber}</div>
                           <div className="text-sm">{phone.friendlyName}</div>
                           <div className="flex flex-wrap gap-1">
                             {phone.capabilities?.sms && (
-                              <Badge variant="secondary" className="text-xs">SMS</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                SMS
+                              </Badge>
                             )}
                             {phone.capabilities?.voice && (
-                              <Badge variant="secondary" className="text-xs">Voice</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                Voice
+                              </Badge>
                             )}
                             {phone.capabilities?.mms && (
-                              <Badge variant="secondary" className="text-xs">MMS</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                MMS
+                              </Badge>
                             )}
                           </div>
                           <div>
                             {isInDatabase ? (
-                              <span className="inline-flex items-center gap-1 text-green-600 text-sm">
+                              <span className="inline-flex items-center gap-1 text-sm text-green-600">
                                 <Check className="h-3.5 w-3.5" /> Managed
                               </span>
                             ) : (
-                              <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-xs text-amber-700"
+                              >
                                 Not Imported
                               </Badge>
                             )}
@@ -251,17 +256,20 @@ export function TwilioNumbersList() {
           </div>
         )}
       </CardContent>
-      
-      <CardFooter className="border-t pt-4 flex justify-between">
+
+      <CardFooter className="flex justify-between border-t pt-4">
         <p className="text-xs text-muted-foreground">
-          {twilioNumbers.length} total number{twilioNumbers.length !== 1 ? 's' : ''} in your Twilio account
+          {twilioNumbers.length} total number{twilioNumbers.length === 1 ? '' : 's'} in your Twilio
+          account
         </p>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => window.open('https://www.twilio.com/console/phone-numbers/incoming', '_blank')}
+          onClick={() =>
+            window.open('https://www.twilio.com/console/phone-numbers/incoming', '_blank')
+          }
         >
-          <ExternalLink className="h-3.5 w-3.5 mr-1" />
+          <ExternalLink className="mr-1 h-3.5 w-3.5" />
           Manage in Twilio Console
         </Button>
       </CardFooter>

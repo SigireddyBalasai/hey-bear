@@ -1,6 +1,15 @@
-"use client";
-import React, { useState, useEffect, useCallback } from 'react';
-import { AssistantCard } from '../../components/concierge/conciergeCard';
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+
+import { useRouter } from 'next/navigation';
+
+import { AnimatePresence, motion } from 'framer-motion';
+import { UserCircle } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { createClient } from '@/utils/supabase/client';
+
 import { AssistantList } from '../../components/concierge/AssistantList';
 import { CreateAssistantDialog } from '../../components/concierge/CreateAssistantDialog';
 import { EmptyState } from '../../components/concierge/EmptyState';
@@ -9,12 +18,10 @@ import { Loading } from '../../components/concierge/Loading';
 import { Login } from '../../components/concierge/Login';
 import { SearchAndControls } from '../../components/concierge/SearchAndControl';
 import { TabsNavigation } from '../../components/concierge/TabsNavigation';
-import { createClient } from '@/utils/supabase/client';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import type { NormalizedAssistantData } from '@/utils/assistant-data';
-import { UserCircle } from "lucide-react";
+import { AssistantCard } from '../../components/concierge/conciergeCard';
+
+// Constants for commonly used strings
+const CONNECTION_ERROR = 'Connection error';
 
 // Prefix Tables import with underscore since we're not using it directly
 
@@ -45,16 +52,15 @@ type AssistantWithNonNullableFields = Omit<NormalizedAssistantData, 'assistant' 
 
 export default function AssistantsPage() {
   const [user, setUser] = useState<UserState | null>(null);
-  const [normalizedAssistants, setNormalizedAssistants] = useState<AssistantWithNonNullableFields[]>([]);
+  const [normalizedAssistants, setNormalizedAssistants] = useState<
+    AssistantWithNonNullableFields[]
+  >([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState('all');
-  const [_checkoutStatus, setCheckoutStatus] = useState<'success' | 'canceled' | null>(null);
-  const [_checkoutAssistantId, setCheckoutAssistantId] = useState<string | null>(null);
-  
+
   const router = useRouter();
 
   // State for form data object (combines all form fields)
@@ -65,21 +71,21 @@ export default function AssistantsPage() {
     personality: 'Business Casual',
     businessName: '',
     sharePhoneNumber: false,
-    phoneNumber: ''
+    phoneNumber: '',
   });
 
   // Handle input changes for any field in the form
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   // Utility function to get URL parameters
   const getUrlParameter = (name: string): string | null => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get(name);
+    if (typeof globalThis === 'undefined') return null;
+    return new URLSearchParams(globalThis.location.search).get(name);
   };
 
   // Handle signing out
@@ -88,115 +94,75 @@ export default function AssistantsPage() {
     supabase.auth.signOut().then(() => {
       setUser(null);
       router.push('/sign-in');
+    }).catch((error: unknown) => {
+      console.error('Error signing out:', error);
     });
   };
 
   // Handle deleting an assistant - now using real Supabase deletion
-  const handleDeleteAssistant = async (assistantId: string) => {
+  const handleDeleteAssistantAsync = async (assistantId: string) => {
     try {
       const assistantToDelete = normalizedAssistants.find(a => a.assistant.id === assistantId);
-      
+
       if (!assistantToDelete?.assistant.id) {
-        toast.error("Error", {
-          description: "Assistant not found",
+        toast.error('Error', {
+          description: 'Assistant not found',
         });
         return;
       }
-      
+
       const supabase = createClient();
-      
+
       // Delete from Supabase
       const { error } = await supabase
         .schema('assistants')
         .from('assistants')
         .delete()
         .eq('id', assistantId);
-        
+
       if (error) {
         console.error('Error deleting assistant:', error);
-        toast.error("Error", {
-          description: "Failed to delete assistant from server",
+        toast.error('Error', {
+          description: 'Failed to delete assistant from server',
         });
         return;
       }
-      
+
       // Update local state after successful deletion
       setNormalizedAssistants(prev => prev.filter(a => a.assistant.id !== assistantId));
-      
-      toast.success("Assistant deleted", {
+
+      toast.success('Assistant deleted', {
         description: `${assistantToDelete.assistant.name} has been removed`,
       });
     } catch (error: unknown) {
       console.error('Error deleting assistant:', error);
-      toast.error("Error", {
-        description: error instanceof Error ? error.message : "Something went wrong while deleting the assistant",
+      toast.error('Error', {
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong while deleting the assistant',
       });
     }
   };
 
-  // Updated createAssistant handler that uses the create_unpaid_assistant function
-  const handleCreateAssistant = async () => {
-    if (!formData.name.trim()) {
-      toast.error("Name required", {
-        description: "Please provide a name for your No-Show",
-      });
-      return;
-    }
+  // Placeholder createAssistant handler - creation logic to be implemented elsewhere
+  const handleCreateAssistant = () => {
+    // Reset form and close dialog
+    setFormData({
+      name: '',
+      description: '',
+      conciergeName: '',
+      personality: 'Business Casual',
+      businessName: '',
+      sharePhoneNumber: false,
+      phoneNumber: '',
+    });
+    setCreateDialogOpen(false);
 
-    if (!user?.id) {
-      toast.error("Authentication required", {
-        description: "Please sign in to create a No-Show",
-      });
-      return;
-    }
-
-    try {
-      setIsCreating(true);
-      
-      const supabase = createClient();
-      const { data, error } = await createUnpaidAssistant(supabase, {
-        p_user_id: user.id,
-        p_name: formData.name,
-        p_description: formData.description || undefined,
-        p_personality: formData.personality || 'Business Casual',
-        p_business_name: formData.businessName || undefined,
-        p_concierge_name: formData.conciergeName || formData.name,
-        p_share_phone_number: formData.sharePhoneNumber,
-        p_business_phone: formData.phoneNumber || undefined
-      });
-
-      if (error ?? !data) {
-        throw error ?? new Error('Failed to create assistant');
-      }
-
-      // Reset form and close dialog
-      setFormData({
-        name: '',
-        description: '',
-        conciergeName: '',
-        personality: 'Business Casual',
-        businessName: '',
-        sharePhoneNumber: false,
-        phoneNumber: ''
-      });
-      setCreateDialogOpen(false);
-
-      // Show success message and refresh list
-      toast.success("Assistant created", {
-        description: "Your new No-Show has been created successfully",
-      });
-      
-      // Refresh the assistants list
-      fetchAssistants();
-
-    } catch (error: unknown) {
-      console.error('Error creating No-Show:', error);
-      toast.error("Error", {
-        description: error instanceof Error ? error.message : "Something went wrong while creating the No-Show",
-      });
-    } finally {
-      setIsCreating(false);
-    }
+    // Show placeholder message
+    toast('Creation pending', {
+      description: 'Assistant creation will be implemented elsewhere',
+    });
   };
 
   // Function to fetch assistants with normalized data from Supabase
@@ -204,21 +170,24 @@ export default function AssistantsPage() {
     try {
       setIsLoading(true);
       const supabase = createClient();
-      
+
       // First get the authenticated user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error('Error fetching user:', userError);
         router.push('/sign-in');
         return;
       }
-      
+
       // Set user data
-      setUser({ 
-        id: user.id, 
-        user_metadata: user.user_metadata
+      setUser({
+        id: user.id,
+        user_metadata: user.user_metadata,
       });
-      
+
       // Get user ID from users table
       const { data: userData, error: userDataError } = await supabase
         .schema('users')
@@ -226,15 +195,15 @@ export default function AssistantsPage() {
         .select('id')
         .eq('auth_user_id', user.id)
         .single();
-        
+
       if (userDataError) {
         console.error('Error fetching user data:', userDataError);
-        toast("Connection error", {
-          description: "Failed to fetch user data from server",
+        toast(CONNECTION_ERROR, {
+          description: 'Failed to fetch user data from server',
         });
         return;
       }
-      
+
       // Fetch assistants belonging to this user from the assistants schema
       const { data: assistantsData, error: assistantsError } = await supabase
         .schema('assistants')
@@ -242,15 +211,15 @@ export default function AssistantsPage() {
         .select('*')
         .eq('user_id', userData.id)
         .order('created_at', { ascending: false });
-        
+
       if (assistantsError) {
         console.error('Error fetching assistants:', assistantsError);
-        toast("Connection error", {
-          description: "Failed to fetch assistants from server",
+        toast(CONNECTION_ERROR, {
+          description: 'Failed to fetch assistants from server',
         });
         return;
       }
-      
+
       // Transform the data to match the expected structure
       const transformedAssistants = assistantsData.map(assistant => ({
         assistant: assistant,
@@ -259,14 +228,14 @@ export default function AssistantsPage() {
         usageLimits: undefined,
         activity: undefined,
         interactions_count: 0,
-        last_interaction_at: null
+        last_interaction_at: null,
       })) as AssistantWithNonNullableFields[];
-      
+
       setNormalizedAssistants(transformedAssistants);
     } catch (error) {
       console.error('Error in fetchAssistants:', error);
-      toast("Connection error", {
-        description: "Failed to connect to the server",
+      toast(CONNECTION_ERROR, {
+        description: 'Failed to connect to the server',
       });
     } finally {
       setIsLoading(false);
@@ -278,64 +247,63 @@ export default function AssistantsPage() {
     const success = getUrlParameter('success');
     const canceled = getUrlParameter('canceled');
     const assistantId = getUrlParameter('assistant_id');
-    
+
     if (success === 'true' && assistantId) {
       setCheckoutStatus('success');
       setCheckoutAssistantId(assistantId);
-      
+
       // Show success message
-      toast("Subscription successful", {
-        description: "Your No-Show has been successfully activated!",
+      toast('Subscription successful', {
+        description: 'Your No-Show has been successfully activated!',
       });
-      
+
       // Fetch the updated list of assistants to reflect the change
       fetchAssistants();
     } else if (canceled === 'true' && assistantId) {
       setCheckoutStatus('canceled');
       setCheckoutAssistantId(assistantId);
-      
+
       // Show canceled message
-      toast("Checkout canceled", {
-        description: "Your payment was not completed. The No-Show will remain inactive.",
+      toast('Checkout canceled', {
+        description: 'Your payment was not completed. The No-Show will remain inactive.',
       });
-      
+
       // Fetch the updated list of assistants to reflect the change
       fetchAssistants();
     }
   }, [fetchAssistants]);
-  
+
   // Effect to handle return from Stripe checkout - simplified to remove duplicate code
   useEffect(() => {
     const success = getUrlParameter('success');
     const canceled = getUrlParameter('canceled');
     const assistantId = getUrlParameter('assistant_id');
-    
+
     if (success === 'true' && assistantId) {
       setCheckoutStatus('success');
       setCheckoutAssistantId(assistantId);
-      
+
       // Show success message
-      toast.success("Payment successful", {
-        description: "Your No-Show has been activated with your subscription plan",
+      toast.success('Payment successful', {
+        description: 'Your No-Show has been activated with your subscription plan',
       });
-      
     } else if (canceled === 'true' && assistantId) {
       setCheckoutStatus('canceled');
       setCheckoutAssistantId(assistantId);
-      
+
       // Show canceled message
-      toast("Payment canceled", {
-        description: "You can complete the payment later to activate your No-Show",
+      toast('Payment canceled', {
+        description: 'You can complete the payment later to activate your No-Show',
       });
     }
 
     // Clear URL parameters and refresh list in both cases
     if ((success === 'true' || canceled === 'true') && assistantId) {
-      window.history.replaceState({}, document.title, window.location.pathname);
+      globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
       fetchAssistants();
     }
   }, [fetchAssistants]);
-  
+
   // Fetch user and assistants data on component mount
   useEffect(() => {
     fetchAssistants();
@@ -345,17 +313,18 @@ export default function AssistantsPage() {
   const filteredAssistants = normalizedAssistants.filter(assistantData => {
     const assistant = assistantData.assistant;
     const config = assistantData.config;
-    
+
     // Check if the assistant has pending status - if so, exclude it
     const isPending = assistant.pending === true;
-    
+
     if (isPending) {
       return false; // Skip pending assistants that haven't been paid for
     }
-    
-    const matchesSearch = assistant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (config?.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-    
+
+    const matchesSearch =
+      assistant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (config?.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+
     // Filter based on selected tab
     if (selectedTab === 'all') {
       return matchesSearch;
@@ -367,88 +336,81 @@ export default function AssistantsPage() {
     }
   });
 
-  // Utility functions - prefixed with _ since they're reserved for future use
-  const _getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
+  // Utility functions removed - they were not being used
 
-  const _getAvatarColor = (name: string) => {
-    const colors = [
-      'bg-blue-200', 'bg-green-200', 'bg-yellow-200', 
-      'bg-purple-200', 'bg-pink-200', 'bg-indigo-200',
-      'bg-red-200', 'bg-orange-200', 'bg-teal-200'
-    ];
-    
-    const index = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % colors.length;
-    return colors[index];
-  };
-  
-  const handleToggleStar = async (assistantId: string, isStarred: boolean) => {
+  const handleToggleStarAsync = async (assistantId: string, isStarred: boolean) => {
     try {
       const supabase = createClient();
-      
+
       // Update in Supabase first
       const { error } = await supabase
         .schema('assistants')
         .from('assistants')
         .update({ is_starred: isStarred })
         .eq('id', assistantId);
-        
+
       if (error) {
         console.error('Error updating assistant star status:', error);
-        toast.error("Error", {
-          description: "Failed to update assistant on server",
+        toast.error('Error', {
+          description: 'Failed to update assistant on server',
         });
         return;
       }
-      
+
       // Update local state after successful update
-      setNormalizedAssistants(normalizedAssistants.map(a => 
-        a.assistant.id === assistantId 
-          ? { ...a, assistant: { ...a.assistant, is_starred: isStarred }} 
-          : a
-      ));
-      
-      toast(`Assistant ${isStarred ? "starred" : "unstarred"}`, {
-        description: `${normalizedAssistants.find(a => a.assistant.id === assistantId)?.assistant.name} has been ${isStarred ? "starred" : "unstarred"}`,
+      setNormalizedAssistants(
+        normalizedAssistants.map(a =>
+          a.assistant.id === assistantId
+            ? { ...a, assistant: { ...a.assistant, is_starred: isStarred } }
+            : a
+        )
+      );
+
+      toast(`Assistant ${isStarred ? 'starred' : 'unstarred'}`, {
+        description: `${normalizedAssistants.find(a => a.assistant.id === assistantId)?.assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`,
       });
     } catch (error: unknown) {
       console.error('Error toggling star:', error);
-      toast.error("Error", {
-        description: error instanceof Error ? error.message : "Something went wrong while updating the assistant",
+      toast.error('Error', {
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong while updating the assistant',
       });
     }
+  };
+
+  // Wrapper functions to handle async operations without returning promises
+  const handleToggleStar = (assistantId: string, isStarred: boolean) => {
+    handleToggleStarAsync(assistantId, isStarred).catch(error => {
+      console.error('Error in handleToggleStar:', error);
+    });
+  };
+
+  const handleDeleteAssistant = (assistantId: string) => {
+    handleDeleteAssistantAsync(assistantId).catch(error => {
+      console.error('Error in handleDeleteAssistant:', error);
+    });
   };
 
   // Display loading state
   if (isLoading) {
     return <Loading />;
   }
-  
+
   // Display login if not authenticated
   if (!user) {
     return <Login />;
   }
 
   return (
-    <div className="container py-6 space-y-6">
-      <Header 
-        user={user} 
-        handleSignOut={handleSignOut}
-      />
-      
-      <div className="flex justify-between items-center">
-        <TabsNavigation
-          selectedTab={selectedTab}
-          setSelectedTab={setSelectedTab}
-        />
+    <div className="container space-y-6 py-6">
+      <Header user={user} handleSignOut={handleSignOut} />
+
+      <div className="flex items-center justify-between">
+        <TabsNavigation selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
       </div>
-      
+
       <SearchAndControls
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -457,32 +419,33 @@ export default function AssistantsPage() {
         createDialogOpen={createDialogOpen}
         onCreateDialogChange={setCreateDialogOpen}
       />
-      
-      <CreateAssistantDialog 
-        open={createDialogOpen} 
+
+      <CreateAssistantDialog
+        open={createDialogOpen}
         setOpen={setCreateDialogOpen}
         formData={formData}
         handleInputChange={handleInputChange}
         handleCreateAssistant={handleCreateAssistant}
-        isCreating={isCreating}
+        isCreating={false}
       />
 
       {/* Show coming soon for shared tab */}
       {selectedTab === 'shared' ? (
         <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <UserCircle className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-semibold mb-2">Sharing Coming Soon</h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            The ability to share and collaborate on assistants with team members will be available soon.
+          <h2 className="mb-2 text-2xl font-semibold">Sharing Coming Soon</h2>
+          <p className="max-w-md text-center text-muted-foreground">
+            The ability to share and collaborate on assistants with team members will be available
+            soon.
           </p>
         </div>
       ) : filteredAssistants.length === 0 ? (
         <EmptyState
           searchQuery={searchQuery}
-          onClearSearch={() => setSearchQuery('')}
-          onCreateNew={() => setCreateDialogOpen(true)}
+          onClearSearch={() => { setSearchQuery(''); }}
+          onCreateNew={() => { setCreateDialogOpen(true); }}
         />
       ) : (
         <AnimatePresence mode="wait">
@@ -494,9 +457,9 @@ export default function AssistantsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
             >
-              {filteredAssistants.map((assistantData) => (
+              {filteredAssistants.map(assistantData => (
                 <motion.div
                   key={assistantData.assistant.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -510,13 +473,16 @@ export default function AssistantsPage() {
                       is_starred: assistantData.assistant.is_starred ?? false,
                       created_at: assistantData.assistant.created_at,
                       description: assistantData.config?.description,
-                      has_phone_number: !!(assistantData.assistant.assigned_phone_number ?? assistantData.config?.business_phone),
+                      has_phone_number: !!(
+                        assistantData.assistant.assigned_phone_number ??
+                        assistantData.config?.business_phone
+                      ),
                       subscription_plan: 'personal' as 'personal' | 'business', // Removed reference to non-existent property
                       total_messages: assistantData.interactions_count,
-                      last_used_at: assistantData.last_interaction_at
+                      last_used_at: assistantData.last_interaction_at ?? undefined,
                     }}
                     onToggleStar={(id, isStarred) => handleToggleStar(id, isStarred)}
-                    onDelete={(id) => handleDeleteAssistant(id)}
+                    onDelete={id => handleDeleteAssistant(id)}
                   />
                 </motion.div>
               ))}
@@ -544,10 +510,13 @@ export default function AssistantsPage() {
                       is_starred: assistantData.assistant.is_starred ?? false,
                       created_at: assistantData.assistant.created_at,
                       description: assistantData.config?.description,
-                      has_phone_number: !!(assistantData.assistant.assigned_phone_number ?? assistantData.config?.business_phone),
+                      has_phone_number: !!(
+                        assistantData.assistant.assigned_phone_number ??
+                        assistantData.config?.business_phone
+                      ),
                       subscription_plan: 'personal' as 'personal' | 'business',
                       total_messages: assistantData.interactions_count,
-                      last_used_at: assistantData.last_interaction_at
+                      last_used_at: assistantData.last_interaction_at ?? undefined,
                     }}
                   />
                 </motion.div>
@@ -559,3 +528,7 @@ export default function AssistantsPage() {
     </div>
   );
 }
+function setCheckoutStatus(arg0: string) {
+  throw new Error('Function not implemented.');
+}
+

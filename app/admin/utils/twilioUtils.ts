@@ -1,6 +1,7 @@
-import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
+
 import type { Database } from '@/lib/db.types';
+import { createClient } from '@/utils/supabase/client';
 
 // Define types based on the database schema
 type PhoneNumberRow = Database['public']['Tables']['phone_numbers']['Row'];
@@ -36,7 +37,7 @@ export async function fetchAvailablePhoneNumbers() {
       .from('phone_numbers')
       .select('*')
       .eq('is_assigned', false);
-      
+
     if (error) throw error;
     return data as PhoneNumberRow[];
   } catch (error) {
@@ -55,54 +56,58 @@ export async function fetchAssignedPhoneNumbers() {
     const { data, error } = await supabase
       .schema('assistants')
       .from('assistants')
-      .select(`
+      .select(
+        `
         id,
         name,
         assigned_phone_number,
         user_id
-      `)
+      `
+      )
       .not('assigned_phone_number', 'is', null);
-      
+
     if (error) throw error;
-    
+
     // Fetch user data separately to avoid relation issues and transform data
-    const transformedData = await Promise.all((data || []).map(async (item) => {
-      let ownerName = 'Unknown Owner';
-      
-      try {
-        const { data: userData } = await supabase
-          .schema('users')
-          .from('users')
-          .select('auth_user_id')
-          .eq('id', item.user_id)
-          .single();
-          
-        if (userData?.auth_user_id) {
-          const { data: authData } = await supabase.auth.admin.getUserById(
-            userData.auth_user_id
-          );
-          
-          ownerName = authData?.user?.user_metadata?.full_name ?? authData?.user?.email ?? 'Unknown Owner';
+    const transformedData = await Promise.all(
+      data.map(async item => {
+        let ownerName = 'Unknown Owner';
+
+        try {
+          const { data: userData } = await supabase
+            .schema('users')
+            .from('users')
+            .select('auth_user_id')
+            .eq('id', item.user_id)
+            .single();
+
+          if (userData?.auth_user_id) {
+            const { data: authData } = await supabase.auth.admin.getUserById(userData.auth_user_id);
+            ownerName = authData.user
+              ? (authData.user.user_metadata.full_name ?? authData.user.email ?? 'Unknown Owner')
+              : 'Unknown Owner';
+          }
+        } catch (error_) {
+          console.error('Error fetching user data for assistant:', item.id, error_);
         }
-      } catch (e) {
-        console.error('Error fetching user data for assistant:', item.id, e);
-      }
-      
-      return {
-        id: item.id,
-        phone_number: item.assigned_phone_number,
-        number: item.assigned_phone_number, // Also include for compatibility
-        assistant_name: item.name,
-        assistants: {
-          name: item.name,
-          owner_name: ownerName,
+
+        return {
           id: item.id,
-          user_id: item.user_id
-        }
-      };
-    }));
-    
-    return transformedData;
+          phone_number: item.assigned_phone_number,
+          number: item.assigned_phone_number, // Also include for compatibility
+          assistant_name: item.name,
+          assistants: {
+            name: item.name,
+            owner_name: ownerName,
+            id: item.id,
+            user_id: item.user_id,
+          },
+        };
+      })
+    );
+
+    // Filter out any undefined values and return the valid data
+    return transformedData.filter((item): item is NonNullable<typeof item> => item !== undefined);
   } catch (error) {
     console.error('Error fetching assigned phone numbers:', error);
     toast.error('Failed to load assigned phone numbers');
@@ -116,40 +121,38 @@ export async function fetchAssignedPhoneNumbers() {
 export async function addPhoneNumber(phoneNumber: string) {
   try {
     const supabase = createClient();
-    
+
     // Validate phone number format
     const phoneRegex = /^\+[1-9]\d{1,14}$/; // E.164 format
     if (!phoneRegex.test(phoneNumber)) {
       toast.error('Phone number must be in E.164 format (e.g., +12345678901)');
       return false;
     }
-    
+
     // Check if phone number already exists
     const { data: existingNumber } = await supabase
       .from('phone_numbers')
       .select('id')
       .eq('phone_number', phoneNumber)
       .single();
-    
+
     if (existingNumber) {
       toast.error('This phone number already exists in the system');
       return false;
     }
-    
+
     // Insert the new phone number
-    const { error } = await supabase
-      .from('phone_numbers')
-      .insert({
-        phone_number: phoneNumber,
-        is_assigned: false,
-        created_at: new Date().toISOString()
-      });
-    
+    const { error } = await supabase.from('phone_numbers').insert({
+      phone_number: phoneNumber,
+      is_assigned: false,
+      created_at: new Date().toISOString(),
+    });
+
     if (error) {
       console.error('Error adding phone number:', error);
       throw error;
     }
-    
+
     toast.success('Phone number added successfully');
     return true;
   } catch (error) {
@@ -165,49 +168,46 @@ export async function addPhoneNumber(phoneNumber: string) {
 export async function assignPhoneNumber(phoneNumberId: string, assistantId: string) {
   try {
     const supabase = createClient();
-    
+
     // Update phone number record
     const { error: updateError } = await supabase
       .from('phone_numbers')
       .update({ is_assigned: true })
       .eq('id', phoneNumberId);
-    
+
     if (updateError) {
       console.error('Error updating phone number:', updateError);
       throw updateError;
     }
-    
+
     // Get phone number value
     const { data: phoneData } = await supabase
       .from('phone_numbers')
       .select('phone_number')
       .eq('id', phoneNumberId)
       .single();
-    
+
     if (!phoneData) {
       toast.error('Phone number not found');
       return false;
     }
-    
+
     // Update assistant record
     const { error: assistantError } = await supabase
-      .schema("assistants")
+      .schema('assistants')
       .from('assistants')
       .update({ assigned_phone_number: phoneData.phone_number })
       .eq('id', assistantId);
-    
+
     if (assistantError) {
       console.error('Error updating assistant:', assistantError);
-      
+
       // Rollback phone number assignment
-      await supabase
-        .from('phone_numbers')
-        .update({ is_assigned: false })
-        .eq('id', phoneNumberId);
-      
+      await supabase.from('phone_numbers').update({ is_assigned: false }).eq('id', phoneNumberId);
+
       throw assistantError;
     }
-    
+
     toast.success('Phone number assigned successfully');
     return true;
   } catch (error) {
@@ -227,57 +227,57 @@ export async function unassignPhoneNumber(phoneNumber: string | null) {
   }
   try {
     const supabase = createClient();
-    
+
     // Find the phone number record
     const { data: phoneData, error: phoneError } = await supabase
       .from('phone_numbers')
       .select('id')
       .eq('phone_number', phoneNumber)
       .single();
-    
-    if (phoneError || !phoneData) {
+
+    if (phoneError) {
       console.error('Error finding phone number:', phoneError);
       toast.error('Phone number not found');
       return false;
     }
-    
+
     // Update the phone number record
     const { error: updateError } = await supabase
       .from('phone_numbers')
       .update({ is_assigned: false })
       .eq('id', phoneData.id);
-    
+
     if (updateError) {
       console.error('Error updating phone number:', updateError);
       throw updateError;
     }
-    
+
     // Find assistants using this phone number
     const { data: assistants, error: assistantError } = await supabase
       .schema('assistants')
       .from('assistants')
       .select('id')
       .eq('assigned_phone_number', phoneNumber);
-    
+
     if (assistantError) {
       console.error('Error finding assistant:', assistantError);
       throw assistantError;
     }
-    
+
     // Clear assigned phone number from assistant
-    if (assistants && assistants.length > 0) {
+    if (assistants.length > 0) {
       const { error: clearError } = await supabase
         .schema('assistants')
         .from('assistants')
         .update({ assigned_phone_number: null })
         .eq('assigned_phone_number', phoneNumber);
-      
+
       if (clearError) {
         console.error('Error clearing phone number from assistant:', clearError);
         throw clearError;
       }
     }
-    
+
     toast.success('Phone number unassigned successfully');
     return true;
   } catch (error) {
@@ -294,36 +294,36 @@ export async function unassignPhoneNumber(phoneNumber: string | null) {
 export async function deletePhoneNumber(phoneNumberId: string) {
   try {
     const supabase = createClient();
-    
+
     // Check if phone number is assigned
     const { data: phoneData, error: phoneError } = await supabase
       .from('phone_numbers')
       .select('is_assigned')
       .eq('id', phoneNumberId)
       .single();
-    
-    if (phoneError || !phoneData) {
+
+    if (phoneError) {
       console.error('Error finding phone number:', phoneError);
       toast.error('Phone number not found');
       return false;
     }
-    
+
     if (phoneData.is_assigned) {
       toast.error('Cannot delete an assigned phone number. Unassign it first.');
       return false;
     }
-    
+
     // Delete the phone number
     const { error: deleteError } = await supabase
       .from('phone_numbers')
       .delete()
       .eq('id', phoneNumberId);
-    
+
     if (deleteError) {
       console.error('Error deleting phone number:', deleteError);
       throw deleteError;
     }
-    
+
     toast.success('Phone number deleted successfully');
     return true;
   } catch (error) {
@@ -339,52 +339,52 @@ export async function deletePhoneNumber(phoneNumberId: string) {
 export async function fetchAssistantsWithoutPhoneNumbers() {
   try {
     const supabase = createClient();
-    
+
     // Get assistants without an assigned phone number
     const { data: assistants, error } = await supabase
       .schema('assistants')
       .from('assistants')
-      .select(`
+      .select(
+        `
         id,
         name,
         user_id
-      `)
+      `
+      )
       .is('assigned_phone_number', null)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching assistants:', error);
       throw error;
     }
-    
+
     // Fetch user data separately to avoid relation issues
-    const enrichedData = await Promise.all((assistants || []).map(async (assistant) => {
-      try {
-        const { data: userData } = await supabase
-          .schema('users')
-          .from('users')
-          .select('auth_user_id')
-          .eq('id', assistant.user_id)
-          .single();
-          
-        if (userData?.auth_user_id) {
-          const { data: authData } = await supabase.auth.admin.getUserById(
-            userData.auth_user_id
-          );
-          
-          return {
-            ...assistant,
-            owner: authData?.user?.email ?? 'Unknown',
-            owner_name: authData?.user?.user_metadata?.full_name ?? 'Unknown'
-          };
+    return await Promise.all(
+      assistants.map(async assistant => {
+        try {
+          const { data: userData } = await supabase
+            .schema('users')
+            .from('users')
+            .select('auth_user_id')
+            .eq('id', assistant.user_id)
+            .single();
+
+          if (userData?.auth_user_id) {
+            const { data: authData } = await supabase.auth.admin.getUserById(userData.auth_user_id);
+
+            return {
+              ...assistant,
+              owner: authData.user?.email ?? 'Unknown',
+              owner_name: authData.user?.user_metadata.full_name ?? 'Unknown',
+            };
+          }
+        } catch (error_) {
+          console.error('Error fetching user data:', error_);
         }
-      } catch (e) {
-        console.error('Error fetching user data:', e);
-      }
-      return assistant;
-    }));
-    
-    return enrichedData || [];
+        return assistant;
+      })
+    );
   } catch (error) {
     console.error('Failed to fetch assistants:', error);
     toast.error('Failed to load assistants');
@@ -398,12 +398,12 @@ export async function fetchAssistantsWithoutPhoneNumbers() {
 export async function fetchAllPhoneNumbers(): Promise<PhoneNumbersData> {
   try {
     const supabase = createClient();
-    
+
     // Get numbers from database
     const { data: phoneNumbers, error: dbError } = await supabase
       .from('phone_numbers')
       .select('phone_number, is_assigned');
-    
+
     if (dbError) throw dbError;
 
     // Get numbers from Twilio through API
@@ -412,7 +412,7 @@ export async function fetchAllPhoneNumbers(): Promise<PhoneNumbersData> {
       const errorData = await response.json();
       throw new Error(errorData.error ?? 'Failed to fetch Twilio numbers');
     }
-    
+
     const twilioData = await response.json();
     if (!twilioData.success) {
       throw new Error(twilioData.error ?? 'Unknown error');
@@ -420,11 +420,11 @@ export async function fetchAllPhoneNumbers(): Promise<PhoneNumbersData> {
 
     const dbNumbersList = phoneNumbers.map(p => ({
       phone_number: p.phone_number,
-      isAssigned: p.is_assigned ?? false // Handle null case by defaulting to false
+      isAssigned: p.is_assigned ?? false, // Handle null case by defaulting to false
     }));
-    
+
     const twilioNumbersList = twilioData.twilioNumbers ?? [];
-    
+
     // Find unmanaged numbers (in Twilio but not in DB)
     const unmanagedNumbersList = twilioNumbersList.filter(
       (twilio: TwilioNumber) => !dbNumbersList.some(db => db.phone_number === twilio.phoneNumber)
@@ -433,7 +433,7 @@ export async function fetchAllPhoneNumbers(): Promise<PhoneNumbersData> {
     return {
       twilioNumbers: twilioNumbersList,
       dbNumbers: dbNumbersList,
-      unmanagedNumbers: unmanagedNumbersList
+      unmanagedNumbers: unmanagedNumbersList,
     };
   } catch (error) {
     console.error('Error fetching phone numbers:', error);
@@ -453,15 +453,13 @@ export async function importPhoneNumber(phoneNumber: string): Promise<void> {
     }
 
     const supabase = createClient();
-    
+
     // Insert into database
-    const { error: insertError } = await supabase
-      .from('phone_numbers')
-      .insert({
-        phone_number: phoneNumber,
-        is_assigned: false,
-        created_at: new Date().toISOString()
-      });
+    const { error: insertError } = await supabase.from('phone_numbers').insert({
+      phone_number: phoneNumber,
+      is_assigned: false,
+      created_at: new Date().toISOString(),
+    });
 
     if (insertError) throw insertError;
   } catch (error) {

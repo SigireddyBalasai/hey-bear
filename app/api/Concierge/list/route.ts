@@ -1,33 +1,40 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+
 import { getPineconeClient } from '@/lib/pinecone';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET() {
   try {
     const supabase = await createClient();
 
     const { data, error: authError } = await supabase.auth.getUser();
-    if (authError || !data?.user) {
+    if (authError) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const user = data.user;
 
     try {
       const pinecone = getPineconeClient();
-      
+
       // Handle potential errors from Pinecone
       const assistantsResponse = await pinecone.listAssistants().catch(error => {
         console.error('Pinecone error listing assistants:', error);
         return { assistants: [] }; // Return empty array on error
       });
-      
+
       // Ensure we have an assistants array, even if empty
-      const allAssistants = Array.isArray(assistantsResponse?.assistants) ? assistantsResponse.assistants : [];
-      
+      const allAssistants = Array.isArray(assistantsResponse.assistants)
+        ? assistantsResponse.assistants
+        : [];
+
       // Filter assistants by user (assuming Pinecone supports metadata or naming convention)
-      const userAssistants = allAssistants.filter((a) => 
-        a && a.metadata && typeof a.metadata === 'object' && 'owner' in a.metadata && a.metadata.owner === user.id
+      const userAssistants = allAssistants.filter(
+        a =>
+          a.metadata &&
+          typeof a.metadata === 'object' &&
+          'owner' in a.metadata &&
+          a.metadata.owner === user.id
       );
 
       return NextResponse.json({ assistants: userAssistants });

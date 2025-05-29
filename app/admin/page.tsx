@@ -1,32 +1,35 @@
-"use client";
-import React from 'react';
-import { useState, useEffect, useCallback } from 'react';
-import type { User } from '@supabase/supabase-js';
-import { createClient } from '@/utils/supabase/client';
-import { toast } from 'sonner';
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { Line } from 'react-chartjs-2';
+
 import { useRouter } from 'next/navigation';
-import { Loading } from '@/components/concierge/Loading';
-import { AdminHeader } from '@/components/admin/AdminHeader';
-import { DollarSign, Users, MessageSquare, Activity } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  PointElement, 
-  LineElement, 
+
+import type { User } from '@supabase/supabase-js';
+import {
   BarElement,
-  Title, 
-  Tooltip, 
+  CategoryScale,
+  Chart as ChartJS,
+  Filler,
   Legend,
-  Filler 
+  LineElement,
+  LinearScale,
+  PointElement,
+  Title,
+  Tooltip,
 } from 'chart.js';
 import type { TooltipItem } from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { UserUsageTable } from '@/components/admin/UserUsageTable';
+import { Loading } from '@/components/concierge/Loading';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { createClient } from '@/utils/supabase/client';
 
 ChartJS.register(
   CategoryScale,
@@ -128,16 +131,16 @@ function Dashboard() {
     users: {
       total: 0,
       activeToday: 0,
-      activeThisWeek: 0
+      activeThisWeek: 0,
     },
     interactions: {
       total: 0,
       totalTokens: 0,
       costEstimate: 0,
-      errorRate: 0
+      errorRate: 0,
     },
     timeSeriesData: [],
-    userUsage: [] // Initialize new field
+    userUsage: [], // Initialize new field
   });
 
   const router = useRouter();
@@ -147,7 +150,9 @@ function Dashboard() {
     try {
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - (selectedTimeRange === '7d' ? 7 : selectedTimeRange === '30d' ? 30 : 90));
+      startDate.setDate(
+        endDate.getDate() - (selectedTimeRange === '7d' ? 7 : selectedTimeRange === '30d' ? 30 : 90)
+      );
 
       // Get user stats - fetch only id and last_active, as full_name and email seem to be missing
       const { data: allUsers, error: usersError } = await supabase
@@ -158,26 +163,18 @@ function Dashboard() {
       if (usersError) {
         // Log the error with more context
         let detailedErrorMessage = "Error fetching users from 'users.users' table.";
-        if (typeof usersError === 'object' && usersError !== null && 'message' in usersError && typeof usersError.message === 'string') {
+        if ('message' in usersError) {
           detailedErrorMessage += ` Message: ${usersError.message}`;
         }
-        if (typeof usersError === 'object' && usersError !== null && 'details' in usersError && typeof usersError.details === 'string') {
+        if ('details' in usersError) {
           detailedErrorMessage += ` Details: ${usersError.details}`;
         }
-        if (typeof usersError === 'object' && usersError !== null && 'hint' in usersError && typeof usersError.hint === 'string') {
+        if ('hint' in usersError) {
           detailedErrorMessage += ` Hint: ${usersError.hint}`;
         }
         console.error(detailedErrorMessage, usersError);
         toast.error('Failed to load user data. Check console for details.');
         throw usersError; // Re-throw the original error to stop execution
-      }
-
-      if (!allUsers) {
-        // This case handles if Supabase returns null for data without an error object,
-        // or if the query somehow results in allUsers being undefined.
-        console.error("No data returned from 'users.users' table query (allUsers is null or undefined), and no explicit Supabase error was thrown.");
-        toast.error("Failed to load user data: Received no data from the server.");
-        throw new Error("User data query returned null or undefined, stopping dashboard load.");
       }
 
       // Get interaction metrics
@@ -192,7 +189,7 @@ function Dashboard() {
 
       // Calculate time series data
       const timeSeriesMap = new Map<string, TimeSeriesDataPoint>();
-      
+
       const currentDate = new Date(startDate);
       while (currentDate <= endDate) {
         const dateStr = currentDate.toISOString().split('T')[0];
@@ -203,14 +200,14 @@ function Dashboard() {
           outputTokens: 0,
           totalTokens: 0,
           costs: 0,
-          errors: 0
+          errors: 0,
         });
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      interactions.forEach((interaction) => {
+      interactions.forEach(interaction => {
         if (!interaction.interaction_time) return;
-        
+
         const date = new Date(interaction.interaction_time).toISOString().split('T')[0];
         const data = timeSeriesMap.get(date);
         if (!data) return;
@@ -223,7 +220,7 @@ function Dashboard() {
         if (interaction.is_error) data.errors++;
       });
 
-      const timeSeriesData = Array.from(timeSeriesMap.values());
+      const timeSeriesData = [...timeSeriesMap.values()];
 
       // Calculate user activity
       const now = new Date();
@@ -232,11 +229,18 @@ function Dashboard() {
       const sevenDaysAgo = new Date(now);
       sevenDaysAgo.setDate(now.getDate() - 7);
 
-      const activeToday = allUsers.filter(u => u.last_active && new Date(u.last_active) >= oneDayAgo).length;
-      const activeThisWeek = allUsers.filter(u => u.last_active && new Date(u.last_active) >= sevenDaysAgo).length;
+      const activeToday = allUsers.filter(
+        u => u.last_active && new Date(u.last_active) >= oneDayAgo
+      ).length;
+      const activeThisWeek = allUsers.filter(
+        u => u.last_active && new Date(u.last_active) >= sevenDaysAgo
+      ).length;
 
       // Aggregate interaction stats per user
-      const userInteractionStats = new Map<string, { message_count: number, token_usage: number, cost_estimate: number }>();
+      const userInteractionStats = new Map<
+        string,
+        { message_count: number; token_usage: number; cost_estimate: number }
+      >();
 
       interactions.forEach(interaction => {
         if (!interaction.user_id) return; // Restored check for null/undefined user_id
@@ -244,54 +248,59 @@ function Dashboard() {
         const stats = userInteractionStats.get(interaction.user_id) ?? {
           message_count: 0,
           token_usage: 0,
-          cost_estimate: 0
+          cost_estimate: 0,
         };
 
         stats.message_count++;
         stats.token_usage += interaction.token_usage ?? 0;
         stats.cost_estimate += interaction.cost_estimate ?? 0;
-        
+
         userInteractionStats.set(interaction.user_id, stats);
       });
 
       // Prepare UserUsageStats array
-      const userUsage: UserUsageStats[] = allUsers.map(user => {
-        const aggregatedStats = userInteractionStats.get(user.id) ?? {
-          message_count: 0,
-          token_usage: 0,
-          cost_estimate: 0
-        };
-        return {
-          id: user.id,
-          user_id: user.id,
-          users: {
-            full_name: null, // Set to null as full_name is not selected (and reported missing by DB)
-            email: null,     // Set to null as email is not selected (and reported missing by DB)
-            created_at: null, // Set to null as created_at is not selected (and reported missing by DB)
-            last_active: user.last_active, // Use last_active (if it exists and is selected)
-          },
-          date: user.last_active, 
-          message_count: aggregatedStats.message_count,
-          token_usage: aggregatedStats.token_usage,
-          cost_estimate: aggregatedStats.cost_estimate,
-        };
-      }).sort((a, b) => b.message_count - a.message_count); // Example: sort by message_count desc for "Top Users"
+      const userUsage: UserUsageStats[] = allUsers
+        .map(user => {
+          const aggregatedStats = userInteractionStats.get(user.id) ?? {
+            message_count: 0,
+            token_usage: 0,
+            cost_estimate: 0,
+          };
+          return {
+            id: user.id,
+            user_id: user.id,
+            users: {
+              full_name: null, // Set to null as full_name is not selected (and reported missing by DB)
+              email: null, // Set to null as email is not selected (and reported missing by DB)
+              created_at: null, // Set to null as created_at is not selected (and reported missing by DB)
+              last_active: user.last_active, // Use last_active (if it exists and is selected)
+            },
+            date: user.last_active,
+            message_count: aggregatedStats.message_count,
+            token_usage: aggregatedStats.token_usage,
+            cost_estimate: aggregatedStats.cost_estimate,
+          };
+        })
+        .sort((a, b) => b.message_count - a.message_count); // Example: sort by message_count desc for "Top Users"
 
       // Update dashboard stats
       setDashboardStats({
         users: {
           total: allUsers.length,
           activeToday,
-          activeThisWeek
+          activeThisWeek,
         },
         interactions: {
           total: interactions.length,
-          totalTokens: interactions.reduce((sum, i) => sum + i.token_usage, 0),
-          costEstimate: interactions.reduce((sum, i) => sum + i.cost_estimate, 0),
-          errorRate: interactions.length ? interactions.filter(i => i.is_error).length / interactions.length : 0
+          totalTokens: interactions.reduce((sum, i) => sum + (i.token_usage ?? 0), 0),
+          costEstimate: interactions.reduce((sum, i) => sum + (i.cost_estimate ?? 0), 0),
+          errorRate:
+            interactions.length > 0
+              ? interactions.filter(i => i.is_error).length / interactions.length
+              : 0,
         },
         timeSeriesData,
-        userUsage // Add the populated userUsage data
+        userUsage, // Add the populated userUsage data
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -302,7 +311,10 @@ function Dashboard() {
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
-        const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user: currentUser },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError || !currentUser) {
           router.push('/');
           return;
@@ -317,7 +329,7 @@ function Dashboard() {
           .eq('auth_user_id', currentUser.id)
           .single();
 
-        if (adminError || !adminCheck?.is_admin) {
+        if (adminError || !adminCheck.is_admin) {
           router.push('/');
           return;
         }
@@ -337,27 +349,40 @@ function Dashboard() {
 
   const generateChartData = (dataType: 'interactions' | 'tokens' | 'costs'): ChartData => {
     const { timeSeriesData } = dashboardStats;
-    
+
     return {
       labels: timeSeriesData.map(d => d.date),
-      datasets: [{
-        label: dataType === 'interactions' ? 'Daily Interactions'
-          : dataType === 'tokens' ? 'Token Usage'
-          : 'Daily Costs',
-        data: timeSeriesData.map(d => 
-          dataType === 'interactions' ? d.interactions
-          : dataType === 'tokens' ? d.totalTokens
-          : d.costs
-        ),
-        borderColor: dataType === 'interactions' ? 'rgb(75, 192, 192)'
-          : dataType === 'tokens' ? 'rgb(255, 99, 132)'
-          : 'rgb(255, 159, 64)',
-        backgroundColor: dataType === 'interactions' ? 'rgba(75, 192, 192, 0.1)'
-          : dataType === 'tokens' ? 'rgba(255, 99, 132, 0.1)'
-          : 'rgba(255, 159, 64, 0.1)',
-        fill: true,
-        tension: 0.3
-      }]
+      datasets: [
+        {
+          label:
+            dataType === 'interactions'
+              ? 'Daily Interactions'
+              : dataType === 'tokens'
+                ? 'Token Usage'
+                : 'Daily Costs',
+          data: timeSeriesData.map(d =>
+            dataType === 'interactions'
+              ? d.interactions
+              : dataType === 'tokens'
+                ? d.totalTokens
+                : d.costs
+          ),
+          borderColor:
+            dataType === 'interactions'
+              ? 'rgb(75, 192, 192)'
+              : dataType === 'tokens'
+                ? 'rgb(255, 99, 132)'
+                : 'rgb(255, 159, 64)',
+          backgroundColor:
+            dataType === 'interactions'
+              ? 'rgba(75, 192, 192, 0.1)'
+              : dataType === 'tokens'
+                ? 'rgba(255, 99, 132, 0.1)'
+                : 'rgba(255, 159, 64, 0.1)',
+          fill: true,
+          tension: 0.3,
+        },
+      ],
     };
   };
 
@@ -368,15 +393,15 @@ function Dashboard() {
       y: {
         beginAtZero: true,
         ticks: {
-          callback: (value) => value.toString()
-        }
-      }
+          callback: value => value.toString(),
+        },
+      },
     },
     plugins: {
       legend: {
-        position: 'top'
-      }
-    }
+        position: 'top',
+      },
+    },
   };
 
   if (isLoading) {
@@ -385,11 +410,11 @@ function Dashboard() {
 
   if (!user || !isAdmin) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => router.push('/')}>Return to Home</Button>
+          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
         </div>
       </div>
     );
@@ -398,20 +423,20 @@ function Dashboard() {
   return (
     <div className="flex">
       <AdminSidebar />
-      <div className="flex-1 p-8 overflow-y-auto max-h-screen">
+      <div className="max-h-screen flex-1 overflow-y-auto p-8">
         <AdminHeader user={user} />
-        
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Users</p>
                 <h3 className="text-2xl font-bold">{dashboardStats.users.total}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {dashboardStats.users.activeToday} active today
                 </p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
             </div>
@@ -422,11 +447,11 @@ function Dashboard() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Interactions</p>
                 <h3 className="text-2xl font-bold">{dashboardStats.interactions.total}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {Math.round(dashboardStats.interactions.total / 30)} daily avg
                 </p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <MessageSquare className="h-6 w-6 text-green-600" />
               </div>
             </div>
@@ -439,11 +464,13 @@ function Dashboard() {
                 <h3 className="text-2xl font-bold">
                   {(dashboardStats.interactions.totalTokens / 1000).toFixed(1)}K
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Last {selectedTimeRange === '7d' ? '7' : selectedTimeRange === '30d' ? '30' : '90'} days
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Last{' '}
+                  {selectedTimeRange === '7d' ? '7' : selectedTimeRange === '30d' ? '30' : '90'}{' '}
+                  days
                 </p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <Activity className="h-6 w-6 text-purple-600" />
               </div>
             </div>
@@ -456,11 +483,11 @@ function Dashboard() {
                 <h3 className="text-2xl font-bold">
                   ${dashboardStats.interactions.costEstimate.toFixed(2)}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   ~${(dashboardStats.interactions.costEstimate / 30).toFixed(2)} daily avg
                 </p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
                 <DollarSign className="h-6 w-6 text-amber-600" />
               </div>
             </div>
@@ -468,27 +495,27 @@ function Dashboard() {
         </div>
 
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-bold">Usage Overview</h2>
             <div className="flex gap-2">
-              <Button 
-                variant={selectedTimeRange === '7d' ? "default" : "outline"}
+              <Button
+                variant={selectedTimeRange === '7d' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedTimeRange('7d')}
+                onClick={() => { setSelectedTimeRange('7d'); }}
               >
                 Week
               </Button>
-              <Button 
-                variant={selectedTimeRange === '30d' ? "default" : "outline"}
+              <Button
+                variant={selectedTimeRange === '30d' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedTimeRange('30d')}
+                onClick={() => { setSelectedTimeRange('30d'); }}
               >
                 Month
               </Button>
-              <Button 
-                variant={selectedTimeRange === '90d' ? "default" : "outline"}
+              <Button
+                variant={selectedTimeRange === '90d' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedTimeRange('90d')}
+                onClick={() => { setSelectedTimeRange('90d'); }}
               >
                 Quarter
               </Button>
@@ -504,36 +531,34 @@ function Dashboard() {
 
             <TabsContent value="usage">
               <Card className="p-6">
-                <h3 className="text-lg font-medium mb-2">Message Count Over Time</h3>
-                <p className="text-muted-foreground mb-6 text-sm">Number of API requests made by users</p>
+                <h3 className="mb-2 text-lg font-medium">Message Count Over Time</h3>
+                <p className="mb-6 text-sm text-muted-foreground">
+                  Number of API requests made by users
+                </p>
                 <div className="h-80">
-                  <Line 
-                    data={generateChartData('interactions')}
-                    options={chartOptions}
-                  />
+                  <Line data={generateChartData('interactions')} options={chartOptions} />
                 </div>
               </Card>
             </TabsContent>
 
             <TabsContent value="tokens">
               <Card className="p-6">
-                <h3 className="text-lg font-medium mb-2">Token Usage Breakdown</h3>
-                <p className="text-muted-foreground mb-6 text-sm">Input and output tokens consumed by the platform</p>
+                <h3 className="mb-2 text-lg font-medium">Token Usage Breakdown</h3>
+                <p className="mb-6 text-sm text-muted-foreground">
+                  Input and output tokens consumed by the platform
+                </p>
                 <div className="h-80">
-                  <Line 
-                    data={generateChartData('tokens')}
-                    options={chartOptions}
-                  />
+                  <Line data={generateChartData('tokens')} options={chartOptions} />
                 </div>
               </Card>
             </TabsContent>
 
             <TabsContent value="costs">
               <Card className="p-6">
-                <h3 className="text-lg font-medium mb-2">Cost Analysis</h3>
-                <p className="text-muted-foreground mb-6 text-sm">Platform costs from API usage</p>
+                <h3 className="mb-2 text-lg font-medium">Cost Analysis</h3>
+                <p className="mb-6 text-sm text-muted-foreground">Platform costs from API usage</p>
                 <div className="h-80">
-                  <Line 
+                  <Line
                     data={generateChartData('costs')}
                     options={{
                       ...chartOptions,
@@ -542,10 +567,10 @@ function Dashboard() {
                         y: {
                           ...chartOptions.scales.y,
                           ticks: {
-                            callback: (value) => `$${value}`
-                          }
-                        }
-                      }
+                            callback: value => `$${value}`,
+                          },
+                        },
+                      },
                     }}
                   />
                 </div>
@@ -555,9 +580,14 @@ function Dashboard() {
         </div>
 
         <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-bold">Top Users</h2>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => router.push('/admin/users')}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => { router.push('/admin/users'); }}
+            >
               View All Users
             </Button>
           </div>

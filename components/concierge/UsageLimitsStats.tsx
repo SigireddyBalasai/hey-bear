@@ -1,11 +1,9 @@
-"use client";
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Progress } from "@/components/ui/progress";
-import { format } from 'date-fns';
-import { AlertCircle } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { cn } from "@/lib/utils";
+'use client';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 interface UsageLimitsStatsProps {
   usageStats: {
@@ -40,17 +38,21 @@ const ColoredProgress = React.forwardRef<
   HTMLDivElement,
   React.ComponentPropsWithoutRef<typeof Progress> & { indicatorColor?: string }
 >(({ className, value, indicatorColor, ...props }, ref) => (
-  <div className={cn("relative h-2 w-full overflow-hidden rounded-full bg-secondary", className)} ref={ref} {...props}>
-    <div 
-      className="h-full transition-all" 
-      style={{ 
-        width: `${value || 0}%`, 
-        backgroundColor: indicatorColor || 'var(--primary)' 
-      }} 
+  <div
+    className={cn('relative h-2 w-full overflow-hidden rounded-full bg-secondary', className)}
+    ref={ref}
+    {...props}
+  >
+    <div
+      className="h-full transition-all"
+      style={{
+        width: `${value ?? 0}%`,
+        backgroundColor: indicatorColor ?? 'var(--primary)',
+      }}
     />
   </div>
-))
-ColoredProgress.displayName = "ColoredProgress";
+));
+ColoredProgress.displayName = 'ColoredProgress';
 
 export default function UsageLimitsStats({ usageStats, isLoading, error }: UsageLimitsStatsProps) {
   if (isLoading) {
@@ -62,10 +64,10 @@ export default function UsageLimitsStats({ usageStats, isLoading, error }: Usage
         <CardContent>
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <div className="text-sm font-medium">Loading...</div>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full animate-pulse" />
+              <div className="h-2 animate-pulse rounded-full bg-gray-100" />
             </div>
           </div>
         </CardContent>
@@ -105,11 +107,21 @@ export default function UsageLimitsStats({ usageStats, isLoading, error }: Usage
     return '#22c55e'; // green-500
   };
 
-  const messagePercentage = calculatePercentage(usageStats.messages.used, usageStats.messages.limit);
-  const documentsPercentage = calculatePercentage(usageStats.documents.used, usageStats.documents.limit);
-  const webpagesPercentage = calculatePercentage(usageStats.webpages.used, usageStats.webpages.limit);
-  const tokensPercentage = usageStats.tokens ? 
-    calculatePercentage(usageStats.tokens.used, usageStats.tokens.limit) : 0;
+  const messagePercentage = calculatePercentage(
+    usageStats.messages.used,
+    usageStats.messages.limit
+  );
+  const documentsPercentage = calculatePercentage(
+    usageStats.documents.used,
+    usageStats.documents.limit
+  );
+  const webpagesPercentage = calculatePercentage(
+    usageStats.webpages.used,
+    usageStats.webpages.limit
+  );
+  const tokensPercentage = usageStats.tokens
+    ? calculatePercentage(usageStats.tokens.used, usageStats.tokens.limit)
+    : 0;
 
   return (
     <Card>
@@ -119,7 +131,7 @@ export default function UsageLimitsStats({ usageStats, isLoading, error }: Usage
       <CardContent>
         <div className="space-y-4">
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Messages</div>
               <div className="text-xs text-gray-500">
                 {usageStats.messages.used} / {usageStats.messages.limit}
@@ -131,14 +143,14 @@ export default function UsageLimitsStats({ usageStats, isLoading, error }: Usage
               className="h-2"
             />
             {messagePercentage >= 90 && (
-              <p className="text-xs text-red-500 mt-1">
+              <p className="mt-1 text-xs text-red-500">
                 You're running low on messages this month! Consider upgrading your plan.
               </p>
             )}
           </div>
-          
+
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Documents</div>
               <div className="text-xs text-gray-500">
                 {usageStats.documents.used} / {usageStats.documents.limit}
@@ -150,14 +162,14 @@ export default function UsageLimitsStats({ usageStats, isLoading, error }: Usage
               className="h-2"
             />
             {documentsPercentage >= 90 && (
-              <p className="text-xs text-red-500 mt-1">
+              <p className="mt-1 text-xs text-red-500">
                 You're approaching your document limit! Consider upgrading your plan.
               </p>
             )}
           </div>
-          
+
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Webpages</div>
               <div className="text-xs text-gray-500">
                 {usageStats.webpages.used} / {usageStats.webpages.limit}
@@ -169,18 +181,19 @@ export default function UsageLimitsStats({ usageStats, isLoading, error }: Usage
               className="h-2"
             />
             {webpagesPercentage >= 90 && (
-              <p className="text-xs text-red-500 mt-1">
+              <p className="mt-1 text-xs text-red-500">
                 You're approaching your webpage limit! Consider upgrading your plan.
               </p>
             )}
           </div>
-          
+
           {usageStats.tokens && (
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <div className="text-sm font-medium">Tokens</div>
                 <div className="text-xs text-gray-500">
-                  {usageStats.tokens.used.toLocaleString()} / {usageStats.tokens.limit.toLocaleString()}
+                  {usageStats.tokens.used.toLocaleString()} /{' '}
+                  {usageStats.tokens.limit.toLocaleString()}
                 </div>
               </div>
               <ColoredProgress
@@ -189,14 +202,14 @@ export default function UsageLimitsStats({ usageStats, isLoading, error }: Usage
                 className="h-2"
               />
               {tokensPercentage >= 90 && (
-                <p className="text-xs text-red-500 mt-1">
+                <p className="mt-1 text-xs text-red-500">
                   You're running low on tokens this month! Consider upgrading your plan.
                 </p>
               )}
             </div>
           )}
-          
-          <div className="text-xs text-gray-500 mt-2">
+
+          <div className="mt-2 text-xs text-gray-500">
             Usage stats reset monthly. Last reset: {formatDate(usageStats.lastReset)}
           </div>
         </div>

@@ -1,14 +1,18 @@
-import type { NextRequest} from 'next/server';
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import type { NextRequest } from 'next/server';
+
 import { getStripeInstance } from '@/lib/stripe';
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(_req: NextRequest) {
   try {
     // Check user authentication
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -20,8 +24,8 @@ export async function POST(_req: NextRequest) {
       .select('*')
       .eq('auth_user_id', user.id)
       .single();
-      
-    if (userDataError || !userData) {
+
+    if (userDataError) {
       console.error('Error fetching user data:', userDataError);
       return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
     }
@@ -42,8 +46,8 @@ export async function POST(_req: NextRequest) {
 
     // Create or get existing Stripe customer
     let customerId;
-    
-    if (!profileError && customerProfile?.stripe_customer_id) {
+
+    if (!profileError && customerProfile.stripe_customer_id) {
       // Use existing customer
       customerId = customerProfile.stripe_customer_id;
     } else {
@@ -52,21 +56,18 @@ export async function POST(_req: NextRequest) {
         email: user.email,
         name: user.email,
         metadata: {
-          supabaseUserId: userData.id
-        }
+          supabaseUserId: userData.id,
+        },
       });
 
       customerId = customer.id;
-      
+
       // Create or update customer profile with Stripe customer ID
-      await supabase
-        .schema('users')
-        .from('customer_profiles')
-        .upsert({
-          user_id: userData.id,
-          stripe_customer_id: customerId,
-          updated_at: new Date().toISOString()
-        });
+      await supabase.schema('users').from('customer_profiles').upsert({
+        user_id: userData.id,
+        stripe_customer_id: customerId,
+        updated_at: new Date().toISOString(),
+      });
     }
 
     // Create customer session for pricing table
@@ -80,15 +81,17 @@ export async function POST(_req: NextRequest) {
     });
 
     return NextResponse.json({
-      customer_session_client_secret: customerSession.client_secret
+      customer_session_client_secret: customerSession.client_secret,
     });
-
   } catch (error: unknown) {
     console.error('Customer session creation error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ 
-      error: 'Failed to create customer session',
-      details: errorMessage 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Failed to create customer session',
+        details: errorMessage,
+      },
+      { status: 500 }
+    );
   }
 }

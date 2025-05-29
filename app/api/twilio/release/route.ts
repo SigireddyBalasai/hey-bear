@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+
 import twilio from 'twilio';
+
+import { isAdmin as checkIsAdmin } from '@/utils/admin';
+// Renamed import
 import { createClient } from '@/utils/supabase/server';
-import { isAdmin as checkIsAdmin } from '@/utils/admin'; // Renamed import
 
 // Initialize Twilio client
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -11,7 +14,10 @@ export async function POST(request: Request) {
   try {
     // Check authentication and admin permissions
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,8 +25,9 @@ export async function POST(request: Request) {
 
     // Use the checkIsAdmin utility function
     const isUserAdmin = await checkIsAdmin(user.id); // Adjusted call
-    
-    if (!isUserAdmin) { // Adjusted condition
+
+    if (!isUserAdmin) {
+      // Adjusted condition
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -34,12 +41,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    
+
     if (!accountSid || !authToken) {
-      return NextResponse.json(
-        { error: 'Twilio credentials not configured' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Twilio credentials not configured' }, { status: 500 });
     }
 
     // Initialize Twilio client
@@ -52,14 +56,14 @@ export async function POST(request: Request) {
         phoneNumber,
         limit: 1,
       });
-      
+
       if (numbers.length === 0) {
         return NextResponse.json(
           { error: 'Phone number not found in Twilio account' },
           { status: 404 }
         );
       }
-      
+
       sid = numbers[0].sid;
     }
 
@@ -69,10 +73,7 @@ export async function POST(request: Request) {
     }
 
     if (phoneNumber) {
-      await supabase
-        .from('phone_numbers')
-        .update({ is_assigned: false })
-        .eq('number', phoneNumber);
+      await supabase.from('phone_numbers').update({ is_assigned: false }).eq('number', phoneNumber);
     }
     return NextResponse.json({
       success: true,
@@ -81,9 +82,9 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     console.error('Error releasing phone number:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to release phone number'
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to release phone number',
       },
       { status: 500 }
     );

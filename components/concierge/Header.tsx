@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { useEffect, useState } from 'react';
+
 import Link from 'next/link';
+
+import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,14 +13,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from '@/components/ui/button';
-import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+} from '@/components/ui/dropdown-menu';
+import { createClient } from '@/utils/supabase/client';
 
 interface HeaderProps {
   user: {
@@ -32,7 +31,7 @@ interface HeaderProps {
 export function Header({ user, handleSignOut }: HeaderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const supabase = createClient();
-  
+
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (user) {
@@ -43,52 +42,53 @@ export function Header({ user, handleSignOut }: HeaderProps) {
           .select('is_admin')
           .eq('auth_user_id', user.id)
           .single();
-          
-        if (!userDataError && userData && userData.is_admin) {
-          setIsAdmin(true);
-        } else {
+
+        if (userDataError) {
           setIsAdmin(false);
+        } else {
+          setIsAdmin(userData.is_admin ?? false);
         }
       }
     };
-    
+
     checkAdminStatus();
   }, [user, supabase]);
 
   // Get user initials for avatar
-  const userInitials = user?.email
-    ? user.email.slice(0, 2).toUpperCase()
-    : 'U';
+  const userInitials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'U';
 
   return (
-    <header className="flex justify-between items-center mb-8">
+    <header className="mb-8 flex items-center justify-between">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">No-Show</h1>
         <p className="text-muted-foreground">Manage your no-show</p>
       </div>
-      
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 hover:bg-accent hover:text-accent-foreground">
+          <Button
+            variant="ghost"
+            className="flex items-center gap-2 hover:bg-accent hover:text-accent-foreground"
+          >
             <Avatar className="h-8 w-8">
-              <AvatarImage src="" alt={user?.email || 'User'} />
+              <AvatarImage src="" alt={user?.email ?? 'User'} />
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
-            <span>{user?.email || 'User'}</span>
+            <span>{user?.email ?? 'User'}</span>
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuItem asChild>
             <Link href="/dashboard" className="flex w-full cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
               <span>Interaction Dashboard</span>
             </Link>
           </DropdownMenuItem>
-          
+
           {isAdmin && (
             <DropdownMenuItem asChild>
               <Link href="/admin" className="flex w-full cursor-pointer">
@@ -97,7 +97,7 @@ export function Header({ user, handleSignOut }: HeaderProps) {
               </Link>
             </DropdownMenuItem>
           )}
-          
+
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600">
             <LogOut className="mr-2 h-4 w-4" />

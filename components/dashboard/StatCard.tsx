@@ -1,7 +1,10 @@
-"use client";
-import React, { useState, useEffect } from 'react';
+'use client';
+
+import { useEffect, useState } from 'react';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+
 import { useData } from './DataContext';
 
 export interface StatCardProps {
@@ -12,43 +15,48 @@ export interface StatCardProps {
   metricType?: string;
 }
 
-const StatCard = ({ 
-  title, 
-  value: propValue, 
-  description, 
-  isLoading: propIsLoading, 
-  metricType 
+const StatCard = ({
+  title,
+  value: propValue,
+  description,
+  isLoading: propIsLoading,
+  metricType,
 }: StatCardProps) => {
   const [localValue, setLocalValue] = useState<string | number>('');
   const [isLoading, setIsLoading] = useState(propIsLoading ?? Boolean(metricType));
-  
+
   const { dateRange } = useData();
-  
+
   // If metricType is provided, fetch the data dynamically
   useEffect(() => {
     if (!metricType) return;
-    
+
     const fetchMetric = async () => {
       setIsLoading(true);
       try {
         // In a real implementation, we would fetch from an API
         // For now, use mock data based on the metricType
         setTimeout(() => {
-          switch(metricType) {
-            case 'totalInteractions':
+          switch (metricType) {
+            case 'totalInteractions': {
               setLocalValue(342);
               break;
-            case 'activeContacts':
+            }
+            case 'activeContacts': {
               setLocalValue(78);
               break;
-            case 'interactionsPerContact':
+            }
+            case 'interactionsPerContact': {
               setLocalValue(4.3);
               break;
-            case 'averageResponseTime':
+            }
+            case 'averageResponseTime': {
               setLocalValue('1.2m');
               break;
-            default:
+            }
+            default: {
               setLocalValue(0);
+            }
           }
           setIsLoading(false);
         }, 800); // Simulated API delay
@@ -57,22 +65,22 @@ const StatCard = ({
         setIsLoading(false);
       }
     };
-    
+
     fetchMetric();
   }, [metricType, dateRange]);
-  
+
   // Determine the value to display - either from props or from fetched data
-  const displayValue = propValue !== undefined ? propValue : localValue;
-  
+  const displayValue = propValue ?? localValue;
+
   // Format the value for display
   const getFormattedValue = () => {
     if (isLoading) return '--';
-    
+
     if (typeof displayValue === 'number') {
       // For numeric values, format with commas for thousands
       return displayValue.toLocaleString();
     }
-    
+
     return displayValue;
   };
 

@@ -1,10 +1,14 @@
+import type { Database, Tables } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/server';
-import type { Tables, Database } from '@/lib/db.types';
 
-type Interaction = Tables<{ schema: 'analytics'; table:'interactions' }>
-type InteractionInsert = Database['analytics']['Tables']['interactions']['Insert']
+type Interaction = Tables<{ schema: 'analytics'; table: 'interactions' }>;
+type InteractionInsert = Database['analytics']['Tables']['interactions']['Insert'];
 
-export async function getInteractions(assistantId?: string, userId?: string, limit: number = 100): Promise<Interaction[]> {
+export async function getInteractions(
+  assistantId?: string,
+  userId?: string,
+  limit: number = 100
+): Promise<Interaction[]> {
   try {
     const supabase = await createClient();
     let query = supabase
@@ -29,7 +33,7 @@ export async function getInteractions(assistantId?: string, userId?: string, lim
       throw error;
     }
 
-    return data || [];
+    return data;
   } catch (error) {
     console.error('Error in getInteractions:', error);
     throw error;
@@ -44,7 +48,7 @@ export async function getInteractionStats(assistantId: string): Promise<{
 }> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .schema('analytics')
       .from('interactions')
@@ -56,18 +60,21 @@ export async function getInteractionStats(assistantId: string): Promise<{
       throw error;
     }
 
-    const stats = (data || []).reduce((acc, curr) => ({
-      total: acc.total + 1,
-      errorCount: acc.errorCount + (curr.is_error ? 1 : 0),
-      totalDuration: acc.totalDuration + (curr.duration || 0),
-      totalTokens: acc.totalTokens + (curr.token_usage || 0)
-    }), { total: 0, errorCount: 0, totalDuration: 0, totalTokens: 0 });
+    const stats = data.reduce(
+      (acc, curr) => ({
+        total: acc.total + 1,
+        errorCount: acc.errorCount + (curr.is_error ? 1 : 0),
+        totalDuration: acc.totalDuration + (curr.duration ?? 0),
+        totalTokens: acc.totalTokens + (curr.token_usage ?? 0),
+      }),
+      { total: 0, errorCount: 0, totalDuration: 0, totalTokens: 0 }
+    );
 
     return {
       total: stats.total,
       errorCount: stats.errorCount,
       avgResponseTime: stats.total ? stats.totalDuration / stats.total : 0,
-      totalTokens: stats.totalTokens
+      totalTokens: stats.totalTokens,
     };
   } catch (error) {
     console.error('Error in getInteractionStats:', error);
@@ -97,7 +104,7 @@ export async function recordInteraction(
       .eq('auth_user_id', authUserId)
       .single();
 
-    if (appUserError || !appUser) {
+    if (appUserError) {
       console.error('Error fetching application user ID for interaction:', appUserError);
       return false;
     }
@@ -135,7 +142,7 @@ export async function recordInteraction(
 export async function deleteInteraction(interactionId: string): Promise<void> {
   try {
     const supabase = await createClient();
-    
+
     const { error } = await supabase
       .schema('analytics')
       .from('interactions')

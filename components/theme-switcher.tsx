@@ -1,30 +1,35 @@
-"use client";
+'use client';
 
-import React from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react';
+
+import { useTheme } from 'next-themes';
+
+import { Laptop, Moon, Sun } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Laptop, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+} from '@/components/ui/dropdown-menu';
 
 const ICON_SIZE = 16;
 
-type ThemeOption = "light" | "dark" | "system";
+type ThemeOption = 'light' | 'dark' | 'system';
 
 const ThemeIcon = ({ theme }: { theme: string | undefined }) => {
   switch (theme) {
-    case "light":
+    case 'light': {
       return <Sun size={ICON_SIZE} className="text-muted-foreground" />;
-    case "dark":
+    }
+    case 'dark': {
       return <Moon size={ICON_SIZE} className="text-muted-foreground" />;
-    default:
+    }
+    default: {
       return <Laptop size={ICON_SIZE} className="text-muted-foreground" />;
+    }
   }
 };
 
@@ -51,7 +56,7 @@ const ThemeSwitcher = () => {
       <DropdownMenuContent className="w-content" align="start">
         <DropdownMenuRadioGroup
           value={theme}
-          onValueChange={(value) => setTheme(value as ThemeOption)}
+          onValueChange={value => { setTheme(value as ThemeOption); }}
         >
           <DropdownMenuRadioItem className="flex gap-2" value="light">
             <Sun size={ICON_SIZE} className="text-muted-foreground" />

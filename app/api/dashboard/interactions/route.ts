@@ -1,25 +1,22 @@
-import { createClient } from '@/utils/supabase/server';
-import type { NextRequest} from 'next/server';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
 import type { TransformedInteraction } from '@/app/dashboard/types';
+import { createClient } from '@/utils/supabase/server';
 
 // Helper function to format response time
 function formatResponseTime(durationMs: number): string {
-  if (durationMs < 1000) {
-    return `${durationMs}ms`;
-  } else {
-    return `${(durationMs / 1000).toFixed(2)}s`;
-  }
+  return durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(2)}s`;
 }
 
 export async function GET(req: NextRequest) {
   try {
     // Get query parameters
     const url = new URL(req.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
-    const searchTerm = url.searchParams.get('search') || '';
-    const assistantId = url.searchParams.get('assistantId') || undefined;
+    const page = Number.parseInt(url.searchParams.get('page') ?? '1');
+    const pageSize = Number.parseInt(url.searchParams.get('pageSize') ?? '10');
+    const searchTerm = url.searchParams.get('search') ?? '';
+    const assistantId = url.searchParams.get('assistantId') ?? undefined;
 
     // Validate pagination parameters
     if (page < 1 || pageSize < 1) {
@@ -76,11 +73,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Transform to TransformedInteraction format
-    const interactions: TransformedInteraction[] = (chatData || []).map(chat => {
-      const date = new Date(chat.interaction_time || new Date());
-      const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().substring(2)}`;
-      
-      const phoneNumber = chat.assistant_id || 'Unknown';
+    const interactions: TransformedInteraction[] = chatData.map(chat => {
+      const date = new Date(chat.interaction_time ?? new Date());
+      const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().slice(2)}`;
+
+      const phoneNumber = chat.assistant_id ?? 'Unknown';
 
       let type = 'Unknown';
       if (chat.request && chat.response) {
@@ -116,15 +113,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       interactions,
-      totalPages: Math.ceil((count || 0) / pageSize),
+      totalPages: Math.ceil((count ?? 0) / pageSize),
       currentPage: page,
       totalCount: count,
     });
   } catch (error) {
     console.error('Error fetching interactions:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch interactions' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch interactions' }, { status: 500 });
   }
 }

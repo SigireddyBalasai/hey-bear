@@ -16,7 +16,7 @@ type SMSLog = {
 export async function logSMSMessage(data: SMSLog): Promise<void> {
   try {
     const supabase = await createClient();
-    
+
     const { error } = await supabase
       .schema('analytics')
       .from('interactions')
@@ -30,7 +30,7 @@ export async function logSMSMessage(data: SMSLog): Promise<void> {
         interaction_time: data.timestamp,
         created_at: data.timestamp,
         updated_at: data.timestamp,
-        is_error: data.status === 'failed'
+        is_error: data.status === 'failed',
       });
 
     if (error) {
@@ -46,14 +46,14 @@ export async function logSMSMessage(data: SMSLog): Promise<void> {
 export async function updateSMSStatus(messageId: string, status: string): Promise<void> {
   try {
     const supabase = await createClient();
-    
+
     const { error } = await supabase
       .schema('analytics')
       .from('interactions')
-      .update({ 
+      .update({
         response: `Status: ${status}`,
         is_error: status === 'failed',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', messageId);
 
@@ -70,7 +70,7 @@ export async function updateSMSStatus(messageId: string, status: string): Promis
 export async function getSMSLogs(assistantId: string): Promise<SMSLog[]> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .schema('analytics')
       .from('interactions')
@@ -89,7 +89,7 @@ export async function getSMSLogs(assistantId: string): Promise<SMSLog[]> {
       const isIncoming = interaction.request.includes('SMS incoming:');
       const message = interaction.request.replace(/^SMS (incoming|outgoing): /, '');
       const status = interaction.is_error ? 'failed' : 'delivered';
-      
+
       return {
         messageId: interaction.id,
         fromNumber: '', // Would need to extract from chat field or store separately
@@ -99,7 +99,7 @@ export async function getSMSLogs(assistantId: string): Promise<SMSLog[]> {
         status,
         timestamp: interaction.interaction_time ?? interaction.created_at ?? '',
         assistantId: interaction.assistant_id ?? undefined,
-        userId: interaction.user_id ?? undefined
+        userId: interaction.user_id ?? undefined,
       } as SMSLog;
     });
   } catch (error) {
@@ -111,7 +111,7 @@ export async function getSMSLogs(assistantId: string): Promise<SMSLog[]> {
 export async function getFailedSMSCount(assistantId: string): Promise<number> {
   try {
     const supabase = await createClient();
-    
+
     const { count, error } = await supabase
       .schema('analytics')
       .from('interactions')

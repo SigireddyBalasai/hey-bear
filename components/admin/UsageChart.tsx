@@ -1,7 +1,8 @@
-"use client";
-import React from 'react';
-import { Line } from 'react-chartjs-2';
+'use client';
+
 import { useMemo } from 'react';
+import { Line } from 'react-chartjs-2';
+
 import type { ChartData, ChartOptions } from 'chart.js';
 
 interface UsageChartProps {
@@ -11,38 +12,35 @@ interface UsageChartProps {
   isCurrency?: boolean;
 }
 
-export function UsageChart({ 
-  title, 
-  data, 
-  yAxisLabel = '', 
-  isCurrency = false 
-}: UsageChartProps) {
-  
-  const options = useMemo<ChartOptions<'line'>>(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: title,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: Boolean(yAxisLabel),
-          text: yAxisLabel,
+export function UsageChart({ title, data, yAxisLabel = '', isCurrency = false }: UsageChartProps) {
+  const options = useMemo<ChartOptions<'line'>>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top' as const,
         },
-        ticks: {
-          callback: (value) => isCurrency ? `$${value}` : value
-        }
+        title: {
+          display: true,
+          text: title,
+        },
       },
-    },
-  }), [title, yAxisLabel, isCurrency]);
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: Boolean(yAxisLabel),
+            text: yAxisLabel,
+          },
+          ticks: {
+            callback: value => (isCurrency ? `$${value}` : value),
+          },
+        },
+      },
+    }),
+    [title, yAxisLabel, isCurrency]
+  );
 
   return (
     <div className="h-80">

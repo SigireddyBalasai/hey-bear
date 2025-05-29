@@ -1,13 +1,9 @@
-import React from "react";
+import React from 'react';
 
-export default async function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="h-screen flex items-center justify-center">
-      <div className="max-w-7xl mx-auto flex flex-col gap-12 items-center justify-center w-full">
+    <div className="flex h-screen items-center justify-center">
+      <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-center gap-12">
         {children}
       </div>
     </div>

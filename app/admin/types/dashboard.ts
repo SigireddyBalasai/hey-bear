@@ -1,4 +1,3 @@
-
 export interface TimeSeriesDataPoint {
   date: string;
   interactions: number;

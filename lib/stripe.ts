@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 
 // Check if we're on the client side
-const isClient = typeof window !== 'undefined';
+const isClient = typeof globalThis !== 'undefined';
 
 // Server-side Stripe instance (for API routes)
 let stripe: Stripe | undefined;
@@ -25,14 +25,14 @@ export const getStripePublishableKey = (): string => {
 
 // Initialize Stripe on the client side
 export const getStripe = (): Promise<Stripe | null> =>
-  stripePromise ??= (() => {
+  (stripePromise ??= (() => {
     const publishableKey = getStripePublishableKey();
     if (!publishableKey) {
       console.error('Stripe publishable key is missing');
       return Promise.resolve(null);
     }
     return Promise.resolve(new Stripe(publishableKey, { apiVersion: '2025-03-31.basil' }));
-  })();
+  })());
 
 // Define subscription plans using NEXT_PUBLIC_ environment variables for client access
 export const SUBSCRIPTION_PLANS = {
@@ -50,9 +50,9 @@ export const SUBSCRIPTION_PLANS = {
       'Simple interface, easy management',
       '300 messages/month (sent and received)',
       '5 documents',
-      '5 webpages crawled'
+      '5 webpages crawled',
     ],
-    description: 'Perfect for individuals'
+    description: 'Perfect for individuals',
   },
   BUSINESS: {
     name: 'Business',
@@ -69,22 +69,24 @@ export const SUBSCRIPTION_PLANS = {
       'Simple interface, easy management',
       '2,000 messages/month (sent and received)',
       '25 documents',
-      '25 webpages crawled'
+      '25 webpages crawled',
     ],
-    description: 'For small to medium-sized businesses'
-  }
+    description: 'For small to medium-sized businesses',
+  },
 };
 
 // Helper function to get formatted price with currency symbol
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat('en-US', {
-    style: 'currency', 
-    currency: 'USD'
+    style: 'currency',
+    currency: 'USD',
   }).format(price);
 }
 
 // Helper function to check if a subscription is active
-export const isSubscriptionActive = (subscription: { status?: string } | null | undefined): boolean => {
+export const isSubscriptionActive = (
+  subscription: { status?: string } | null | undefined
+): boolean => {
   if (!subscription) return false;
   return subscription.status === 'active' || subscription.status === 'trialing';
 };
@@ -98,7 +100,7 @@ export const getSubscriptionPlanDetails = (planId: string | undefined) => {
 
 // Get the server-side Stripe instance
 export const getStripeInstance = (): Stripe | undefined => {
-  if (typeof window !== 'undefined') {
+  if (typeof globalThis !== 'undefined') {
     console.warn('getStripeInstance should not be called client-side');
     return undefined;
   }

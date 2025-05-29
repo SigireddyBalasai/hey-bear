@@ -1,26 +1,23 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import type { User } from '@supabase/supabase-js';
-import { createClient } from '@/utils/supabase/client';
-import { Loading } from '@/components/concierge/Loading';
+import { useCallback, useEffect, useState } from 'react';
+
 import { useRouter } from 'next/navigation';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
+
+import type { User } from '@supabase/supabase-js';
+import { ChevronLeft, HelpCircle, Link2, Phone, Settings } from 'lucide-react';
+
 import { AdminHeader } from '@/components/admin/AdminHeader';
-import { Button } from '@/components/ui/button';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { PhoneNumberManagement } from '@/components/admin/PhoneNumberManagement';
-import { TwilioNumbersList } from '@/components/admin/TwilioNumbersList';
 import { PhoneNumberSettings } from '@/components/admin/PhoneNumberSettings';
-import { 
-  Phone, 
-  ChevronLeft, 
-  Settings, 
-  Link2,
-  HelpCircle
-} from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TwilioNumbersList } from '@/components/admin/TwilioNumbersList';
+import { Loading } from '@/components/concierge/Loading';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { createClient } from '@/utils/supabase/client';
 
 export default function PhoneManagementPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -29,7 +26,7 @@ export default function PhoneManagementPage() {
   const [twilioConfigured, setTwilioConfigured] = useState(true);
   const [activeTab, setActiveTab] = useState('manage');
   const [isSettingsLoading, setIsSettingsLoading] = useState(true);
-  
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -38,15 +35,15 @@ export default function PhoneManagementPage() {
     try {
       console.log('Checking Twilio configuration...');
       const response = await fetch('/api/twilio/settings');
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('Twilio settings response:', data.success);
-        
+
         if (data.success && data.settings) {
           setTwilioConfigured(!!data.settings.accountSid);
         } else {
-          setTwilioConfigured(false); 
+          setTwilioConfigured(false);
         }
       } else {
         console.error('Failed to fetch Twilio settings:', response.status);
@@ -64,18 +61,21 @@ export default function PhoneManagementPage() {
     const checkAdminStatus = async () => {
       try {
         setIsLoading(true);
-        
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
         if (userError || !user) {
           console.error('Error fetching user:', userError);
           setUser(null);
-          void router.push('/sign-in');
+          router.push('/sign-in');
           return;
         }
-        
+
         setUser(user);
-        
+
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
           .schema('users')
@@ -83,48 +83,48 @@ export default function PhoneManagementPage() {
           .select('is_admin')
           .eq('auth_user_id', user.id)
           .single();
-          
-        if (userDataError || !userData?.is_admin) {
+
+        if (userDataError || !userData.is_admin) {
           setIsAdmin(false);
-          void router.push('/');
+          router.push('/');
           return;
         }
-        
+
         setIsAdmin(true);
         await checkTwilioConfig();
       } catch (error) {
         console.error('Error checking admin status:', error);
-        void router.push('/');
+        router.push('/');
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     void checkAdminStatus();
   }, [router, checkTwilioConfig, supabase]);
 
   // Handle tab change
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    
+
     // If Twilio isn't configured and user is not on settings tab, suggest settings configuration
     if (!twilioConfigured && !isSettingsLoading && value !== 'settings') {
       // Immediately redirect to settings tab if Twilio is not configured
       setActiveTab('settings');
     }
   };
-  
+
   if (isLoading) {
     return <Loading />;
   }
-  
+
   if (!user || !isAdmin) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => router.push('/')}>Return to Home</Button>
+          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
         </div>
       </div>
     );
@@ -133,23 +133,23 @@ export default function PhoneManagementPage() {
   return (
     <div className="flex">
       <AdminSidebar />
-      <div className="flex-1 p-8 overflow-y-auto max-h-screen">
+      <div className="max-h-screen flex-1 overflow-y-auto p-8">
         <AdminHeader user={user} />
-        
+
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center">
-            <Button variant="ghost" className="pl-0" onClick={() => router.push('/admin')}>
-              <ChevronLeft className="h-4 w-4 mr-1" />
+            <Button variant="ghost" className="pl-0" onClick={() => { router.push('/admin'); }}>
+              <ChevronLeft className="mr-1 h-4 w-4" />
               Back to Dashboard
             </Button>
             <Separator orientation="vertical" className="mx-4 h-6" />
-            <h1 className="text-3xl font-bold flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-3xl font-bold">
               <Phone className="h-7 w-7" />
               Phone Management
             </h1>
           </div>
         </div>
-        
+
         {!isSettingsLoading && !twilioConfigured && activeTab !== 'settings' && (
           <Alert className="mb-6 border-amber-500 text-amber-600 [&>svg]:text-amber-600">
             <HelpCircle className="h-4 w-4" />
@@ -159,59 +159,56 @@ export default function PhoneManagementPage() {
             </AlertDescription>
           </Alert>
         )}
-        
+
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6 w-full grid grid-cols-3 sticky top-0 bg-background z-10">
+          <TabsList className="sticky top-0 z-10 mb-6 grid w-full grid-cols-3 bg-background">
             <TabsTrigger value="manage" className="flex items-center gap-2">
               <Phone className="h-4 w-4" />
               Manage Numbers
             </TabsTrigger>
             <TabsTrigger value="twilio" className="flex items-center gap-2">
-              <Link2 className="h-4 w-4" /> 
+              <Link2 className="h-4 w-4" />
               Twilio Account
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" /> 
+              <Settings className="h-4 w-4" />
               API Settings
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="manage">
-            {!twilioConfigured ? (
-              <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
-                <Settings className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-xl font-medium mb-2">Twilio API Not Configured</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Please configure your Twilio API credentials before managing phone numbers.
-                </p>
-                <Button onClick={() => setActiveTab('settings')}>
-                  Configure API Settings
-                </Button>
-              </div>
-            ) : (
+            {twilioConfigured ? (
               <div className="space-y-6">
                 <PhoneNumberManagement />
               </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="twilio">
-            {!twilioConfigured ? (
-              <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
-                <Settings className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-xl font-medium mb-2">Twilio API Not Configured</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Please configure your Twilio API credentials to view and manage your Twilio account phone numbers.
-                </p>
-                <Button onClick={() => setActiveTab('settings')}>
-                  Configure API Settings
-                </Button>
-              </div>
             ) : (
-              <TwilioNumbersList />
+              <div className="rounded-lg border border-dashed bg-muted/30 py-12 text-center">
+                <Settings className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-xl font-medium">Twilio API Not Configured</h3>
+                <p className="mx-auto mb-6 max-w-md text-muted-foreground">
+                  Please configure your Twilio API credentials before managing phone numbers.
+                </p>
+                <Button onClick={() => { setActiveTab('settings'); }}>Configure API Settings</Button>
+              </div>
             )}
           </TabsContent>
-          
+
+          <TabsContent value="twilio">
+            {twilioConfigured ? (
+              <TwilioNumbersList />
+            ) : (
+              <div className="rounded-lg border border-dashed bg-muted/30 py-12 text-center">
+                <Settings className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-xl font-medium">Twilio API Not Configured</h3>
+                <p className="mx-auto mb-6 max-w-md text-muted-foreground">
+                  Please configure your Twilio API credentials to view and manage your Twilio
+                  account phone numbers.
+                </p>
+                <Button onClick={() => { setActiveTab('settings'); }}>Configure API Settings</Button>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="settings">
             <PhoneNumberSettings />
           </TabsContent>

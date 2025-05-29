@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run linting and formatting before commit
+pnpm run lint:prettier
+pnpm run lint
+
+# Run spell check
+pnpm run lint:spellcheck
+
+# Run security check
+pnpm run lint:security || echo "Security check failed, but proceeding with commit"

@@ -1,21 +1,46 @@
-"use client";
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
-import { toast } from 'sonner';
+'use client';
+
+import { useEffect, useState } from 'react';
+
 import { useRouter } from 'next/navigation';
-import { Loading } from '@/components/concierge/Loading';
-import { AdminHeader } from '@/components/admin/AdminHeader';
-import { RealTimeMonitor } from '@/components/admin/RealTimeMonitor';
-import { Badge } from '@/components/ui/badge';
+
 import type { User } from '@supabase/supabase-js';
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Layers,
+  RefreshCw,
+  RotateCw,
+  Terminal,
+  XCircle,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+import { fetchRecentInteractions, fetchSystemStats } from '@/app/admin/utils/monitoringUtils';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { RealTimeMonitor } from '@/components/admin/RealTimeMonitor';
+import { Loading } from '@/components/concierge/Loading';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -23,23 +48,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  AlertTriangle,
-  Clock,
-  Activity,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  Layers,
-  Terminal,
-  RotateCw
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { fetchSystemStats, fetchRecentInteractions } from '@/app/admin/utils/monitoringUtils';
+} from '@/components/ui/table';
+import { createClient } from '@/utils/supabase/client';
 
 interface ServiceStatus {
   name: string;
@@ -56,7 +66,7 @@ export default function MonitoringPage() {
   const [refreshInterval, setRefreshInterval] = useState(5000);
   const [serviceStatuses, setServiceStatuses] = useState<ServiceStatus[]>([]);
   const [systemLogs, setSystemLogs] = useState<string[]>([]);
-  
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -65,18 +75,21 @@ export default function MonitoringPage() {
     const checkAdminStatus = async () => {
       try {
         setIsLoading(true);
-        
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
         if (userError || !user) {
           console.error('Error fetching user:', userError);
           setUser(null);
           router.push('/sign-in');
           return;
         }
-        
+
         setUser(user);
-        
+
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
           .schema('users')
@@ -84,19 +97,19 @@ export default function MonitoringPage() {
           .select('is_admin')
           .eq('auth_user_id', user.id)
           .single();
-          
+
         if (userDataError || !userData.is_admin) {
           setIsAdmin(false);
           router.push('/');
           return;
         }
-        
+
         setIsAdmin(true);
-        
+
         // Fetch real service status data
         const [systemStats, recentInteractions] = await Promise.all([
           fetchSystemStats(),
-          fetchRecentInteractions()
+          fetchRecentInteractions(),
         ]);
 
         // Map real data to service status format
@@ -126,16 +139,19 @@ export default function MonitoringPage() {
             responseTime: 65,
           },
         ];
-        
+
         setServiceStatuses(realStatuses);
 
         // Generate real system logs from recent interactions and events
         const realLogs = [
           `[${new Date().toISOString()}] INFO: System monitoring active - ${systemStats.totalInteractions} total interactions`,
           `[${new Date().toISOString()}] INFO: ${systemStats.totalUsers} registered users, ${systemStats.activeAssistants} assistants deployed`,
-          ...recentInteractions.slice(0, 8).map(interaction => 
-            `[${interaction.interaction_time}] ${interaction.is_error ? 'ERROR' : 'INFO'}: ${interaction.is_error ? 'Failed interaction' : 'Successful interaction'} - Assistant: ${interaction.assistant_id ?? 'unknown'} User: ${interaction.user_id?.substring(0, 8) ?? 'unknown'}...`
-          )
+          ...recentInteractions
+            .slice(0, 8)
+            .map(
+              interaction =>
+                `[${interaction.interaction_time}] ${interaction.is_error ? 'ERROR' : 'INFO'}: ${interaction.is_error ? 'Failed interaction' : 'Successful interaction'} - Assistant: ${interaction.assistant_id ?? 'unknown'} User: ${interaction.user_id?.slice(0, 8) ?? 'unknown'}...`
+            ),
         ];
 
         setSystemLogs(realLogs);
@@ -146,30 +162,33 @@ export default function MonitoringPage() {
         setIsLoading(false);
       }
     };
-    
+
     checkAdminStatus();
   }, [router, supabase]);
-  
+
   // Handle interval change
   const handleIntervalChange = (value: string) => {
-    setRefreshInterval(parseInt(value, 10));
+    setRefreshInterval(Number.parseInt(value, 10));
   };
-  
+
   // Manual refresh handler
   const handleManualRefresh = () => {
-    toast("Refreshing", {
-      description: "Manually refreshing all monitoring data",
+    toast('Refreshing', {
+      description: 'Manually refreshing all monitoring data',
     });
-    
+
     // This would trigger an actual refresh in a real app
     // For now, just add some variation to the service statuses
     setServiceStatuses(prev => {
       return prev.map(service => ({
         ...service,
         responseTime: service.responseTime + Math.floor(Math.random() * 20 - 10),
-        status: Math.random() > 0.9 ? 
-          (service.status === 'operational' ? 'degraded' : 'operational') : 
-          service.status
+        status:
+          Math.random() > 0.9
+            ? service.status === 'operational'
+              ? 'degraded'
+              : 'operational'
+            : service.status,
       }));
     });
 
@@ -179,40 +198,43 @@ export default function MonitoringPage() {
       return [newLog, ...prev];
     });
   };
-  
+
   if (isLoading) {
     return <Loading />;
   }
-  
+
   if (!user || !isAdmin) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => router.push('/')}>Return to Home</Button>
+          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
         </div>
       </div>
     );
   }
 
   // Get overall system status
-  const overallStatus = serviceStatuses.some(s => s.status === 'outage') ? 'outage' :
-    serviceStatuses.some(s => s.status === 'degraded') ? 'degraded' : 'operational';
+  const overallStatus = serviceStatuses.some(s => s.status === 'outage')
+    ? 'outage'
+    : serviceStatuses.some(s => s.status === 'degraded')
+      ? 'degraded'
+      : 'operational';
 
   return (
     <div className="flex">
       <AdminSidebar />
-      <div className="flex-1 p-8 overflow-y-auto max-h-screen">
+      <div className="max-h-screen flex-1 overflow-y-auto p-8">
         <AdminHeader user={user} />
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+
+        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <h1 className="text-3xl font-bold">System Monitoring</h1>
             <p className="text-muted-foreground">Real-time monitoring and system status</p>
           </div>
-          
-          <div className="flex flex-wrap gap-3 items-center">
+
+          <div className="flex flex-wrap items-center gap-3">
             <Select value={refreshInterval.toString()} onValueChange={handleIntervalChange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Refresh Interval" />
@@ -225,41 +247,48 @@ export default function MonitoringPage() {
                 <SelectItem value="60000">Refresh: 60 sec</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <Button variant="outline" className="gap-2" onClick={handleManualRefresh}>
               <RefreshCw className="h-4 w-4" />
               Refresh Now
             </Button>
-            
-            <Badge 
+
+            <Badge
               variant={
-                overallStatus === 'operational' ? 'outline' : 
-                overallStatus === 'degraded' ? 'secondary' : 'destructive'
+                overallStatus === 'operational'
+                  ? 'outline'
+                  : overallStatus === 'degraded'
+                    ? 'secondary'
+                    : 'destructive'
               }
               className="ml-2 px-3 py-1"
             >
               {overallStatus === 'operational' ? (
-                <><CheckCircle className="mr-1 h-4 w-4" /> All Systems Operational</>
+                <>
+                  <CheckCircle className="mr-1 h-4 w-4" /> All Systems Operational
+                </>
               ) : overallStatus === 'degraded' ? (
-                <><AlertTriangle className="mr-1 h-4 w-4" /> Degraded Performance</>
+                <>
+                  <AlertTriangle className="mr-1 h-4 w-4" /> Degraded Performance
+                </>
               ) : (
-                <><XCircle className="mr-1 h-4 w-4" /> Service Disruption</>
+                <>
+                  <XCircle className="mr-1 h-4 w-4" /> Service Disruption
+                </>
               )}
             </Badge>
           </div>
         </div>
-        
+
         <div className="mb-8">
           <RealTimeMonitor refreshInterval={refreshInterval} />
         </div>
-        
+
         <div className="mb-8">
           <Card>
             <CardHeader>
               <CardTitle>Service Status</CardTitle>
-              <CardDescription>
-                Current status of all system components
-              </CardDescription>
+              <CardDescription>Current status of all system components</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -282,10 +311,13 @@ export default function MonitoringPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge 
+                        <Badge
                           variant={
-                            service.status === 'operational' ? 'outline' : 
-                            service.status === 'degraded' ? 'secondary' : 'destructive'
+                            service.status === 'operational'
+                              ? 'outline'
+                              : service.status === 'degraded'
+                                ? 'secondary'
+                                : 'destructive'
                           }
                           className="px-2 py-0.5"
                         >
@@ -304,7 +336,11 @@ export default function MonitoringPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className={service.responseTime > 200 ? 'text-amber-600' : 'text-muted-foreground'}>
+                        <span
+                          className={
+                            service.responseTime > 200 ? 'text-amber-600' : 'text-muted-foreground'
+                          }
+                        >
                           {service.responseTime}ms
                         </span>
                       </TableCell>
@@ -321,7 +357,7 @@ export default function MonitoringPage() {
               </Table>
             </CardContent>
             <CardFooter className="border-t py-3">
-              <div className="flex items-center justify-between w-full text-xs text-muted-foreground">
+              <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5" />
                   <span>Last updated: {new Date().toLocaleTimeString()}</span>
@@ -334,8 +370,8 @@ export default function MonitoringPage() {
             </CardFooter>
           </Card>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle className="text-lg">Recent Incidents</CardTitle>
@@ -343,7 +379,7 @@ export default function MonitoringPage() {
             <CardContent>
               <div className="space-y-4">
                 <div className="rounded-md border p-3">
-                  <div className="flex justify-between mb-1">
+                  <div className="mb-1 flex justify-between">
                     <span className="font-medium">AI Model Service Degraded</span>
                     <Badge variant="outline">2 hours ago</Badge>
                   </div>
@@ -352,23 +388,24 @@ export default function MonitoringPage() {
                   </p>
                 </div>
                 <div className="rounded-md border p-3">
-                  <div className="flex justify-between mb-1">
+                  <div className="mb-1 flex justify-between">
                     <span className="font-medium">Database Connectivity Issues</span>
                     <Badge variant="outline">Yesterday</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Brief connectivity issues with the database caused intermittent errors. Resolved within 5 minutes.
+                    Brief connectivity issues with the database caused intermittent errors. Resolved
+                    within 5 minutes.
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-2">
+                <Button variant="outline" size="sm" className="mt-2 w-full">
                   View All Incidents
                 </Button>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="md:col-span-2">
-            <CardHeader className="flex flex-row justify-between items-center">
+            <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg">System Logs</CardTitle>
                 <CardDescription>Recent system activity</CardDescription>
@@ -384,12 +421,14 @@ export default function MonitoringPage() {
                     const isError = log.includes('ERROR');
                     const isWarning = log.includes('WARN');
                     return (
-                      <div 
-                        key={index} 
-                        className={`py-2 border-b last:border-0 ${
-                          isError ? 'text-red-500' : 
-                          isWarning ? 'text-amber-500' : 
-                          'text-muted-foreground'
+                      <div
+                        key={index}
+                        className={`border-b py-2 last:border-0 ${
+                          isError
+                            ? 'text-red-500'
+                            : isWarning
+                              ? 'text-amber-500'
+                              : 'text-muted-foreground'
                         }`}
                       >
                         {log}
@@ -400,12 +439,12 @@ export default function MonitoringPage() {
               </ScrollArea>
             </CardContent>
             <CardFooter className="border-t py-3">
-              <div className="flex items-center justify-between w-full">
+              <div className="flex w-full items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Terminal className="h-3.5 w-3.5" />
                   <span>Showing latest logs</span>
                 </div>
-                <Button variant="outline" size="sm" className="text-xs h-7">
+                <Button variant="outline" size="sm" className="h-7 text-xs">
                   Download Logs
                 </Button>
               </div>

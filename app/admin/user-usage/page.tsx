@@ -1,31 +1,26 @@
-"use client";
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+'use client';
+
+import { useEffect, useState } from 'react';
+
 import { useRouter } from 'next/navigation';
+
 import type { User } from '@supabase/supabase-js';
-import { Loading } from '@/components/concierge/Loading';
-import { 
-  Users,
-  BarChart3, 
-  Scroll, 
-  FileSpreadsheet, 
-  Zap,
-  Filter,
-  Download,
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { BarChart3, Download, FileSpreadsheet, Filter, Scroll, Users, Zap } from 'lucide-react';
+
 import { AdminHeader } from '@/components/admin/AdminHeader';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { UserUsageTable } from '@/components/admin/UserUsageTable';
+import { Loading } from '@/components/concierge/Loading';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { createClient } from '@/utils/supabase/client';
 
 // Real user usage data fetching function
 const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
   try {
     const supabase = createClient();
-    
+
     // Get usage data directly from analytics.interactions table
     const { data: interactions, error } = await supabase
       .schema('analytics')
@@ -40,47 +35,50 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
     }
 
     // Group by user_id to calculate stats
-    const userStatsMap = new Map<string, {
-      user_id: string;
-      interactions_count: number;
-      token_usage: number;
-      cost_estimate: number;
-    }>();
+    const userStatsMap = new Map<
+      string,
+      {
+        user_id: string;
+        interactions_count: number;
+        token_usage: number;
+        cost_estimate: number;
+      }
+    >();
 
-    (interactions || []).forEach(interaction => {
+    interactions.forEach(interaction => {
       if (!interaction.user_id) return;
-      
+
       if (!userStatsMap.has(interaction.user_id)) {
         userStatsMap.set(interaction.user_id, {
           user_id: interaction.user_id,
           interactions_count: 0,
           token_usage: 0,
-          cost_estimate: 0
+          cost_estimate: 0,
         });
       }
-      
+
       const stats = userStatsMap.get(interaction.user_id);
       if (stats) {
         stats.interactions_count += 1;
-        stats.token_usage += interaction.token_usage || 0;
-        stats.cost_estimate += interaction.cost_estimate || 0;
+        stats.token_usage += interaction.token_usage ?? 0;
+        stats.cost_estimate += interaction.cost_estimate ?? 0;
       }
     });
 
-    const data = Array.from(userStatsMap.values())
+    const data = [...userStatsMap.values()]
       .sort((a, b) => b.token_usage - a.token_usage)
       .slice(0, 100); // Apply limit
 
-    return (data || []).map((item) => ({
-      id: item.user_id as string,
-      user_id: item.user_id as string,
+    return data.map(item => ({
+      id: item.user_id,
+      user_id: item.user_id,
       users: {
-        id: item.user_id as string,
-        email: `user-${(item.user_id as string).substring(0, 8)}@example.com`, // We'd need to join with auth users for real email
+        id: item.user_id,
+        email: `user-${(item.user_id).slice(0, 8)}@example.com`, // We'd need to join with auth users for real email
       },
-      total_interactions: item.interactions_count as number,
-      total_tokens: item.token_usage as number,
-      total_cost: item.cost_estimate as number
+      total_interactions: item.interactions_count,
+      total_tokens: item.token_usage,
+      total_cost: item.cost_estimate,
     }));
   } catch (error) {
     console.error('Error in fetchUserUsageData:', error);
@@ -105,11 +103,11 @@ export default function UserUsagePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [usageData, setUsageData] = useState<UserUsageData[]>([]);
-  const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-    to: new Date()
+    to: new Date(),
   });
-  
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -118,18 +116,21 @@ export default function UserUsagePage() {
     const checkAdminStatus = async () => {
       try {
         setIsLoading(true);
-        
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
         if (userError || !user) {
           console.error('Error fetching user:', userError);
           setUser(null);
           router.push('/sign-in');
           return;
         }
-        
+
         setUser(user);
-        
+
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
           .schema('users')
@@ -137,19 +138,18 @@ export default function UserUsagePage() {
           .select('is_admin')
           .eq('auth_user_id', user.id)
           .single();
-          
-        if (userDataError || !userData?.is_admin) {
+
+        if (userDataError || !userData.is_admin) {
           setIsAdmin(false);
           router.push('/');
           return;
         }
-        
+
         setIsAdmin(true);
-        
+
         // Load real usage data
         const realData = await fetchUserUsageData(dateRange.from, dateRange.to);
         setUsageData(realData);
-        
       } catch (error) {
         console.error('Error in checking admin status:', error);
         router.push('/');
@@ -157,16 +157,16 @@ export default function UserUsagePage() {
         setIsLoading(false);
       }
     };
-    
+
     checkAdminStatus();
   }, [router, supabase, dateRange.from, dateRange.to]);
 
   // Handle date range changes - fetch real data based on date range
-  const handleDateRangeChange = async (range: { from?: Date, to?: Date } | undefined) => {
+  const handleDateRangeChange = async (range: { from?: Date; to?: Date } | undefined) => {
     if (range?.from) {
       const newRange = {
         from: range.from,
-        to: range.to || new Date()
+        to: range.to ?? new Date(),
       };
       setDateRange(newRange);
       const realData = await fetchUserUsageData(newRange.from, newRange.to);
@@ -180,101 +180,105 @@ export default function UserUsagePage() {
 
   if (!user || !isAdmin) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => router.push('/')}>Return to Home</Button>
+          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
         </div>
       </div>
     );
   }
 
   // Calculate summary statistics
-  const totalTokens = usageData.reduce((sum, item) => sum + (item.total_tokens || 0), 0);
-  const totalCost = usageData.reduce((sum, item) => sum + (item.total_cost || 0), 0);
-  const totalMessages = usageData.reduce((sum, item) => sum + (item.total_interactions || 0), 0);
+  const totalTokens = usageData.reduce((sum, item) => sum + item.total_tokens, 0);
+  const totalCost = usageData.reduce((sum, item) => sum + item.total_cost, 0);
+  const totalMessages = usageData.reduce((sum, item) => sum + item.total_interactions, 0);
   const uniqueUserIds = new Set(usageData.map(item => item.user_id));
   const uniqueUserCount = uniqueUserIds.size;
 
   return (
     <div className="flex">
       <AdminSidebar />
-      <div className="flex-1 p-8 overflow-y-auto max-h-screen">
+      <div className="max-h-screen flex-1 overflow-y-auto p-8">
         <AdminHeader user={user} />
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+
+        <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <h1 className="text-3xl font-bold">User Usage Analytics</h1>
-            <p className="text-muted-foreground">Track and analyze user interactions and token usage</p>
+            <p className="text-muted-foreground">
+              Track and analyze user interactions and token usage
+            </p>
           </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            <DateRangePicker 
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <DateRangePicker
               dateRange={{
                 from: dateRange.from,
-                to: dateRange.to
+                to: dateRange.to,
               }}
               onDateRangeChange={handleDateRangeChange}
             />
-            
+
             <Button variant="outline" className="gap-2">
               <FileSpreadsheet className="h-4 w-4" />
               Export Report
             </Button>
           </div>
         </div>
-        
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Users</p>
                 <h3 className="text-2xl font-bold">{uniqueUserCount}</h3>
-                <p className="text-xs text-muted-foreground mt-1">In selected date range</p>
+                <p className="mt-1 text-xs text-muted-foreground">In selected date range</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </Card>
-          
+
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Messages</p>
                 <h3 className="text-2xl font-bold">{totalMessages.toLocaleString()}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   ~{Math.round(totalMessages / Math.max(1, uniqueUserCount))} per user
                 </p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <Scroll className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </Card>
-          
+
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Tokens</p>
                 <h3 className="text-2xl font-bold">{totalTokens.toLocaleString()}</h3>
-                <p className="text-xs text-muted-foreground mt-1">Across all models</p>
+                <p className="mt-1 text-xs text-muted-foreground">Across all models</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
                 <Zap className="h-6 w-6 text-violet-600" />
               </div>
             </div>
           </Card>
-          
+
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Cost</p>
                 <h3 className="text-2xl font-bold">${totalCost.toFixed(2)}</h3>
-                <p className="text-xs text-muted-foreground mt-1">Average ${(totalCost / Math.max(1, uniqueUserCount)).toFixed(2)} per user</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Average ${(totalCost / Math.max(1, uniqueUserCount)).toFixed(2)} per user
+                </p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
                 <BarChart3 className="h-6 w-6 text-amber-600" />
               </div>
             </div>
@@ -284,7 +288,7 @@ export default function UserUsagePage() {
         <div className="mb-6">
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>Detailed Usage by User</CardTitle>
                   <CardDescription>
@@ -303,7 +307,7 @@ export default function UserUsagePage() {
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="p-0">
               <UserUsageTable usageData={usageData} />
             </CardContent>

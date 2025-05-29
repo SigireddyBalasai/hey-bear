@@ -1,60 +1,58 @@
-"use client";
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
-import { 
-  BarChart3, 
-  Download, 
-  Home,
-  Users,
-  HelpCircle,
-  ChevronRight,
+
+import {
   Activity,
-  Settings,
+  BarChart3,
+  ChevronRight,
+  Database,
+  Download,
+  HelpCircle,
+  Home,
   Phone,
-  Database
+  Settings,
+  Users,
 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
 interface SidebarLinkProps {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  badge?: string | number;
+  readonly href: string;
+  readonly icon: React.ReactNode;
+  readonly label: string;
+  readonly active: boolean;
+  readonly badge?: string | number;
 }
 
 function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
   return (
     <Link href={href} passHref>
       <Button
-        variant={active ? "secondary" : "ghost"}
-        className={cn(
-          "w-full justify-start relative transition-all",
-          active ? 'font-medium' : ''
-        )}
+        variant={active ? 'secondary' : 'ghost'}
+        className={cn('relative w-full justify-start transition-all', active ? 'font-medium' : '')}
       >
         <span className="flex items-center">
           {icon}
           <span className="ml-2">{label}</span>
         </span>
-        
+
         {badge && (
-          <span className={cn(
-            "ml-auto text-xs rounded-full px-2 py-0.5",
-            active 
-              ? "bg-primary/20 text-primary" 
-              : "bg-muted text-muted-foreground"
-          )}>
+          <span
+            className={cn(
+              'ml-auto rounded-full px-2 py-0.5 text-xs',
+              active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+            )}
+          >
             {badge}
           </span>
         )}
-        
-        {active && (
-          <ChevronRight className="ml-auto h-4 w-4 opacity-70" />
-        )}
+
+        {active && <ChevronRight className="ml-auto h-4 w-4 opacity-70" />}
       </Button>
     </Link>
   );
@@ -73,7 +71,12 @@ export function AdminSidebar() {
 
   const links = [
     { href: '/admin', icon: <Home size={18} />, label: 'Overview' },
-    { href: '/admin/users', icon: <Users size={18} />, label: 'Users', badge: isLoading ? '-' : userCount },
+    {
+      href: '/admin/users',
+      icon: <Users size={18} />,
+      label: 'Users',
+      badge: isLoading ? '-' : userCount,
+    },
     { href: '/admin/usage', icon: <BarChart3 size={18} />, label: 'Usage Analytics' },
     { href: '/admin/monitoring', icon: <Activity size={18} />, label: 'Monitoring' },
     { href: '/admin/phone-management', icon: <Phone size={18} />, label: 'Phone Numbers' },
@@ -82,14 +85,14 @@ export function AdminSidebar() {
   ];
 
   return (
-    <div className="w-64 border-r min-h-screen p-6 bg-card">
+    <div className="min-h-screen w-64 border-r bg-card p-6">
       <div className="mb-8">
-        <h1 className="text-xl font-bold mb-1">Hey Bear Admin</h1>
+        <h1 className="mb-1 text-xl font-bold">Hey Bear Admin</h1>
         <p className="text-sm text-muted-foreground">Management Dashboard</p>
       </div>
-      
-      <nav className="space-y-1 mb-8">
-        {links.map((link) => (
+
+      <nav className="mb-8 space-y-1">
+        {links.map(link => (
           <SidebarLink
             key={link.href}
             href={link.href}
@@ -100,22 +103,24 @@ export function AdminSidebar() {
           />
         ))}
       </nav>
-      
-      <div className="rounded-md bg-muted/50 p-4 mt-4">
-        <h3 className="text-sm font-medium mb-2">Need help?</h3>
-        <p className="text-xs text-muted-foreground mb-4">Check our documentation or contact support for assistance.</p>
+
+      <div className="mt-4 rounded-md bg-muted/50 p-4">
+        <h3 className="mb-2 text-sm font-medium">Need help?</h3>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Check our documentation or contact support for assistance.
+        </p>
         <Button variant="outline" size="sm" className="w-full justify-start border-dashed">
           <HelpCircle size={16} className="mr-2" />
           View Documentation
         </Button>
       </div>
-      
-      <div className="border-t mt-8 pt-4 space-y-3">
+
+      <div className="mt-8 space-y-3 border-t pt-4">
         <Button variant="outline" className="w-full justify-start gap-2">
           <Download size={16} />
           <span>Export Data</span>
         </Button>
-        <Button variant="ghost" className="w-full justify-start text-muted-foreground gap-2">
+        <Button variant="ghost" className="w-full justify-start gap-2 text-muted-foreground">
           <HelpCircle size={16} />
           <span>Help & Support</span>
         </Button>

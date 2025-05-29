@@ -1,16 +1,20 @@
-"use client";
+'use client';
 
-import React from 'react';
-import { Button } from "@/components/ui/button";
+import { Bar, Doughnut } from 'react-chartjs-2';
+
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Filler,
+  Legend,
+  LineElement,
+  LinearScale,
+  PointElement,
+  Title,
+  Tooltip,
+} from 'chart.js';
 import {
   BarChart3,
   Calendar,
@@ -20,28 +24,25 @@ import {
   Phone,
   RefreshCw,
   Users,
-} from "lucide-react";
+} from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  Filler
-} from "chart.js";
-import { Bar, Doughnut } from "react-chartjs-2";
+} from '@/components/ui/select';
 
 // Register Chart.js components
 ChartJS.register(
@@ -103,13 +104,13 @@ export function PhoneNumberStats({
   onTimeframeChange,
   onRefresh,
   onExportData,
-  onViewMessageDetails
+  onViewMessageDetails,
 }: PhoneNumberStatsProps) {
   // Generate data for messages by phone chart
   const generateMessagesChartData = () => {
     // Get top 10 most active phones
     const topPhones = phoneStats.slice(0, 10);
-    
+
     return {
       labels: topPhones.map(phone => formatPhoneNumber(phone.number)),
       datasets: [
@@ -122,8 +123,8 @@ export function PhoneNumberStats({
           label: 'Incoming Messages',
           data: topPhones.map(phone => phone.messages_received),
           backgroundColor: 'rgba(75, 192, 192, 0.8)',
-        }
-      ]
+        },
+      ],
     };
   };
 
@@ -134,17 +135,11 @@ export function PhoneNumberStats({
       datasets: [
         {
           data: [usageSummary.assigned, usageSummary.unassigned],
-          backgroundColor: [
-            'rgba(75, 192, 192, 0.8)',
-            'rgba(201, 203, 207, 0.8)'
-          ],
-          borderColor: [
-            'rgb(75, 192, 192)',
-            'rgb(201, 203, 207)'
-          ],
-          borderWidth: 1
-        }
-      ]
+          backgroundColor: ['rgba(75, 192, 192, 0.8)', 'rgba(201, 203, 207, 0.8)'],
+          borderColor: ['rgb(75, 192, 192)', 'rgb(201, 203, 207)'],
+          borderWidth: 1,
+        },
+      ],
     };
   };
 
@@ -152,7 +147,7 @@ export function PhoneNumberStats({
   const formatPhoneNumber = (phoneNumber: string) => {
     // Basic formatting for US numbers
     if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
-      return `(${phoneNumber.substring(2, 5)}) ${phoneNumber.substring(5, 8)}-${phoneNumber.substring(8)}`;
+      return `(${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5, 8)}-${phoneNumber.slice(8)}`;
     }
     return phoneNumber;
   };
@@ -166,14 +161,25 @@ export function PhoneNumberStats({
   // Calculate activity ratio (active days / timeframe days)
   const getActivityRatio = (phone: PhoneNumberStat) => {
     let totalDays = 30; // Default
-    
+
     switch (timeframe) {
-      case '7d': totalDays = 7; break;
-      case '90d': totalDays = 90; break;
-      case '180d': totalDays = 180; break;
-      default: totalDays = 30;
+      case '7d': {
+        totalDays = 7;
+        break;
+      }
+      case '90d': {
+        totalDays = 90;
+        break;
+      }
+      case '180d': {
+        totalDays = 180;
+        break;
+      }
+      default: {
+        totalDays = 30;
+      }
     }
-    
+
     return Math.min(100, Math.round((phone.active_days / totalDays) * 100));
   };
 
@@ -183,7 +189,7 @@ export function PhoneNumberStats({
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     });
   };
 
@@ -212,11 +218,9 @@ export function PhoneNumberStats({
             </Button>
           </div>
         </CardTitle>
-        <CardDescription>
-          Usage statistics and analytics for your phone numbers
-        </CardDescription>
+        <CardDescription>Usage statistics and analytics for your phone numbers</CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         {error ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
@@ -224,13 +228,8 @@ export function PhoneNumberStats({
               <RefreshCw className="h-5 w-5 text-amber-600" />
               <div>
                 <p className="font-medium">Error Loading Data</p>
-                <p className="text-sm mt-1">{error}</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={onRefresh} 
-                  className="mt-2"
-                >
+                <p className="mt-1 text-sm">{error}</p>
+                <Button variant="outline" size="sm" onClick={onRefresh} className="mt-2">
                   Try Again
                 </Button>
               </div>
@@ -238,13 +237,13 @@ export function PhoneNumberStats({
           </div>
         ) : isLoading ? (
           <div className="py-8 text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground/50" />
+            <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground/50" />
             <p className="text-muted-foreground">Loading phone statistics...</p>
           </div>
         ) : (
           <div className="space-y-8">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -252,13 +251,13 @@ export function PhoneNumberStats({
                       <p className="text-sm text-muted-foreground">Total Phone Numbers</p>
                       <p className="text-2xl font-bold">{usageSummary.total}</p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
                       <Phone className="h-5 w-5 text-blue-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -266,13 +265,13 @@ export function PhoneNumberStats({
                       <p className="text-sm text-muted-foreground">Active Numbers</p>
                       <p className="text-2xl font-bold">{usageSummary.activePhones}</p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
                       <Phone className="h-5 w-5 text-green-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -280,45 +279,47 @@ export function PhoneNumberStats({
                       <p className="text-sm text-muted-foreground">Total Messages</p>
                       <p className="text-2xl font-bold">{usageSummary.totalMessages}</p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
                       <MessageSquare className="h-5 w-5 text-purple-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Timeframe</p>
                       <p className="text-2xl font-bold">
-                        {timeframe === '7d' ? '7 Days' : 
-                         timeframe === '90d' ? '3 Months' :
-                         timeframe === '180d' ? '6 Months' : '30 Days'}
+                        {timeframe === '7d'
+                          ? '7 Days'
+                          : timeframe === '90d'
+                            ? '3 Months'
+                            : timeframe === '180d'
+                              ? '6 Months'
+                              : '30 Days'}
                       </p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
                       <Calendar className="h-5 w-5 text-amber-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-            
+
             {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Usage Status */}
               <Card className="col-span-1">
                 <CardHeader>
                   <CardTitle className="text-lg">Phone Number Status</CardTitle>
-                  <CardDescription>
-                    Distribution of assigned vs. unassigned numbers
-                  </CardDescription>
+                  <CardDescription>Distribution of assigned vs. unassigned numbers</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-64">
-                    <Doughnut 
+                    <Doughnut
                       data={generateUsageOverviewData()}
                       options={{
                         responsive: true,
@@ -326,43 +327,47 @@ export function PhoneNumberStats({
                         plugins: {
                           legend: {
                             position: 'bottom',
-                          }
+                          },
                         },
-                        cutout: '70%'
+                        cutout: '70%',
                       }}
                     />
                   </div>
-                  
-                  <div className="flex justify-center mt-4 gap-6">
+
+                  <div className="mt-4 flex justify-center gap-6">
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground">Assigned</p>
                       <p className="text-lg font-medium">{usageSummary.assigned}</p>
                       <p className="text-xs text-muted-foreground">
-                        {usageSummary.total ? (usageSummary.assigned / usageSummary.total * 100).toFixed(1) : 0}%
+                        {usageSummary.total
+                          ? ((usageSummary.assigned / usageSummary.total) * 100).toFixed(1)
+                          : 0}
+                        %
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground">Unassigned</p>
                       <p className="text-lg font-medium">{usageSummary.unassigned}</p>
                       <p className="text-xs text-muted-foreground">
-                        {usageSummary.total ? (usageSummary.unassigned / usageSummary.total * 100).toFixed(1) : 0}%
+                        {usageSummary.total
+                          ? ((usageSummary.unassigned / usageSummary.total) * 100).toFixed(1)
+                          : 0}
+                        %
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* Messages By Phone Chart */}
               <Card className="col-span-1 lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-lg">Message Volume by Phone</CardTitle>
-                  <CardDescription>
-                    Top 10 most active phone numbers
-                  </CardDescription>
+                  <CardDescription>Top 10 most active phone numbers</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-80">
-                    <Bar 
+                    <Bar
                       data={generateMessagesChartData()}
                       options={{
                         responsive: true,
@@ -373,32 +378,32 @@ export function PhoneNumberStats({
                           },
                           y: {
                             stacked: true,
-                            beginAtZero: true
-                          }
+                            beginAtZero: true,
+                          },
                         },
                         plugins: {
                           legend: {
                             position: 'top',
-                          }
-                        }
+                          },
+                        },
                       }}
                     />
                   </div>
                 </CardContent>
               </Card>
             </div>
-            
+
             {/* Phone Number Stats Table */}
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium">Phone Number Details</h3>
                 <Button variant="outline" size="sm" onClick={onExportData} className="gap-2">
                   <Download className="h-4 w-4" />
                   Export Data
                 </Button>
               </div>
-              
-              <div className="rounded-md border overflow-x-auto">
+
+              <div className="overflow-x-auto rounded-md border">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted">
@@ -418,34 +423,38 @@ export function PhoneNumberStats({
                         </td>
                       </tr>
                     ) : (
-                      phoneStats.map((phone) => (
-                        <tr 
-                          key={phone.id} 
-                          className="hover:bg-muted/50 cursor-pointer"
-                          onClick={() => onViewMessageDetails(phone.number)}
+                      phoneStats.map(phone => (
+                        <tr
+                          key={phone.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => { onViewMessageDetails(phone.number); }}
                         >
                           <td className="px-4 py-3">
                             <div className="font-mono">{phone.number}</div>
                             <div className="text-xs text-muted-foreground">
-                              {phone.assistant && (
-                                <span>Assigned to: {phone.assistant}</span>
-                              )}
+                              {phone.assistant && <span>Assigned to: {phone.assistant}</span>}
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             {phone.is_assigned ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <Badge
+                                variant="outline"
+                                className="border-green-200 bg-green-50 text-green-700"
+                              >
                                 Assigned
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+                              <Badge
+                                variant="outline"
+                                className="border-gray-200 bg-gray-50 text-gray-700"
+                              >
                                 Unassigned
                               </Badge>
                             )}
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-medium">{phone.total_messages}</div>
-                            <div className="text-xs text-muted-foreground flex gap-1">
+                            <div className="flex gap-1 text-xs text-muted-foreground">
                               <span>In: {phone.messages_received}</span>
                               <span>|</span>
                               <span>Out: {phone.messages_sent}</span>
@@ -453,18 +462,23 @@ export function PhoneNumberStats({
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              <div 
+                              <div
                                 className="h-2 rounded-full bg-blue-100"
                                 style={{
                                   width: `${getActivityRatio(phone)}%`,
-                                  backgroundColor: `rgba(59, 130, 246, ${getActivityRatio(phone)/100})`
+                                  backgroundColor: `rgba(59, 130, 246, ${getActivityRatio(phone) / 100})`,
                                 }}
                               />
-                              <span className="ml-1 text-xs">{phone.active_days}/{
-                                timeframe === '7d' ? 7 : 
-                                timeframe === '90d' ? 90 :
-                                timeframe === '180d' ? 180 : 30
-                              }</span>
+                              <span className="ml-1 text-xs">
+                                {phone.active_days}/
+                                {timeframe === '7d'
+                                  ? 7
+                                  : timeframe === '90d'
+                                    ? 90
+                                    : timeframe === '180d'
+                                      ? 180
+                                      : 30}
+                              </span>
                             </div>
                             <div className="text-xs text-muted-foreground">
                               ~{getMessagesPerDay(phone)}/day
@@ -479,7 +493,9 @@ export function PhoneNumberStats({
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{phone.last_message ? formatDate(phone.last_message) : 'Never'}</span>
+                              <span>
+                                {phone.last_message ? formatDate(phone.last_message) : 'Never'}
+                              </span>
                             </div>
                           </td>
                         </tr>
@@ -492,14 +508,17 @@ export function PhoneNumberStats({
           </div>
         )}
       </CardContent>
-      
-      <CardFooter className="border-t pt-4 flex justify-between">
+
+      <CardFooter className="flex justify-between border-t pt-4">
         <p className="text-xs text-muted-foreground">
-          Data shown for {
-            timeframe === '7d' ? 'the last 7 days' : 
-            timeframe === '90d' ? 'the last 3 months' :
-            timeframe === '180d' ? 'the last 6 months' : 'the last 30 days'
-          }
+          Data shown for{' '}
+          {timeframe === '7d'
+            ? 'the last 7 days'
+            : timeframe === '90d'
+              ? 'the last 3 months'
+              : timeframe === '180d'
+                ? 'the last 6 months'
+                : 'the last 30 days'}
         </p>
       </CardFooter>
     </Card>

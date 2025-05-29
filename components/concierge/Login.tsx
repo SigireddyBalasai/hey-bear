@@ -1,11 +1,11 @@
-import React from 'react';
+import Link from 'next/link';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Link from 'next/link';
 
 export function Login() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex min-h-screen items-center justify-center">
       <Card className="w-[350px]">
         <CardHeader>
           <CardTitle>Authentication Required</CardTitle>

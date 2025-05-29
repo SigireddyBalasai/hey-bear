@@ -1,6 +1,13 @@
-"use client";
+'use client';
 
-import React, { useState, useCallback, type ChangeEvent } from 'react';
+import { useCallback, useState } from 'react';
+import type { ChangeEvent } from 'react';
+
+import { Check, Phone, PlusCircle, RefreshCw, X } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -9,20 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Phone, RefreshCw, PlusCircle, Check, X } from "lucide-react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/select';
 
 type CountryCode = 'US' | 'CA' | 'GB' | 'AU';
 
@@ -31,17 +34,17 @@ interface AssistantPhoneNumberSelectorProps {
   onPhoneNumberAssigned?: (phoneNumber: string) => void;
 }
 
-const COUNTRY_CODES: Record<CountryCode, { name: string, prefix: string }> = {
+const COUNTRY_CODES: Record<CountryCode, { name: string; prefix: string }> = {
   US: { name: 'United States', prefix: '+1' },
   CA: { name: 'Canada', prefix: '+1' },
   GB: { name: 'United Kingdom', prefix: '+44' },
-  AU: { name: 'Australia', prefix: '+61' }
+  AU: { name: 'Australia', prefix: '+61' },
 };
 
 export function AssistantPhoneNumberSelector({
   assistantId: _assistantId,
   onPhoneNumberAssigned,
-}: AssistantPhoneNumberSelectorProps) {
+}: Readonly<AssistantPhoneNumberSelectorProps>) {
   const [isAssigning, setIsAssigning] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>('US');
@@ -51,22 +54,22 @@ export function AssistantPhoneNumberSelector({
 
   const formatPhoneNumber = useCallback((phoneNumber: string): string => {
     if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
-      return `(${phoneNumber.substring(2, 5)}) ${phoneNumber.substring(5, 8)}-${phoneNumber.substring(8)}`;
+      return `(${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5, 8)}-${phoneNumber.slice(8)}`;
     }
     return phoneNumber;
   }, []);
 
   const getCountryFromNumber = useCallback((phoneNumber: string): string => {
-    const countryMatch = Object.entries(COUNTRY_CODES).find(([_, { prefix }]) => 
+    const countryMatch = Object.entries(COUNTRY_CODES).find(([_, { prefix }]) =>
       phoneNumber.startsWith(prefix)
     );
-    
+
     if (countryMatch) {
       return countryMatch[1].name;
     }
-    
+
     // Get country code for unknown prefixes
-    const countryCode = phoneNumber.substring(0, 3); // +XX format
+    const countryCode = phoneNumber.slice(0, 3); // +XX format
     return `International (${countryCode})`;
   }, []);
 
@@ -83,53 +86,56 @@ export function AssistantPhoneNumberSelector({
   }, []);
 
   const handleAreaCodeChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, '');
+    const value = e.target.value.replaceAll(/[^0-9]/g, '');
     if (value.length <= 3) {
       setAreaCode(value);
     }
   }, []);
 
   const assignPhoneNumber = useCallback(async () => {
-    if (!selectedCountry) {
-      toast.error('Please select a country');
-      return;
-    }
-
     setIsAssigning(true);
     try {
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // Generate a random phone number based on the country code
       let phoneNumber: string;
-      
+
       switch (selectedCountry) {
         case 'US':
         case 'CA': {
           const areaCodeToUse = areaCode || '415';
-          const randomNumber = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
+          const randomNumber = Math.floor(Math.random() * 10_000_000)
+            .toString()
+            .padStart(7, '0');
           phoneNumber = `+1${areaCodeToUse}${randomNumber}`;
           break;
         }
         case 'GB': {
-          const randomNumber = Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
+          const randomNumber = Math.floor(Math.random() * 1_000_000_000)
+            .toString()
+            .padStart(9, '0');
           phoneNumber = `+447${randomNumber}`;
           break;
         }
         case 'AU': {
-          const randomNumber = Math.floor(Math.random() * 10000000).toString().padStart(8, '0');
+          const randomNumber = Math.floor(Math.random() * 10_000_000)
+            .toString()
+            .padStart(8, '0');
           phoneNumber = `+614${randomNumber}`;
           break;
         }
         default: {
-          const randomNumber = Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
+          const randomNumber = Math.floor(Math.random() * 10_000_000_000)
+            .toString()
+            .padStart(10, '0');
           phoneNumber = `+1${randomNumber}`;
         }
       }
-      
+
       setCurrentPhoneNumber(phoneNumber);
       setDialogOpen(false);
-      
+
       toast.success('Phone number assigned successfully!');
 
       onPhoneNumberAssigned?.(phoneNumber);
@@ -144,18 +150,18 @@ export function AssistantPhoneNumberSelector({
   // Clear/Unassign the current phone number (mock implementation)
   const unassignPhoneNumber = useCallback(async () => {
     if (!currentPhoneNumber) return;
-    
-    const confirmed = window.confirm('Are you sure you want to remove this phone number?');
+
+    const confirmed = globalThis.confirm('Are you sure you want to remove this phone number?');
     if (!confirmed) return;
-    
+
     setIsLoading(true);
     try {
       // Add API call here when implementing
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       setCurrentPhoneNumber(null);
       toast.success('Phone number unassigned successfully');
-      
+
       onPhoneNumberAssigned?.('');
     } catch (error) {
       console.error('Error unassigning phone number:', error);
@@ -172,7 +178,7 @@ export function AssistantPhoneNumberSelector({
           <Phone className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-medium">SMS Phone Number</h3>
         </div>
-        <div className="h-6 w-32 bg-muted animate-pulse rounded"></div>
+        <div className="h-6 w-32 animate-pulse rounded bg-muted"></div>
       </div>
     );
   }
@@ -184,21 +190,21 @@ export function AssistantPhoneNumberSelector({
           <Phone className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-medium">SMS Phone Number</h3>
         </div>
-        
+
         {currentPhoneNumber ? (
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1.5">
               <Phone className="h-3 w-3" />
               {formatPhoneNumber(currentPhoneNumber)}
             </Badge>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={unassignPhoneNumber} 
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={unassignPhoneNumber}
               disabled={isLoading}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700"
             >
-              {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              <X className="h-4 w-4" />
             </Button>
           </div>
         ) : (
@@ -216,7 +222,7 @@ export function AssistantPhoneNumberSelector({
                   Choose a country to automatically assign a phone number to this No-show.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="py-4">
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -248,15 +254,12 @@ export function AssistantPhoneNumberSelector({
                   )}
                 </div>
               </div>
-              
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button variant="outline" onClick={() => { setDialogOpen(false); }}>
                   Cancel
                 </Button>
-                <Button 
-                  onClick={assignPhoneNumber} 
-                  disabled={isAssigning}
-                >
+                <Button onClick={assignPhoneNumber} disabled={isAssigning}>
                   {isAssigning ? (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -274,10 +277,15 @@ export function AssistantPhoneNumberSelector({
           </Dialog>
         )}
       </div>
-      
+
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
-          <p>This No-show can receive and respond to SMS messages at this phone number. <span className="text-xs text-muted-foreground">({getCountryFromNumber(currentPhoneNumber)})</span></p>
+          <p>
+            This No-show can receive and respond to SMS messages at this phone number.{' '}
+            <span className="text-xs text-muted-foreground">
+              ({getCountryFromNumber(currentPhoneNumber)})
+            </span>
+          </p>
         ) : (
           <p>Assign a phone number to enable SMS interactions with this No-show.</p>
         )}

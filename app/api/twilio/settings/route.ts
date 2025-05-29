@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+
 import { createClient } from '@/utils/supabase/server';
 
 // Define the settings object type
@@ -16,7 +17,10 @@ export async function GET(_req: Request) {
   try {
     // Check authentication and admin permissions
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.log('Auth error:', authError);
@@ -32,13 +36,13 @@ export async function GET(_req: Request) {
       .select('is_admin')
       .eq('auth_user_id', user.id)
       .single();
-      
+
     if (userDataError) {
       console.log('User data error:', userDataError);
       return NextResponse.json({ error: 'Error checking admin status' }, { status: 500 });
     }
-    
-    if (!userData?.is_admin) {
+
+    if (!userData.is_admin) {
       console.log('Not an admin:', userData);
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
@@ -47,25 +51,26 @@ export async function GET(_req: Request) {
 
     // For implementation, use environment variables
     const settings: TwilioSettings = {
-      accountSid: process.env.TWILIO_ACCOUNT_SID || '',
+      accountSid: process.env.TWILIO_ACCOUNT_SID ?? '',
       // Don't return the full auth token for security reasons
       authToken: process.env.TWILIO_AUTH_TOKEN ? '••••••••••••••••' : '',
-      webhookUrl: process.env.TWILIO_WEBHOOK_URL || `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook`,
+      webhookUrl:
+        process.env.TWILIO_WEBHOOK_URL ?? `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook`,
       webhookEnabled: true,
       smsEnabled: true,
-      voiceEnabled: false
+      voiceEnabled: false,
     };
 
     return NextResponse.json({
       success: true,
-      settings
+      settings,
     });
   } catch (error: unknown) {
     console.error('Error fetching Twilio settings:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to fetch Twilio settings'
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch Twilio settings',
       },
       { status: 500 }
     );
@@ -77,7 +82,10 @@ export async function POST(req: Request) {
   try {
     // Check authentication and admin permissions
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -90,15 +98,15 @@ export async function POST(req: Request) {
       .select('is_admin')
       .eq('auth_user_id', user.id)
       .single();
-      
-    if (userDataError || !userData?.is_admin) {
+
+    if (userDataError || !userData.is_admin) {
       console.log('Admin check failed:', userDataError, userData);
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     // Get settings from request body
     const { settings } = await req.json();
-    
+
     if (!settings) {
       return NextResponse.json({ error: 'Settings are required' }, { status: 400 });
     }
@@ -113,21 +121,25 @@ export async function POST(req: Request) {
 
     // In a real implementation, you would update environment variables
     // For now, we'll just acknowledge the receipt of the settings
-    console.log('Received settings to save:', settings.accountSid, settings.authToken === '••••••••••••••••' ? '(masked token)' : '(new token)');
-    
+    console.log(
+      'Received settings to save:',
+      settings.accountSid,
+      settings.authToken === '••••••••••••••••' ? '(masked token)' : '(new token)'
+    );
+
     // If using .env.local file, you could update it here
     // However, for security and best practices, consider using a secret manager
 
     return NextResponse.json({
       success: true,
-      message: 'Settings saved successfully'
+      message: 'Settings saved successfully',
     });
   } catch (error: unknown) {
     console.error('Error saving Twilio settings:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to save Twilio settings'
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to save Twilio settings',
       },
       { status: 500 }
     );

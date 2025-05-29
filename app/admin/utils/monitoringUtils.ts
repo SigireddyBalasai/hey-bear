@@ -21,7 +21,7 @@ interface RecentInteraction {
 export async function fetchSystemStats(): Promise<SystemStats> {
   try {
     const supabase = createClient();
-    
+
     // Get total users
     const { count: userCount } = await supabase
       .schema('users')
@@ -38,30 +38,32 @@ export async function fetchSystemStats(): Promise<SystemStats> {
     // Get interaction stats from last 24 hours
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     const { data: interactions } = await supabase
       .schema('analytics')
       .from('interactions')
       .select('is_error, duration')
       .gte('interaction_time', yesterday.toISOString());
 
-    const totalInteractions = (interactions || []).length;
-    const errorCount = (interactions || []).filter(i => i.is_error).length;
+    const totalInteractions = (interactions ?? []).length;
+    const errorCount = (interactions ?? []).filter(i => i.is_error).length;
     const errorRate = totalInteractions > 0 ? errorCount / totalInteractions : 0;
-    
-    const avgResponseTime = totalInteractions > 0 
-      ? (interactions || []).reduce((sum, curr) => sum + (curr.duration || 0), 0) / totalInteractions
-      : 0;
 
-    const uptime = 100 - (errorRate * 100);
+    const avgResponseTime =
+      totalInteractions > 0
+        ? (interactions ?? []).reduce((sum, curr) => sum + (curr.duration ?? 0), 0) /
+          totalInteractions
+        : 0;
+
+    const uptime = 100 - errorRate * 100;
 
     return {
-      totalUsers: userCount || 0,
+      totalUsers: userCount ?? 0,
       totalInteractions,
-      activeAssistants: assistantCount || 0,
+      activeAssistants: assistantCount ?? 0,
       errorRate,
       uptime: Math.max(98, uptime), // Minimum 98% uptime
-      avgResponseTime: Math.round(avgResponseTime)
+      avgResponseTime: Math.round(avgResponseTime),
     };
   } catch (error) {
     console.error('Error fetching system stats:', error);
@@ -71,7 +73,7 @@ export async function fetchSystemStats(): Promise<SystemStats> {
       activeAssistants: 0,
       errorRate: 0,
       uptime: 99.5,
-      avgResponseTime: 150
+      avgResponseTime: 150,
     };
   }
 }
@@ -79,7 +81,7 @@ export async function fetchSystemStats(): Promise<SystemStats> {
 export async function fetchRecentInteractions(limit = 10): Promise<RecentInteraction[]> {
   try {
     const supabase = createClient();
-    
+
     const { data: interactions } = await supabase
       .schema('analytics')
       .from('interactions')
@@ -87,7 +89,7 @@ export async function fetchRecentInteractions(limit = 10): Promise<RecentInterac
       .order('interaction_time', { ascending: false })
       .limit(limit);
 
-    return interactions || [];
+    return interactions ?? [];
   } catch (error) {
     console.error('Error fetching recent interactions:', error);
     return [];

@@ -1,20 +1,25 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/utils/supabase/client';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Phone, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+
 import { useRouter } from 'next/navigation';
 
+import { AlertTriangle, Phone, RefreshCw } from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/utils/supabase/client';
+
 export function UnassignedNumbersWidget() {
-  const [numbers, setNumbers] = useState<Array<{
-    id: string;
-    phone_number: string;
-    is_assigned: boolean | null;
-    created_at: string;
-  }>>([]);
+  const [numbers, setNumbers] = useState<
+    Array<{
+      id: string;
+      phone_number: string;
+      is_assigned: boolean | null;
+      created_at: string;
+    }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
@@ -27,10 +32,10 @@ export function UnassignedNumbersWidget() {
         .select('*')
         .eq('is_assigned', false)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      
-      setNumbers(data || []);
+
+      setNumbers(data);
     } catch (error) {
       console.error('Error fetching unassigned numbers:', error);
     } finally {
@@ -51,26 +56,26 @@ export function UnassignedNumbersWidget() {
             <span>Unassigned Phone Numbers</span>
           </div>
         </CardTitle>
-        <Badge variant={numbers.length > 0 ? "secondary" : "outline"}>
-          {numbers.length}
-        </Badge>
+        <Badge variant={numbers.length > 0 ? 'secondary' : 'outline'}>{numbers.length}</Badge>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="py-6 text-center">
-            <RefreshCw className="h-5 w-5 mx-auto mb-2 animate-spin text-muted-foreground" />
+            <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Loading numbers...</p>
           </div>
         ) : numbers.length === 0 ? (
           <div className="py-6 text-center">
-            <AlertTriangle className="h-8 w-8 mx-auto mb-3 text-amber-500/70" />
+            <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-amber-500/70" />
             <p className="text-sm text-muted-foreground">No unassigned numbers available.</p>
-            <p className="text-xs text-muted-foreground mt-1">Purchase new numbers to assign to No-show.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Purchase new numbers to assign to No-show.
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {numbers.slice(0, 5).map((number) => (
-              <div key={number.id} className="text-sm flex justify-between items-center">
+            {numbers.slice(0, 5).map(number => (
+              <div key={number.id} className="flex items-center justify-between text-sm">
                 <span className="font-mono">{number.phone_number}</span>
                 <Badge variant="outline" className="text-xs">
                   {new Date(number.created_at).toLocaleDateString()}
@@ -78,7 +83,7 @@ export function UnassignedNumbersWidget() {
               </div>
             ))}
             {numbers.length > 5 && (
-              <p className="text-xs text-muted-foreground text-center pt-2">
+              <p className="pt-2 text-center text-xs text-muted-foreground">
                 +{numbers.length - 5} more numbers
               </p>
             )}
@@ -86,13 +91,13 @@ export function UnassignedNumbersWidget() {
         )}
       </CardContent>
       <CardFooter className="pt-0">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="w-full" 
-          onClick={() => router.push('/admin/phone-management')}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => { router.push('/admin/phone-management'); }}
         >
-          {numbers.length > 0 ? "Assign Numbers" : "Purchase Numbers"}
+          {numbers.length > 0 ? 'Assign Numbers' : 'Purchase Numbers'}
         </Button>
       </CardFooter>
     </Card>

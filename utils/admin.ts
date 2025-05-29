@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 export async function isAdmin(userId: string): Promise<boolean> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .schema('users')
       .from('users')
@@ -33,7 +33,7 @@ export async function requireAdmin(userId: string): Promise<void> {
 export async function getAdminSettings(): Promise<Record<string, unknown>> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
       .schema('public')
       .from('usage_statistics')
@@ -55,7 +55,7 @@ export async function getAdminSettings(): Promise<Record<string, unknown>> {
 export async function updateAdminSettings(settings: Record<string, unknown>): Promise<void> {
   try {
     const supabase = await createClient();
-    
+
     const { error } = await supabase
       .schema('public')
       .from('usage_statistics')
@@ -80,7 +80,7 @@ export async function getSystemStats(): Promise<{
 }> {
   try {
     const supabase = await createClient();
-    
+
     // Get total users
     const { count: userCount } = await supabase
       .schema('users')
@@ -107,7 +107,7 @@ export async function getSystemStats(): Promise<{
       totalUsers: userCount ?? 0,
       activeAssistants: assistantCount ?? 0,
       totalInteractions,
-      totalTokens
+      totalTokens,
     };
   } catch (error) {
     console.error('Error in getSystemStats:', error);

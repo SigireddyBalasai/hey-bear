@@ -1,22 +1,31 @@
-"use client";
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle,CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { 
-  BarChart, 
-  RefreshCw, 
-  Database, 
-  ArchiveIcon, 
-  Calendar, 
-  AlertCircle
-} from "lucide-react";
+'use client';
+
+import { useEffect, useState } from 'react';
+
+import { AlertCircle, ArchiveIcon, BarChart, Calendar, Database, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type MaintenanceAction = 'vacuum' | 'refresh' | 'aggregate' | 'partition' | 'archive' | 'full';
 
@@ -63,9 +72,9 @@ export default function DatabasePage() {
       if (!response.ok) {
         throw new Error('Failed to fetch database stats');
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setTableSizes(data.tableSizes ?? []);
         setRowCounts(data.rowCounts ?? []);
@@ -92,13 +101,13 @@ export default function DatabasePage() {
         },
         body: JSON.stringify({ action }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to run ${action} maintenance`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         toast.success(data.message ?? `${action} maintenance completed successfully`);
         // Refresh stats after maintenance
@@ -116,7 +125,7 @@ export default function DatabasePage() {
 
   // Find largest tables for quick reference
   const largestTables = [...tableSizes].sort((a, b) => b.size_bytes - a.size_bytes).slice(0, 5);
-  
+
   // Find total database size
   const totalSizeBytes = tableSizes.reduce((sum, table) => sum + table.size_bytes, 0);
   const formatBytes = (bytes: number) => {
@@ -124,20 +133,20 @@ export default function DatabasePage() {
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Database Management</h1>
-      
-      <div className="flex justify-between items-center mb-6">
+      <h1 className="mb-6 text-2xl font-bold">Database Management</h1>
+
+      <div className="mb-6 flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {lastUpdated ? `Last updated: ${lastUpdated}` : 'No data fetched yet'}
         </div>
-        <Button 
-          variant="outline" 
-          onClick={fetchDatabaseStats} 
+        <Button
+          variant="outline"
+          onClick={fetchDatabaseStats}
           disabled={loading}
           className="flex gap-2"
         >
@@ -145,32 +154,28 @@ export default function DatabasePage() {
           Refresh Data
         </Button>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Database Size</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatBytes(totalSizeBytes)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Total size of all tables
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Total size of all tables</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Tables</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{tableSizes.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Number of tables in the database
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Number of tables in the database</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Rows</CardTitle>
@@ -179,48 +184,44 @@ export default function DatabasePage() {
             <div className="text-2xl font-bold">
               {rowCounts.reduce((sum, table) => sum + table.row_count, 0).toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-1 text-xs text-muted-foreground">
               Total number of rows across all tables
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Largest Table</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {largestTables[0]?.table_name || 'N/A'}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-2xl font-bold">{largestTables[0]?.table_name || 'N/A'}</div>
+            <p className="mt-1 text-xs text-muted-foreground">
               {largestTables[0]?.size_pretty || 'Unknown size'}
             </p>
           </CardContent>
         </Card>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Maintenance Actions</CardTitle>
-            <CardDescription>
-              Run database maintenance operations
-            </CardDescription>
+            <CardDescription>Run database maintenance operations</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button 
-              variant="outline" 
-              className="flex justify-start gap-2" 
+          <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Button
+              variant="outline"
+              className="flex justify-start gap-2"
               onClick={() => runMaintenance('vacuum')}
               disabled={actionLoading !== null}
             >
               <Database className="h-4 w-4" />
               {actionLoading === 'vacuum' ? 'Running...' : 'Vacuum & Analyze'}
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="flex justify-start gap-2"
               onClick={() => runMaintenance('refresh')}
               disabled={actionLoading !== null}
@@ -228,9 +229,9 @@ export default function DatabasePage() {
               <RefreshCw className="h-4 w-4" />
               {actionLoading === 'refresh' ? 'Running...' : 'Refresh Materialized Views'}
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="flex justify-start gap-2"
               onClick={() => runMaintenance('aggregate')}
               disabled={actionLoading !== null}
@@ -238,9 +239,9 @@ export default function DatabasePage() {
               <BarChart className="h-4 w-4" />
               {actionLoading === 'aggregate' ? 'Running...' : 'Aggregate Stats'}
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="flex justify-start gap-2"
               onClick={() => runMaintenance('partition')}
               disabled={actionLoading !== null}
@@ -248,12 +249,14 @@ export default function DatabasePage() {
               <Calendar className="h-4 w-4" />
               {actionLoading === 'partition' ? 'Running...' : 'Create Next Partition'}
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="flex justify-start gap-2 bg-amber-50 hover:bg-amber-100"
               onClick={() => {
-                if (confirm('Archive data older than 12 months? This operation cannot be undone.')) {
+                if (
+                  confirm('Archive data older than 12 months? This operation cannot be undone.')
+                ) {
                   runMaintenance('archive');
                 }
               }}
@@ -267,52 +270,54 @@ export default function DatabasePage() {
             Note: Some operations may take several minutes to complete
           </CardFooter>
         </Card>
-        
+
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <CardTitle>{activeTab === 'bloat' ? 'Table Bloat' : 'Largest Tables'}</CardTitle>
               <div className="flex gap-2">
-                <Button 
-                  variant={activeTab === 'size' ? "secondary" : "ghost"} 
-                  size="sm" 
-                  onClick={() => setActiveTab('size')}
+                <Button
+                  variant={activeTab === 'size' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => { setActiveTab('size'); }}
                 >
                   Size
                 </Button>
-                <Button 
-                  variant={activeTab === 'bloat' ? "secondary" : "ghost"} 
-                  size="sm" 
-                  onClick={() => setActiveTab('bloat')}
+                <Button
+                  variant={activeTab === 'bloat' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => { setActiveTab('bloat'); }}
                 >
                   Bloat
                 </Button>
               </div>
             </div>
             <CardDescription>
-              {activeTab === 'bloat' 
-                ? 'Top 5 tables with highest bloat percentage' 
+              {activeTab === 'bloat'
+                ? 'Top 5 tables with highest bloat percentage'
                 : 'Top 5 largest tables by size'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="flex justify-center items-center h-48">
+              <div className="flex h-48 items-center justify-center">
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : activeTab === 'size' ? (
               <>
                 {largestTables.map((table, _index) => (
                   <div key={table.table_name} className="mb-4">
-                    <div className="flex justify-between mb-1">
+                    <div className="mb-1 flex justify-between">
                       <span className="text-sm font-medium">{table.table_name}</span>
                       <span className="text-sm text-muted-foreground">{table.size_pretty}</span>
                     </div>
-                    <Progress 
-                      value={Math.round((table.size_bytes / (largestTables[0]?.size_bytes || 1)) * 100)} 
-                      className="h-2" 
+                    <Progress
+                      value={Math.round(
+                        (table.size_bytes / (largestTables[0]?.size_bytes || 1)) * 100
+                      )}
+                      className="h-2"
                     />
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       {table.total_rows.toLocaleString()} rows
                     </div>
                   </div>
@@ -322,21 +327,24 @@ export default function DatabasePage() {
               <>
                 {largestTables.map((table, _index) => (
                   <div key={table.table_name} className="mb-4">
-                    <div className="flex justify-between mb-1">
+                    <div className="mb-1 flex justify-between">
                       <span className="text-sm font-medium">{table.table_name}</span>
                       <span className="text-sm text-muted-foreground">
                         {table.bloat_percentage.toFixed(1)}% bloat
                       </span>
                     </div>
-                    <Progress 
-                      value={Math.min(Math.round(table.bloat_percentage), 100)} 
-                      className="h-2" 
+                    <Progress
+                      value={Math.min(Math.round(table.bloat_percentage), 100)}
+                      className="h-2"
                       indicatorColor={
-                        table.bloat_percentage > 40 ? "bg-destructive" : 
-                        table.bloat_percentage > 20 ? "bg-amber-500" : undefined
+                        table.bloat_percentage > 40
+                          ? 'bg-destructive'
+                          : table.bloat_percentage > 20
+                            ? 'bg-amber-500'
+                            : undefined
                       }
                     />
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       Size: {table.table_size}, Bloat: {table.bloat_size}
                     </div>
                   </div>
@@ -346,16 +354,16 @@ export default function DatabasePage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <Tabs defaultValue="tables" className="w-full">
-        <TabsList className="grid grid-cols-4 mb-4">
+        <TabsList className="mb-4 grid grid-cols-4">
           <TabsTrigger value="tables">Tables</TabsTrigger>
           <TabsTrigger value="indexes">Indexes</TabsTrigger>
           <TabsTrigger value="bloat">Table Bloat</TabsTrigger>
           <TabsTrigger value="info">Information</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="tables" className="border rounded-md p-4">
+
+        <TabsContent value="tables" className="rounded-md border p-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -368,23 +376,25 @@ export default function DatabasePage() {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={3} className="h-24 text-center">
-                    <RefreshCw className="h-8 w-8 animate-spin mx-auto" />
+                    <RefreshCw className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : (
-                tableSizes.map((table) => (
+                tableSizes.map(table => (
                   <TableRow key={table.table_name}>
                     <TableCell className="font-medium">{table.table_name}</TableCell>
                     <TableCell>{table.size_pretty}</TableCell>
-                    <TableCell className="text-right">{table.total_rows.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      {table.total_rows.toLocaleString()}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
         </TabsContent>
-        
-        <TabsContent value="indexes" className="border rounded-md p-4">
+
+        <TabsContent value="indexes" className="rounded-md border p-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -399,11 +409,11 @@ export default function DatabasePage() {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    <RefreshCw className="h-8 w-8 animate-spin mx-auto" />
+                    <RefreshCw className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : (
-                indexStats.map((index) => (
+                indexStats.map(index => (
                   <TableRow key={`${index.table_name}-${index.index_name}`}>
                     <TableCell>{index.table_name}</TableCell>
                     <TableCell className="font-medium">{index.index_name}</TableCell>
@@ -411,7 +421,9 @@ export default function DatabasePage() {
                     <TableCell className="text-right">{index.scans.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                       {index.scans === 0 ? (
-                        <Badge variant="destructive" className="ml-auto">Never Used</Badge>
+                        <Badge variant="destructive" className="ml-auto">
+                          Never Used
+                        </Badge>
                       ) : (
                         index.last_used
                       )}
@@ -422,8 +434,8 @@ export default function DatabasePage() {
             </TableBody>
           </Table>
         </TabsContent>
-        
-        <TabsContent value="bloat" className="border rounded-md p-4">
+
+        <TabsContent value="bloat" className="rounded-md border p-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -437,11 +449,11 @@ export default function DatabasePage() {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
-                    <RefreshCw className="h-8 w-8 animate-spin mx-auto" />
+                    <RefreshCw className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : (
-                largestTables.map((table) => (
+                largestTables.map(table => (
                   <TableRow key={table.table_name}>
                     <TableCell className="font-medium">{table.table_name}</TableCell>
                     <TableCell>{table.table_size}</TableCell>
@@ -450,7 +462,9 @@ export default function DatabasePage() {
                       {table.bloat_percentage > 40 ? (
                         <Badge variant="destructive">{table.bloat_percentage.toFixed(1)}%</Badge>
                       ) : table.bloat_percentage > 20 ? (
-                        <Badge variant="default" className="bg-amber-500">{table.bloat_percentage.toFixed(1)}%</Badge>
+                        <Badge variant="default" className="bg-amber-500">
+                          {table.bloat_percentage.toFixed(1)}%
+                        </Badge>
                       ) : (
                         <Badge variant="secondary">{table.bloat_percentage.toFixed(1)}%</Badge>
                       )}
@@ -461,47 +475,51 @@ export default function DatabasePage() {
             </TableBody>
           </Table>
         </TabsContent>
-        
+
         <TabsContent value="info" className="space-y-4">
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Database Maintenance Information</AlertTitle>
             <AlertDescription>
               <p className="mb-2">The following automated maintenance tasks are scheduled:</p>
-              <ul className="list-disc pl-6 mb-4 space-y-1">
+              <ul className="mb-4 list-disc space-y-1 pl-6">
                 <li>Full maintenance: Daily at 3 AM</li>
                 <li>Materialized view refresh: Every 4 hours</li>
                 <li>Statistics update: Every 6 hours</li>
                 <li>Old data archiving: Quarterly (Jan, Apr, Jul, Oct)</li>
               </ul>
-              <p>
-                Manual maintenance operations can be triggered from this page when needed.
-              </p>
+              <p>Manual maintenance operations can be triggered from this page when needed.</p>
             </AlertDescription>
           </Alert>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Database Optimization Features</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm space-y-2">
+            <CardContent className="space-y-2 text-sm">
               <p>
-                <strong>1. Regular Maintenance</strong> - Run the vacuum and analyze operations weekly to keep the database healthy.
+                <strong>1. Regular Maintenance</strong> - Run the vacuum and analyze operations
+                weekly to keep the database healthy.
               </p>
               <p>
-                <strong>2. Table Partitioning</strong> - Time-series data is automatically partitioned by month for optimal performance.
+                <strong>2. Table Partitioning</strong> - Time-series data is automatically
+                partitioned by month for optimal performance.
               </p>
               <p>
-                <strong>3. Index Management</strong> - Review and remove unused indexes to reduce overhead during writes.
+                <strong>3. Index Management</strong> - Review and remove unused indexes to reduce
+                overhead during writes.
               </p>
               <p>
-                <strong>4. Foreign Key Indexes</strong> - Automatically indexes foreign keys to prevent performance bottlenecks.
+                <strong>4. Foreign Key Indexes</strong> - Automatically indexes foreign keys to
+                prevent performance bottlenecks.
               </p>
               <p>
-                <strong>5. Materialized Views</strong> - Common aggregate queries are pre-computed and cached for faster reporting.
+                <strong>5. Materialized Views</strong> - Common aggregate queries are pre-computed
+                and cached for faster reporting.
               </p>
               <p>
-                <strong>6. Table Bloat Monitoring</strong> - Identifies tables with high bloat that need vacuum/reindexing.
+                <strong>6. Table Bloat Monitoring</strong> - Identifies tables with high bloat that
+                need vacuum/reindexing.
               </p>
             </CardContent>
           </Card>
