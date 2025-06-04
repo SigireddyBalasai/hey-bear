@@ -134,6 +134,30 @@ export async function POST(req: NextRequest) {
 
       userId = userData.id;
     }
+
+    // Fetch the actual plan UUID from subscription_plans table
+    let actualPlanUUID: string | null = null;
+    if (verifiedPlanId) { // Only query if verifiedPlanId is set
+      console.log(`Fetching plan UUID for plan name: ${verifiedPlanId}`);
+      const { data: planData, error: planFetchError } = await dbClient
+        .from('subscription_plans')
+        .select('id')
+        .eq('name', verifiedPlanId)
+        .single();
+
+      if (planFetchError || !planData) {
+        console.error(`Error fetching plan UUID for name "${verifiedPlanId}":`, planFetchError);
+        return NextResponse.json({ error: `Invalid plan specified: ${verifiedPlanId}. Plan not found.` }, { status: 400 });
+      }
+      actualPlanUUID = planData.id;
+      console.log(`Found plan UUID: ${actualPlanUUID} for plan name: ${verifiedPlanId}`);
+    } else {
+      // This case should ideally not happen if 'plan' has a default and is validated.
+      // But if verifiedPlanId could be null/empty, handle it.
+      console.error('verifiedPlanId is null or empty, cannot determine plan UUID.');
+      return NextResponse.json({ error: 'Plan ID could not be determined.' }, { status: 400 });
+    }
+
     try {
       const pendingAssistantId = uuidv4();
 
@@ -182,15 +206,14 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Insert subscription data
+      // Insert subscription data using the fetched actualPlanUUID
       const subscriptionData: Database['public']['Tables']['assistant_subscriptions']['Insert'] = {
         id: uuidv4(),
         assistant_id: pendingAssistantId,
         status: subscriptionStatus,
-        plan_id: verifiedPlanId,
-        payment_session_id: paymentSessionId || null, // Link to payment session if provided
+        plan_id: actualPlanUUID, // Use the fetched UUID
+        payment_session_id: paymentSessionId || null,
         created_at: new Date().toISOString(),
-        // Add any other default fields here
       };
 
       const { error: subscriptionInsertError } = await dbClient
@@ -198,8 +221,11 @@ export async function POST(req: NextRequest) {
         .insert([subscriptionData]);
 
       if (subscriptionInsertError) {
-        console.error('Error saving subscription data:', subscriptionInsertError);
-        return NextResponse.json({ error: 'Failed to save subscription data' }, { status: 500 });
+        console.error('Error saving subscription data with plan_id UUID:', subscriptionInsertError);
+        // Attempt to clean up assistant and config if subscription fails
+        await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
+        await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+        return NextResponse.json({ error: 'Failed to save subscription data.' }, { status: 500 });
       }
 
       return NextResponse.json({
