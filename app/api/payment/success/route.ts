@@ -171,117 +171,138 @@ async function processPaymentSuccess(
       );
     }
 
-    const userId = clientRefMatch[1];
-    const paymentSessionId = clientRefMatch[2]; // This is our internal session ID
-    console.log('[PAYMENT SUCCESS] Extracted:', { userId, paymentSessionId });
+    const authUserId = clientRefMatch[1]; // Renamed from userId for clarity
+    const internalPaymentSessionId = clientRefMatch[2]; // Renamed from paymentSessionId for clarity
+    console.log('[PAYMENT SUCCESS] Extracted from client_reference_id:', { authUserId, internalPaymentSessionId });
 
-    // Get user data from database using auth_user_id (not id)
-    console.log('[PAYMENT SUCCESS] Fetching user data from database...');
-    const { data: userData, error: userError } = await supabase
+    if (!internalPaymentSessionId) {
+        console.error('[PAYMENT SUCCESS] CRITICAL: No internalPaymentSessionId (payment_sessions.session_id) found in client_reference_id. Cannot reliably link payment. client_reference_id:', clientRefId);
+        // Consider if legacy flow should be invoked here or if it's a hard stop.
+        // For now, let's assume if client_reference_id was set with our pattern, internalPaymentSessionId should be there.
+        // If not, it's a significant issue.
+        // However, the original code had a fallback if paymentSessionId (now internalPaymentSessionId) was null.
+        // Replicating that fallback to stripe_checkout_session_id for fetching payment_session initially.
+        // But the core problem is client_reference_id should be reliable.
+        console.warn('[PAYMENT SUCCESS] internalPaymentSessionId is missing from client_reference_id. This is unexpected for the new flow.');
+        // The code below will try to find payment_session by stripe_checkout_session_id if internalPaymentSessionId is null.
+    }
+
+    // 1. Fetch Application User ID (public.users.id)
+    console.log('[PAYMENT SUCCESS] Fetching application user ID for auth_user_id:', authUserId);
+    const { data: appUserData, error: userFetchError } = await supabase // supabase is admin client here
       .from('users')
-      .select('*')
-      .eq('auth_user_id', userId)
+      .select('id')
+      .eq('auth_user_id', authUserId)
       .single();
 
-    if (userError || !userData) {
-      console.error('[PAYMENT SUCCESS] Error fetching user data:', {
-        error: userError,
-        hasUserData: !!userData,
-        userId: userId,
-        clientReferenceId: clientRefId,
-        errorCode: userError?.code,
-        errorMessage: userError?.message,
-        errorDetails: userError?.details,
-        errorHint: userError?.hint,
-      });
-      return NextResponse.json(
-        {
-          error: 'User not found',
-          userId: userId,
-          clientReferenceId: clientRefId,
-          errorCode: userError?.code,
-          errorMessage: userError?.message,
-          redirectUrl: `${origin}/Concierge?error=user_not_found&user_id=${userId}`,
-        },
-        { status: 404 }
-      );
+    if (userFetchError || !appUserData?.id) {
+      console.error('[PAYMENT SUCCESS] CRITICAL: Failed to fetch application user ID from public.users for auth_user_id:', authUserId, userFetchError);
+      return NextResponse.json({ error: 'User record not found for assistant assignment.' }, { status: 500 });
     }
+    const resolvedApplicationUserId = appUserData.id;
+    console.log('[PAYMENT SUCCESS] Resolved application_user_id:', resolvedApplicationUserId);
 
-    console.log('[PAYMENT SUCCESS] User data retrieved:', {
-      userId: userData.id,
-      fullName: userData.full_name,
-      stripeCustomerId: userData.stripe_customer_id,
-      createdAt: userData.created_at,
-    });
+    // 2. Fetch Payment Session record
+    // Prioritize internalPaymentSessionId if available, otherwise fallback to stripe_checkout_session_id
+    let paymentSession: any; // Define type more accurately if possible
+    let psFetchError: any;
 
-    // Look up payment session by our internal session ID (if available)
-    console.log('[PAYMENT SUCCESS] Looking up payment session...');
-    let paymentSessionData = null;
-    let paymentSessionError = null;
-
-    if (paymentSessionId) {
-      console.log('[PAYMENT SUCCESS] Using internal session ID:', paymentSessionId);
-      const result = await supabase
-        .from('payment_sessions')
-        .select('*')
-        .eq('session_id', paymentSessionId)
-        .single();
-      
-      paymentSessionData = result.data;
-      paymentSessionError = result.error;
+    if (internalPaymentSessionId) {
+        console.log('[PAYMENT SUCCESS] Fetching payment session by internal session_id (from client_reference_id):', internalPaymentSessionId);
+        const { data, error } = await supabase
+            .from('payment_sessions')
+            .select('*')
+            .eq('session_id', internalPaymentSessionId)
+            .single();
+        paymentSession = data;
+        psFetchError = error;
     } else {
-      // Fallback: Try to find by stripe_checkout_session_id
-      console.log('[PAYMENT SUCCESS] Falling back to Stripe session ID:', sessionId);
-      const result = await supabase
-        .from('payment_sessions')
-        .select('*')
-        .eq('stripe_checkout_session_id', sessionId)
-        .single();
-      
-      paymentSessionData = result.data;
-      paymentSessionError = result.error;
+        // This block is a fallback if internalPaymentSessionId was NOT in client_reference_id
+        // This is less ideal for the new robust flow.
+        console.warn('[PAYMENT SUCCESS] internalPaymentSessionId was not in client_reference_id. Falling back to fetch payment_session by stripe_checkout_session_id:', session.id);
+        const { data, error } = await supabase
+            .from('payment_sessions')
+            .select('*')
+            .eq('stripe_checkout_session_id', session.id) // session.id is Stripe's checkout session ID
+            .single();
+        paymentSession = data;
+        psFetchError = error;
     }
 
-    if (paymentSessionError || !paymentSessionData) {
-      console.error('[PAYMENT SUCCESS] Payment session not found:', {
-        error: paymentSessionError,
-        paymentSessionId,
-        stripeSessionId: sessionId,
-        errorCode: paymentSessionError?.code,
-        errorMessage: paymentSessionError?.message,
-        hasData: !!paymentSessionData,
+    if (psFetchError || !paymentSession) {
+      console.error('[PAYMENT SUCCESS] CRITICAL: Payment session not found.', {
+        internalPaymentSessionIdAttempted: internalPaymentSessionId,
+        stripeCheckoutSessionIdAttempted: !internalPaymentSessionId ? session.id : null,
+        error: psFetchError
       });
+      // If payment session isn't found, it's a critical issue.
+      // The legacy flow might handle cases where payment_sessions wasn't created, but that shouldn't happen now.
+      // Forcing a hard stop here instead of falling back to handleLegacyMetadataFlow if payment_sessions is expected.
+      return NextResponse.json({ error: 'Payment session details not found, cannot proceed.' }, { status: 404 });
+    }
+    console.log(`[PAYMENT SUCCESS] Fetched payment session (ID: ${paymentSession.id}), current user_id: ${paymentSession.user_id}, status: ${paymentSession.status}`);
 
-      // Fallback: Try to extract data from session metadata for backward compatibility
-      console.log('[PAYMENT SUCCESS] Falling back to session metadata extraction...');
-      return await handleLegacyMetadataFlow(session, origin, startTime);
+    // 3. Prepare and Execute Update to payment_sessions
+    const updatePayload: { updated_at: string; status: string; user_id?: string; stripe_checkout_session_id?: string } = {
+      updated_at: new Date().toISOString(),
+      status: 'completed', // Always aim to mark as completed if payment was successful
+    };
+
+    // Ensure stripe_checkout_session_id is also updated/set, as it might have been found via internalPaymentSessionId
+    if (paymentSession.stripe_checkout_session_id !== session.id) {
+        console.log(`[PAYMENT SUCCESS] Updating stripe_checkout_session_id on payment_session (ID: ${paymentSession.id}) from ${paymentSession.stripe_checkout_session_id} to ${session.id}`);
+        updatePayload.stripe_checkout_session_id = session.id;
     }
 
-    // At this point, paymentSessionData is confirmed to exist
-    const paymentSession = paymentSessionData;
+    let needsUserIdUpdate = false;
+    if (paymentSession.user_id !== resolvedApplicationUserId) {
+        if (paymentSession.user_id === null && resolvedApplicationUserId) {
+            console.log(`[PAYMENT SUCCESS] payment_sessions.user_id is NULL. Setting to resolved application_user_id: ${resolvedApplicationUserId}.`);
+            needsUserIdUpdate = true;
+        } else if (paymentSession.user_id !== null && paymentSession.user_id !== resolvedApplicationUserId) {
+            console.warn(`[PAYMENT SUCCESS] payment_sessions.user_id (${paymentSession.user_id}) differs from resolved application_user_id (${resolvedApplicationUserId}). Attempting to correct.`);
+            needsUserIdUpdate = true;
+        } else if (paymentSession.user_id === null && !resolvedApplicationUserId) {
+             // This case should not happen if resolvedApplicationUserId is fetched successfully.
+            console.error(`[PAYMENT SUCCESS] CRITICAL: payment_sessions.user_id is NULL and resolvedApplicationUserId is also unexpectedly NULL or empty.`);
+        }
+    }
 
-    console.log('[PAYMENT SUCCESS] Payment session found:', {
-      paymentSessionId: paymentSession.id,
-      sessionId: paymentSession.session_id,
-      status: paymentSession.status,
-      planId: paymentSession.plan_id || 'unknown',
-      hasConfigData: !!paymentSession.assistant_config_data,
-    });
+    if (needsUserIdUpdate && resolvedApplicationUserId) {
+      updatePayload.user_id = resolvedApplicationUserId;
+    }
 
-    // Update payment session status to completed
+    // Only proceed with update if there's something to update
+    // (status is always updated, plus potentially user_id and stripe_checkout_session_id)
+    console.log(`[PAYMENT SUCCESS] Attempting to update payment_sessions (ID: ${paymentSession.id}) with payload:`, updatePayload);
     const { error: updateError } = await supabase
       .from('payment_sessions')
-      .update({
-        status: 'completed',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', paymentSession.id);
+      .update(updatePayload)
+      .eq('id', paymentSession.id); // paymentSession.id is the UUID PK
 
     if (updateError) {
-      console.error('[PAYMENT SUCCESS] Failed to update payment session status:', updateError);
+      console.error(`[PAYMENT SUCCESS] CRITICAL: Failed to update payment_session (ID: ${paymentSession.id}) with payload:`, updatePayload, 'Error:', updateError);
+      return NextResponse.json({ error: 'Failed to finalize payment session details.' }, { status: 500 });
+    }
+    console.log(`[PAYMENT SUCCESS] Payment session (ID: ${paymentSession.id}) updated successfully.`);
+
+    // Manually update local paymentSession object for consistency in subsequent logic
+    if (needsUserIdUpdate && resolvedApplicationUserId) {
+      paymentSession.user_id = resolvedApplicationUserId;
+    }
+    paymentSession.status = 'completed';
+    if (updatePayload.stripe_checkout_session_id) {
+        paymentSession.stripe_checkout_session_id = updatePayload.stripe_checkout_session_id;
     }
 
-    // Extract assistant config data from payment session
+    // 4. Critical user_id Check
+    if (!paymentSession.user_id) {
+      console.error('[PAYMENT SUCCESS] CRITICAL: paymentSession.user_id is NULL even after update logic for payment_session.id:', paymentSession.id);
+      return NextResponse.json({ error: 'Failed to associate user with payment session definitively.' }, { status: 500 });
+    }
+    console.log('[PAYMENT SUCCESS] Confirmed payment_session (ID: ${paymentSession.id}) is associated with user_id:', paymentSession.user_id);
+
+    // 5. Proceed to Assistant Creation (existing logic uses paymentSession.assistant_config_data)
     const assistantConfigData = paymentSession.assistant_config_data as AssistantConfigData;
     console.log(
       '[PAYMENT SUCCESS] Assistant config data from payment session:',

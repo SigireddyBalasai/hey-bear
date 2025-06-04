@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 import type { Database } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/server';
-import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
 
 interface RequestBody {
   business_name: string;
@@ -113,15 +112,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminSupabase = createAdminClient(); // Initialize admin client
+    // supabase (user-context client) is already defined, and user is authenticated.
     let userData: { id: string } | null = null;
-    let userFetchError: any = null;
+    let userFetchError: any = null; // To store the last error if all retries fail
     const maxRetries = 3;
     const retryDelay = 500; // ms
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`ADMIN_CLIENT: Attempt ${attempt}/${maxRetries} to fetch user record from 'public.users' for auth_user_id: ${user.id}`);
-      const { data: currentData, error: currentError } = await adminSupabase // Use adminSupabase here
+      console.log(`Attempt ${attempt}/${maxRetries} to fetch user record from 'public.users' for auth_user_id: ${user.id} using user-context client.`);
+      // Ensure 'supabase' here is the user-context client, which should already be initialized
+      const { data: currentData, error: currentError } = await supabase
         .from('users')
         .select('id')
         .eq('auth_user_id', user.id)
@@ -129,26 +129,27 @@ export async function POST(req: NextRequest) {
 
       if (currentData && !currentError) {
         userData = currentData;
-        userFetchError = null;
-        console.log(`ADMIN_CLIENT: Successfully fetched user record on attempt ${attempt}. User ID: ${userData.id}`);
+        userFetchError = null; // Clear any previous error
+        console.log(`Successfully fetched user record on attempt ${attempt}. User ID: ${userData.id}`);
         break; // Exit loop on success
       } else {
-        userData = null;
-        userFetchError = currentError;
-        console.warn(`ADMIN_CLIENT: Failed to fetch user record on attempt ${attempt}. Error: ${currentError?.message || 'No data returned'}`);
+        userFetchError = currentError; // Store the error
+        // Check for PGRST116 for "Not Found" specifically, otherwise use generic message
+        const errorMessage = currentError?.code === 'PGRST116' ? 'User record not found' : (currentError?.message || 'No data returned');
+        console.warn(`Failed to fetch user record on attempt ${attempt}. Error: ${errorMessage}`);
         if (attempt < maxRetries) {
-          console.log(`ADMIN_CLIENT: Waiting ${retryDelay}ms before next attempt...`);
+          console.log(`Waiting ${retryDelay}ms before next attempt...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
       }
     }
       
-    if (!userData) { // This means all retries failed
-      console.error(`ADMIN_CLIENT: Failed to fetch user record from 'public.users' after ${maxRetries} attempts for auth_user_id: ${user.id}. Last error:`, userFetchError);
-      return NextResponse.json({ error: 'Failed to fetch user record from public.users using admin client after multiple attempts. Please try again shortly.' }, { status: 500 });
+    if (!userData) {
+      // If userData is still null, it means all retries failed.
+      // Log a warning and proceed with userData as null.
+      console.warn(`Failed to fetch user record from 'public.users' after ${maxRetries} attempts for auth_user_id: ${user.id}. Proceeding with NULL user_id for payment_sessions. Last error: ${userFetchError?.message || 'N/A'}`);
+      // userData remains null. The function will proceed.
     }
-    // At this point, userData is guaranteed to be non-null and contain { id: string }
-    // userData.id now comes from a read performed by adminSupabase.
 
     // Parse request body
     const body = (await req.json()) as RequestBody;
@@ -191,7 +192,7 @@ export async function POST(req: NextRequest) {
     // Create payment session record using the application user ID, not auth user ID
     const paymentSessionData: Database['public']['Tables']['payment_sessions']['Insert'] = {
       session_id: sessionId,
-      user_id: userData.id, // Use application user ID instead of auth user ID
+      user_id: userData ? userData.id : null, // Use null if userData is not found
       assistant_config_data: assistantConfigData,
       plan_id,
       customer_email: customer_email || user.email,
