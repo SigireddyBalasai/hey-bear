@@ -373,6 +373,53 @@ async function processPaymentSuccess(
       assistantConfigData
     );
 
+    // 5a. Fetch Plan Name
+    let planName;
+    if (!paymentSession.plan_id) {
+      console.error(
+        `[PAYMENT SUCCESS] CRITICAL: plan_id not found in paymentSession (ID: ${paymentSession.id}).`
+      );
+      return NextResponse.json(
+        { error: 'Critical: Plan ID missing from payment session.' },
+        { status: 500 }
+      );
+    }
+
+    console.log(
+      `[PAYMENT SUCCESS] Fetching plan name for plan_id: ${paymentSession.plan_id}`
+    );
+    const { data: planData, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('name')
+      .eq('id', paymentSession.plan_id)
+      .single();
+
+    if (planError) {
+      console.error(
+        `[PAYMENT SUCCESS] CRITICAL: Error fetching plan name for plan_id ${paymentSession.plan_id}:`,
+        planError
+      );
+      return NextResponse.json(
+        { error: 'Critical: Plan details query failed for the provided plan ID.' },
+        { status: 500 }
+      );
+    }
+
+    if (!planData) {
+      console.error(
+        `[PAYMENT SUCCESS] CRITICAL: Plan details not found for plan_id ${paymentSession.plan_id}.`
+      );
+      return NextResponse.json(
+        { error: 'Critical: Plan details not found for the provided plan ID.' },
+        { status: 500 }
+      );
+    }
+
+    planName = planData.name;
+    console.log(
+      `[PAYMENT SUCCESS] Successfully fetched plan name: "${planName}" for plan_id: ${paymentSession.plan_id}`
+    );
+
     try {
       console.log('[PAYMENT SUCCESS] Preparing assistant creation request...');
 
@@ -392,7 +439,7 @@ async function processPaymentSuccess(
         },
         stripeCheckoutSessionId: sessionId,
         paymentSessionId: paymentSession.id, // Pass the payment session ID
-        plan: 'business', // Default to business plan for paid sessions
+        plan: planName, // Use fetched plan name
       };
 
       console.log('[PAYMENT SUCCESS] Assistant creation payload:', createAssistantPayload);
@@ -549,7 +596,7 @@ async function handleLegacyMetadataFlow(
             phoneNumber: assistantData.business_phone,
           },
           stripeCheckoutSessionId: sessionId,
-          plan: 'business', // Default to business plan for paid sessions
+          plan: 'personal', // Changed from 'business' to 'personal'
         };
 
         console.log(
@@ -688,7 +735,7 @@ async function handleLegacyMetadataFlow(
           phoneNumber: assistantData.business_phone,
         },
         stripeCheckoutSessionId: sessionId,
-        plan: 'business', // Default to business plan for paid sessions
+        plan: 'personal', // Changed from 'business' to 'personal'
       };
 
       console.log('[PAYMENT SUCCESS] Assistant creation payload:', createAssistantPayload);
