@@ -1065,7 +1065,7 @@ COMMENT ON COLUMN "public"."assistant_configs"."share_phone_number" IS 'Boolean 
 CREATE TABLE IF NOT EXISTS "public"."assistant_subscriptions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "assistant_id" "uuid" NOT NULL,
-    "plan_id" "uuid" NOT NULL,
+    "plan_id" "text" NOT NULL,
     "stripe_subscription_id" "text",
     "status" "text" NOT NULL,
     "current_period_start" timestamp with time zone,
@@ -1445,69 +1445,6 @@ COMMENT ON COLUMN "public"."phone_numbers"."updated_at" IS 'Timestamp when the p
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."subscription_plans" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "name" "text" NOT NULL,
-    "price" numeric(10,2) NOT NULL,
-    "max_messages" integer DEFAULT 100,
-    "max_tokens" integer DEFAULT 100000,
-    "max_documents" integer DEFAULT 5,
-    "max_webpages" integer DEFAULT 5,
-    "is_active" boolean DEFAULT true,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
-);
-
-ALTER TABLE ONLY "public"."subscription_plans" FORCE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."subscription_plans" OWNER TO "postgres";
-
-
-COMMENT ON TABLE "public"."subscription_plans" IS 'Available subscription plans for assistants';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."id" IS 'Primary key, unique identifier for the subscription plan.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."name" IS 'Name of the subscription plan.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."price" IS 'Monthly price of the plan in USD.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."max_messages" IS 'Maximum number of messages allowed under this plan.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."max_tokens" IS 'Maximum number of tokens allowed under this plan.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."max_documents" IS 'Maximum number of documents allowed under this plan.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."max_webpages" IS 'Maximum number of web pages allowed under this plan.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."is_active" IS 'Boolean flag indicating whether this plan is currently active and available for purchase.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."created_at" IS 'Timestamp when the plan record was first created.';
-
-
-
-COMMENT ON COLUMN "public"."subscription_plans"."updated_at" IS 'Timestamp when the plan record was last updated.';
-
-
-
 CREATE TABLE IF NOT EXISTS "public"."usage_statistics" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "entity_id" "uuid" NOT NULL,
@@ -1750,16 +1687,6 @@ ALTER TABLE ONLY "public"."phone_numbers"
 
 
 
-ALTER TABLE ONLY "public"."subscription_plans"
-    ADD CONSTRAINT "subscription_plans_name_key" UNIQUE ("name");
-
-
-
-ALTER TABLE ONLY "public"."subscription_plans"
-    ADD CONSTRAINT "subscription_plans_pkey" PRIMARY KEY ("id");
-
-
-
 ALTER TABLE ONLY "public"."usage_statistics"
     ADD CONSTRAINT "usage_statistics_entity_period_unique" UNIQUE ("entity_id", "entity_type", "period");
 
@@ -1917,10 +1844,6 @@ CREATE INDEX "idx_phone_numbers_unassigned" ON "public"."phone_numbers" USING "b
 
 
 
-CREATE INDEX "idx_subscription_plans_active" ON "public"."subscription_plans" USING "btree" ("id") WHERE ("is_active" = true);
-
-
-
 CREATE INDEX "idx_usage_statistics_entity" ON "public"."usage_statistics" USING "btree" ("entity_id", "entity_type");
 
 
@@ -2019,11 +1942,6 @@ ALTER TABLE ONLY "public"."assistant_subscriptions"
 
 ALTER TABLE ONLY "public"."assistant_subscriptions"
     ADD CONSTRAINT "assistant_subscriptions_payment_session_id_fkey" FOREIGN KEY ("payment_session_id") REFERENCES "public"."payment_sessions"("id") ON DELETE SET NULL;
-
-
-
-ALTER TABLE ONLY "public"."assistant_subscriptions"
-    ADD CONSTRAINT "assistant_subscriptions_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "public"."subscription_plans"("id");
 
 
 
@@ -2143,9 +2061,6 @@ ALTER TABLE "public"."payment_sessions" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."phone_numbers" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."subscription_plans" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."usage_statistics" ENABLE ROW LEVEL SECURITY;
@@ -2608,12 +2523,6 @@ GRANT ALL ON TABLE "public"."payment_sessions" TO "service_role";
 GRANT ALL ON TABLE "public"."phone_numbers" TO "anon";
 GRANT ALL ON TABLE "public"."phone_numbers" TO "authenticated";
 GRANT ALL ON TABLE "public"."phone_numbers" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."subscription_plans" TO "anon";
-GRANT ALL ON TABLE "public"."subscription_plans" TO "authenticated";
-GRANT ALL ON TABLE "public"."subscription_plans" TO "service_role";
 
 
 
