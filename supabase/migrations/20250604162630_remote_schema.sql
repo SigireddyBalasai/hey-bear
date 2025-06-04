@@ -336,91 +336,80 @@ DECLARE
     end_date timestamp with time zone;
 BEGIN
     partition_name := 'interactions_p' || year_month;
-    
+
     SELECT EXISTS (
         SELECT 1
         FROM pg_tables
         WHERE schemaname = 'analytics'
         AND tablename = partition_name
     ) INTO partition_exists;
-    
+
     IF NOT partition_exists THEN
         start_date := to_timestamp(year_month || '_01', 'YYYY_MM_DD');
         end_date := start_date + interval '1 month';
-        
+
         EXECUTE format('
             CREATE TABLE analytics.%I (
                 LIKE analytics.interactions_partitioned INCLUDING ALL,
                 CONSTRAINT %I_pkey PRIMARY KEY (interaction_time, id),
-                CONSTRAINT %I_interaction_time_check 
+                CONSTRAINT %I_interaction_time_check
                     CHECK (interaction_time >= %L AND interaction_time < %L)
-            )', 
+            )',
             partition_name, partition_name, partition_name, start_date, end_date
         );
-        
+
         EXECUTE format('
             CREATE INDEX idx_%I_assistant_id ON analytics.%I USING btree (assistant_id, interaction_time DESC)
         ', partition_name, partition_name);
-        
+
         EXECUTE format('
             CREATE INDEX idx_%I_time ON analytics.%I USING btree (interaction_time DESC)
         ', partition_name, partition_name);
-        
+
         EXECUTE format('
             CREATE INDEX idx_%I_user_id ON analytics.%I USING btree (user_id, interaction_time DESC)
         ', partition_name, partition_name);
-        
+
         EXECUTE format('
             CREATE INDEX idx_%I_token_usage ON analytics.%I USING btree (token_usage)
         ', partition_name, partition_name);
-        
+
         EXECUTE format('
             ALTER TABLE analytics.%I ENABLE ROW LEVEL SECURITY
         ', partition_name);
-        
+
         EXECUTE format('
             CREATE POLICY "%I_service_role_policy" ON analytics.%I
             AS PERMISSIVE FOR ALL TO service_role USING (true)
         ', partition_name, partition_name);
-        
+
         EXECUTE format('
             CREATE POLICY "%I_admin_policy" ON analytics.%I
             AS PERMISSIVE FOR ALL TO authenticated USING (public.is_admin())
         ', partition_name, partition_name); -- Changed here
-        
+
         EXECUTE format('
             CREATE POLICY "%I_assistant_owner_policy" ON analytics.%I
             AS PERMISSIVE FOR SELECT TO authenticated USING (auth.owns_assistant(assistant_id))
         ', partition_name, partition_name);
-        
+
         EXECUTE format('
             CREATE POLICY "%I_user_own_data_policy" ON analytics.%I
             AS PERMISSIVE FOR SELECT TO authenticated USING (user_id = auth.uid())
         ', partition_name, partition_name);
-        
-        EXECUTE format('
-            ALTER TABLE analytics.%I 
-            ADD CONSTRAINT %I_user_id_fkey 
-            FOREIGN KEY (user_id) REFERENCES users.users(id) NOT VALID
-        ', partition_name, partition_name);
-        
-        EXECUTE format('
-            ALTER TABLE analytics.%I 
-            VALIDATE CONSTRAINT %I_user_id_fkey
-        ', partition_name, partition_name);
-        
+
         EXECUTE format('
             GRANT ALL ON analytics.%I TO service_role
         ', partition_name);
-        
+
         EXECUTE format('
             GRANT SELECT ON analytics.%I TO authenticated
         ', partition_name);
-        
+
         EXECUTE format('
             GRANT SELECT ON analytics.%I TO anon
         ', partition_name);
-        
+
         RAISE NOTICE 'Created new partition: analytics.%', partition_name;
     END IF;
 END;
@@ -428,24 +417,6 @@ $$;
 
 
 ALTER FUNCTION "public"."ensure_partition_exists"("year_month" "text") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-BEGIN
-  INSERT INTO public.users (auth_user_id, created_at, updated_at)
-  VALUES (NEW.id, NOW(), NOW());
-  RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
-
-
-COMMENT ON FUNCTION "public"."handle_new_user"() IS 'Automatically creates a record in public.users when a new user signs up in auth.users';
-
 
 
 CREATE OR REPLACE FUNCTION "public"."insert_interaction"("p_assistant_id" "uuid", "p_user_id" "uuid", "p_request" "text", "p_response" "text", "p_interaction_time" timestamp with time zone DEFAULT "now"(), "p_chat" "text" DEFAULT NULL::"text", "p_is_error" boolean DEFAULT false, "p_token_usage" integer DEFAULT 0, "p_input_tokens" integer DEFAULT 0, "p_output_tokens" integer DEFAULT 0, "p_duration" integer DEFAULT 0, "p_cost_estimate" numeric DEFAULT NULL::numeric) RETURNS "uuid"
@@ -552,9 +523,7 @@ CREATE OR REPLACE FUNCTION "public"."is_admin"() RETURNS boolean
     LANGUAGE "sql" SECURITY DEFINER
     AS $$
   SELECT COALESCE(
-    -- Check for a custom is_admin column in auth.users table
-    -- Ensure your auth.users table has an is_admin boolean column
-    (SELECT is_admin FROM users.users WHERE id = auth.uid()), 
+    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean,
     FALSE
   );
 $$;
@@ -565,79 +534,6 @@ ALTER FUNCTION "public"."is_admin"() OWNER TO "postgres";
 
 COMMENT ON FUNCTION "public"."is_admin"() IS 'Checks if the authenticated user has is_admin = TRUE in the users.users table.';
 
-
-
-CREATE OR REPLACE FUNCTION "public"."manage_admin_role"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-DECLARE
-  auth_uid UUID;
-BEGIN
-  -- Get auth.uid from auth.users table based on auth_user_id
-  SELECT id INTO auth_uid 
-  FROM auth.users 
-  WHERE id = NEW.auth_user_id;
-
-  IF auth_uid IS NULL THEN
-    RAISE EXCEPTION 'User not found in auth.users with id %', NEW.auth_user_id;
-  END IF;
-
-  -- If is_admin flag is true and it has changed (or this is an insert), grant admin role
-  IF NEW.is_admin = true AND (TG_OP = 'INSERT' OR OLD.is_admin IS DISTINCT FROM NEW.is_admin) THEN
-    -- Grant the admin_role to the user
-    EXECUTE format('GRANT admin_role TO auth_uid_%s', auth_uid);
-    
-    -- Log the admin role assignment
-    INSERT INTO public.audit_logs (
-      entity_id, 
-      entity_type, 
-      action, 
-      action_timestamp, 
-      performed_by, 
-      details
-    ) VALUES (
-      NEW.id,
-      'user',
-      'admin_role_assigned',
-      now(),
-      COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'),
-      jsonb_build_object('user_id', NEW.id, 'auth_user_id', NEW.auth_user_id)
-    ) ON CONFLICT DO NOTHING;
-    
-  -- If is_admin flag is false and it has changed, revoke admin role
-  ELSIF NEW.is_admin = false AND (TG_OP = 'UPDATE' AND OLD.is_admin IS DISTINCT FROM NEW.is_admin) THEN
-    -- Revoke the admin_role from the user
-    EXECUTE format('REVOKE admin_role FROM auth_uid_%s', auth_uid);
-    
-    -- Log the admin role revocation
-    INSERT INTO public.audit_logs (
-      entity_id, 
-      entity_type, 
-      action, 
-      action_timestamp, 
-      performed_by, 
-      details
-    ) VALUES (
-      NEW.id,
-      'user',
-      'admin_role_revoked',
-      now(),
-      COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'),
-      jsonb_build_object('user_id', NEW.id, 'auth_user_id', NEW.auth_user_id)
-    ) ON CONFLICT DO NOTHING;
-  END IF;
-
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    -- Log error but don't prevent user creation/update
-    RAISE WARNING 'Error managing admin role: %', SQLERRM;
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."manage_admin_role"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."provision_twilio_number"("p_phone_number" "text", "p_twilio_sid" "text", "p_friendly_name" "text" DEFAULT NULL::"text", "p_country" "text" DEFAULT 'US'::"text", "p_region" "text" DEFAULT NULL::"text", "p_capabilities" "jsonb" DEFAULT '{"sms": true, "voice": true}'::"jsonb") RETURNS "uuid"
@@ -1524,89 +1420,6 @@ COMMENT ON COLUMN "public"."usage_statistics"."updated_at" IS 'Timestamp when th
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."users" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "auth_user_id" "uuid" NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "is_admin" boolean DEFAULT false,
-    "last_active" timestamp with time zone,
-    "stripe_customer_id" "text",
-    "full_name" "text",
-    "company" "text",
-    "preferred_payment_method" "text",
-    "country" "text",
-    "timezone" "text",
-    "onboarding_completed" boolean DEFAULT false,
-    "feature_flags" "jsonb" DEFAULT '{}'::"jsonb"
-);
-
-ALTER TABLE ONLY "public"."users" FORCE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."users" OWNER TO "postgres";
-
-
-COMMENT ON TABLE "public"."users" IS 'Core users table for the application';
-
-
-
-COMMENT ON COLUMN "public"."users"."id" IS 'Primary key, unique identifier for the user.';
-
-
-
-COMMENT ON COLUMN "public"."users"."auth_user_id" IS 'Foreign key reference to the auth.users table. Links to the authentication system user record.';
-
-
-
-COMMENT ON COLUMN "public"."users"."created_at" IS 'Timestamp when the user record was first created.';
-
-
-
-COMMENT ON COLUMN "public"."users"."updated_at" IS 'Timestamp when the user record was last updated.';
-
-
-
-COMMENT ON COLUMN "public"."users"."is_admin" IS 'Boolean flag indicating whether the user has administrator privileges. When set to true, the user is automatically granted the admin_role database role. When set to false, the role is revoked.';
-
-
-
-COMMENT ON COLUMN "public"."users"."last_active" IS 'Timestamp of the user''s last activity.';
-
-
-
-COMMENT ON COLUMN "public"."users"."stripe_customer_id" IS 'Stripe customer ID for payment processing integration.';
-
-
-
-COMMENT ON COLUMN "public"."users"."full_name" IS 'Full name of the user.';
-
-
-
-COMMENT ON COLUMN "public"."users"."company" IS 'Company or organization name that the user belongs to.';
-
-
-
-COMMENT ON COLUMN "public"."users"."preferred_payment_method" IS 'User''s preferred method of payment.';
-
-
-
-COMMENT ON COLUMN "public"."users"."country" IS 'Country where the user is located.';
-
-
-
-COMMENT ON COLUMN "public"."users"."timezone" IS 'User''s preferred timezone.';
-
-
-
-COMMENT ON COLUMN "public"."users"."onboarding_completed" IS 'Boolean flag indicating whether the user has completed the onboarding process.';
-
-
-
-COMMENT ON COLUMN "public"."users"."feature_flags" IS 'JSON object storing enabled/disabled feature flags for this user.';
-
-
-
 ALTER TABLE ONLY "public"."assistant_activity"
     ADD CONSTRAINT "assistant_activity_pkey" PRIMARY KEY ("assistant_id");
 
@@ -1694,21 +1507,6 @@ ALTER TABLE ONLY "public"."usage_statistics"
 
 ALTER TABLE ONLY "public"."usage_statistics"
     ADD CONSTRAINT "usage_statistics_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."users"
-    ADD CONSTRAINT "users_auth_user_id_key" UNIQUE ("auth_user_id");
-
-
-
-ALTER TABLE ONLY "public"."users"
-    ADD CONSTRAINT "users_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."users"
-    ADD CONSTRAINT "users_stripe_customer_id_key" UNIQUE ("stripe_customer_id");
 
 
 
@@ -1860,18 +1658,6 @@ CREATE INDEX "idx_usage_statistics_period_entity_type" ON "public"."usage_statis
 
 
 
-CREATE INDEX "idx_users_auth_user_id" ON "public"."users" USING "btree" ("auth_user_id");
-
-
-
-CREATE INDEX "idx_users_is_admin" ON "public"."users" USING "btree" ("is_admin") WHERE ("is_admin" = true);
-
-
-
-CREATE INDEX "idx_users_last_active" ON "public"."users" USING "btree" ("last_active" DESC);
-
-
-
 CREATE INDEX "interactions_assistant_time_idx" ON "public"."interactions" USING "btree" ("assistant_id", "interaction_time" DESC);
 
 
@@ -1904,10 +1690,6 @@ CREATE INDEX "usage_statistics_entity_period_idx" ON "public"."usage_statistics"
 
 
 
-CREATE OR REPLACE TRIGGER "manage_admin_role_trigger" AFTER INSERT OR UPDATE OF "is_admin" ON "public"."users" FOR EACH ROW EXECUTE FUNCTION "public"."manage_admin_role"();
-
-
-
 CREATE OR REPLACE TRIGGER "route_interaction_trigger" BEFORE INSERT ON "public"."interactions_shadow" FOR EACH ROW EXECUTE FUNCTION "public"."route_interaction_to_partition"();
 
 
@@ -1917,11 +1699,6 @@ CREATE OR REPLACE TRIGGER "update_notifications_updated_at" BEFORE UPDATE ON "pu
 
 
 CREATE OR REPLACE TRIGGER "update_payment_sessions_updated_at" BEFORE UPDATE ON "public"."payment_sessions" FOR EACH ROW EXECUTE FUNCTION "public"."update_payment_sessions_updated_at"();
-
-
-
-ALTER TABLE ONLY "public"."interactions"
-    ADD CONSTRAINT "analytics_interactions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id");
 
 
 
@@ -1950,11 +1727,6 @@ ALTER TABLE ONLY "public"."assistant_usage_limits"
 
 
 
-ALTER TABLE ONLY "public"."assistants"
-    ADD CONSTRAINT "assistants_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id");
-
-
-
 ALTER TABLE ONLY "public"."interaction_metrics"
     ADD CONSTRAINT "interaction_metrics_interaction_id_fkey" FOREIGN KEY ("interaction_id") REFERENCES "public"."interactions"("id") ON DELETE CASCADE;
 
@@ -1965,19 +1737,12 @@ ALTER TABLE ONLY "public"."notifications"
 
 
 
-ALTER TABLE ONLY "public"."payment_sessions"
-    ADD CONSTRAINT "payment_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE CASCADE;
-
-
-
 ALTER TABLE ONLY "public"."phone_numbers"
     ADD CONSTRAINT "phone_numbers_assistant_id_fkey" FOREIGN KEY ("assistant_id") REFERENCES "public"."assistants"("id") ON DELETE SET NULL;
 
 
 
-CREATE POLICY "Admins can view all interactions" ON "public"."interactions" FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM "auth"."users"
-  WHERE (("users"."id" = "auth"."uid"()) AND (("users"."raw_user_meta_data" ->> 'is_admin'::"text") = 'true'::"text")))));
+CREATE POLICY "Admins can view all interactions" ON "public"."interactions" FOR SELECT TO "authenticated" USING ("public"."is_admin"());
 
 
 
@@ -1993,23 +1758,11 @@ CREATE POLICY "Users can insert their own interactions" ON "public"."interaction
 
 
 
-CREATE POLICY "Users can insert their own payment sessions" ON "public"."payment_sessions" FOR INSERT WITH CHECK (("user_id" IN ( SELECT "users"."id"
-   FROM "public"."users"
-  WHERE ("users"."auth_user_id" = "auth"."uid"()))));
+CREATE POLICY "Users can insert their own payment sessions" ON "public"."payment_sessions" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
-CREATE POLICY "Users can insert their own profile" ON "public"."users" FOR INSERT WITH CHECK (("auth"."uid"() = "auth_user_id"));
-
-
-
-CREATE POLICY "Users can update their own payment sessions" ON "public"."payment_sessions" FOR UPDATE USING (("user_id" IN ( SELECT "users"."id"
-   FROM "public"."users"
-  WHERE ("users"."auth_user_id" = "auth"."uid"()))));
-
-
-
-CREATE POLICY "Users can update their own profile" ON "public"."users" FOR UPDATE USING (("auth"."uid"() = "auth_user_id"));
+CREATE POLICY "Users can update their own payment sessions" ON "public"."payment_sessions" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -2017,13 +1770,7 @@ CREATE POLICY "Users can view their own interactions" ON "public"."interactions"
 
 
 
-CREATE POLICY "Users can view their own payment sessions" ON "public"."payment_sessions" FOR SELECT USING (("user_id" IN ( SELECT "users"."id"
-   FROM "public"."users"
-  WHERE ("users"."auth_user_id" = "auth"."uid"()))));
-
-
-
-CREATE POLICY "Users can view their own profile" ON "public"."users" FOR SELECT USING (("auth"."uid"() = "auth_user_id"));
+CREATE POLICY "Users can view their own payment sessions" ON "public"."payment_sessions" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -2064,9 +1811,6 @@ ALTER TABLE "public"."phone_numbers" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."usage_statistics" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."users" ENABLE ROW LEVEL SECURITY;
 
 
 
@@ -2334,12 +2078,6 @@ GRANT ALL ON FUNCTION "public"."ensure_partition_exists"("year_month" "text") TO
 
 
 
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."insert_interaction"("p_assistant_id" "uuid", "p_user_id" "uuid", "p_request" "text", "p_response" "text", "p_interaction_time" timestamp with time zone, "p_chat" "text", "p_is_error" boolean, "p_token_usage" integer, "p_input_tokens" integer, "p_output_tokens" integer, "p_duration" integer, "p_cost_estimate" numeric) TO "anon";
 GRANT ALL ON FUNCTION "public"."insert_interaction"("p_assistant_id" "uuid", "p_user_id" "uuid", "p_request" "text", "p_response" "text", "p_interaction_time" timestamp with time zone, "p_chat" "text", "p_is_error" boolean, "p_token_usage" integer, "p_input_tokens" integer, "p_output_tokens" integer, "p_duration" integer, "p_cost_estimate" numeric) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."insert_interaction"("p_assistant_id" "uuid", "p_user_id" "uuid", "p_request" "text", "p_response" "text", "p_interaction_time" timestamp with time zone, "p_chat" "text", "p_is_error" boolean, "p_token_usage" integer, "p_input_tokens" integer, "p_output_tokens" integer, "p_duration" integer, "p_cost_estimate" numeric) TO "service_role";
@@ -2361,12 +2099,6 @@ GRANT ALL ON FUNCTION "public"."interactions_insert_trigger"() TO "service_role"
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "anon";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."manage_admin_role"() TO "anon";
-GRANT ALL ON FUNCTION "public"."manage_admin_role"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."manage_admin_role"() TO "service_role";
 
 
 
@@ -2529,12 +2261,6 @@ GRANT ALL ON TABLE "public"."phone_numbers" TO "service_role";
 GRANT ALL ON TABLE "public"."usage_statistics" TO "anon";
 GRANT ALL ON TABLE "public"."usage_statistics" TO "authenticated";
 GRANT ALL ON TABLE "public"."usage_statistics" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."users" TO "anon";
-GRANT ALL ON TABLE "public"."users" TO "authenticated";
-GRANT ALL ON TABLE "public"."users" TO "service_role";
 
 
 

@@ -272,15 +272,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "assistants_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       audit_logs: {
         Row: {
@@ -423,15 +415,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "analytics_interactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       interactions_shadow: {
         Row: {
@@ -572,15 +556,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "payment_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       phone_numbers: {
         Row: {
@@ -696,57 +672,6 @@ export type Database = {
         }
         Relationships: []
       }
-      users: {
-        Row: {
-          auth_user_id: string
-          company: string | null
-          country: string | null
-          created_at: string
-          feature_flags: Json | null
-          full_name: string | null
-          id: string
-          is_admin: boolean | null
-          last_active: string | null
-          onboarding_completed: boolean | null
-          preferred_payment_method: string | null
-          stripe_customer_id: string | null
-          timezone: string | null
-          updated_at: string
-        }
-        Insert: {
-          auth_user_id: string
-          company?: string | null
-          country?: string | null
-          created_at?: string
-          feature_flags?: Json | null
-          full_name?: string | null
-          id?: string
-          is_admin?: boolean | null
-          last_active?: string | null
-          onboarding_completed?: boolean | null
-          preferred_payment_method?: string | null
-          stripe_customer_id?: string | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          auth_user_id?: string
-          company?: string | null
-          country?: string | null
-          created_at?: string
-          feature_flags?: Json | null
-          full_name?: string | null
-          id?: string
-          is_admin?: boolean | null
-          last_active?: string | null
-          onboarding_completed?: boolean | null
-          preferred_payment_method?: string | null
-          stripe_customer_id?: string | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       assistant_detail_view: {
@@ -772,15 +697,7 @@ export type Database = {
           total_interactions: number | null
           user_id: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "assistants_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
