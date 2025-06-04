@@ -87,6 +87,18 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// IMPORTANT DATABASE SCHEMA NOTE:
+// The successful operation of this POST handler, especially the insertion into 'payment_sessions',
+// depends on the database schema matching the state defined after the migration
+// 'supabase/migrations/20250603120000_fix_payment_sessions_user_id_fkey.sql'.
+// Specifically:
+// 1. The 'payment_sessions.user_id' column MUST reference 'public.users.id' (the application user ID).
+// 2. The RLS policy "Users can insert their own payment sessions" ON 'public.payment_sessions'
+//    MUST validate against 'public.users.auth_user_id' matching 'auth.uid()', and use the
+//    'public.users.id' for the 'user_id' field being inserted.
+// If these conditions are not met (e.g., if the 'payment_sessions.user_id' still references 'auth.users.id'
+// or RLS policies are outdated), this endpoint may return a 500 error with the message
+// "Failed to create payment session" due to RLS check failures.
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
