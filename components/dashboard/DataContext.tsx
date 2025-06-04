@@ -268,7 +268,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           } catch (fallbackError) {
             console.warn('Fallback to public schema failed:', fallbackError);
           }
-          
+
           // Set empty data states for schema errors
           setAllInteractions([]);
           setStats({
@@ -287,9 +287,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             message: error.message || 'Unknown error',
             code: error.code || 'No code',
             details: error.details || 'No details',
-            hint: error.hint || 'No hint'
+            hint: error.hint || 'No hint',
           });
-          
+
           // Set empty data states for real errors
           setAllInteractions([]);
           setStats({
@@ -302,7 +302,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setTotalItems(0);
           setIsLoading(false);
           return;
-        }      }
+        }
+      }
 
       // Update state with real data - ensure proper typing
       setAllInteractions((interactions || []) as Interaction[]);

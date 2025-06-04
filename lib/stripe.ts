@@ -6,15 +6,15 @@ const createStripeInstance = (): Stripe | null => {
   if (typeof window !== 'undefined') {
     return null;
   }
-  
+
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  
+
   // Check if we have a valid secret key (not a placeholder)
   if (!secretKey || secretKey === 'your_stripe_secret_key' || secretKey.length < 10) {
     console.warn('Stripe secret key is not configured or is a placeholder value');
     return null;
   }
-  
+
   return new Stripe(secretKey, {
     apiVersion: '2025-03-31.basil',
   });
@@ -33,9 +33,9 @@ export const isSubscriptionActive = (
 };
 
 // Re-export subscription plans from the client-safe module
-export { 
-  SUBSCRIPTION_PLANS, 
-  formatPrice, 
-  getSubscriptionPlanDetails, 
-  getPlanLimits 
+export {
+  SUBSCRIPTION_PLANS,
+  formatPrice,
+  getSubscriptionPlanDetails,
+  getPlanLimits,
 } from './subscription-plans';

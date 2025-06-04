@@ -58,7 +58,7 @@ export const formatPrice = (price: number): string => {
 // Helper function to get subscription plan details
 export const getSubscriptionPlanDetails = (planId: string) => {
   if (!planId) return null;
-  
+
   switch (planId.toLowerCase()) {
     case 'personal':
       return SUBSCRIPTION_PLANS.PERSONAL;

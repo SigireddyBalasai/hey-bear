@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     }
 
     let userData: { id: string } | null = null;
-    let userFetchError: any = null;
+    let userFetchError: Error | null = null;
     const maxRetries = 3;
     const retryDelay = 500; // ms
 
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
     // Create payment session record using the application user ID, not auth user ID
     const paymentSessionData: Database['public']['Tables']['payment_sessions']['Insert'] = {
       session_id: sessionId,
-      user_id: userData ? userData.id : null, // Use null if userData is not found
+      user_id: userData.id, // userData is guaranteed to be non-null at this point
       assistant_config_data: assistantConfigData,
       plan_id,
       customer_email: customer_email || user.email,

@@ -140,7 +140,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
             business_phone?: string;
             share_phone_number?: boolean;
           };
-          
+
           assistantData = {
             name: configData.display_name || configData.name || 'New Assistant',
             description: configData.description,
@@ -151,7 +151,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
             share_phone_number: configData.share_phone_number || false,
             display_name: configData.display_name,
           };
-          
+
           console.log('Extracted assistant data from payment session:', {
             name: assistantData.name,
             businessName: assistantData.business_name,
@@ -346,7 +346,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       if (assistantId) {
         // Get the subscription plan from payment session or default to 'personal'
         let planId = 'personal'; // Default fallback
-        
+
         // If we have sessionId, get the plan from payment session
         if (sessionId) {
           try {
@@ -357,7 +357,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
               .eq('session_id', sessionId)
               .eq('user_id', actualUserId)
               .single();
-              
+
             if (paymentSession?.plan_id) {
               planId = paymentSession.plan_id;
               console.log('Using plan_id from payment session:', planId);
@@ -403,22 +403,21 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         if (userCheckError && userCheckError.code === 'PGRST116') {
           // User not found, try to create one
           console.log('User not found in users table, attempting to create:', userId);
-          
+
           // Get user data from auth.users table
-          const { data: authUser, error: authUserError } = await supabase.auth.admin.getUserById(userId);
-          
+          const { data: authUser, error: authUserError } =
+            await supabase.auth.admin.getUserById(userId);
+
           if (authUserError) {
             console.error('Error fetching auth user:', authUserError);
           } else if (authUser.user) {
-            const { error: createUserError } = await supabase
-              .from('users')
-              .insert({
-                auth_user_id: userId,
-                email: authUser.user.email || '',
-                stripe_customer_id: customerId,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
+            const { error: createUserError } = await supabase.from('users').insert({
+              auth_user_id: userId,
+              email: authUser.user.email || '',
+              stripe_customer_id: customerId,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
 
             if (createUserError) {
               console.error('Error creating user record:', createUserError);

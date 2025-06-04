@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { v4 as uuidv4 } from 'uuid';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { v4 as uuidv4 } from 'uuid';
 
 import type { Database } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/server';
@@ -84,33 +84,42 @@ export async function POST(req: NextRequest) {
     const isWebhookCall = !!(paymentSessionId && stripeCheckoutSessionId);
     let userId: string;
     let dbClient: SupabaseClient<Database>;
-    
+
     if (isWebhookCall) {
       // For webhook calls, use admin client and get user from payment session
-      console.log('Webhook call detected, using admin client to fetch user_id from payment_sessions table.');
+      console.log(
+        'Webhook call detected, using admin client to fetch user_id from payment_sessions table.'
+      );
       dbClient = createAdminClient();
-      
+
       const { data: paymentSessionData, error: paymentSessionError } = await dbClient
         .from('payment_sessions')
         .select('user_id') // This user_id references public.users.id
         .eq('id', paymentSessionId)
         .single();
-        
+
       if (paymentSessionError || !paymentSessionData || !paymentSessionData.user_id) {
-        console.error('Error fetching user_id from payment_sessions for webhook:', paymentSessionError, 'or user_id is null.');
-        return NextResponse.json({ error: 'Valid payment session with user_id not found' }, { status: 404 });
+        console.error(
+          'Error fetching user_id from payment_sessions for webhook:',
+          paymentSessionError,
+          'or user_id is null.'
+        );
+        return NextResponse.json(
+          { error: 'Valid payment session with user_id not found' },
+          { status: 404 }
+        );
       }
-      
+
       userId = paymentSessionData.user_id; // This is the correct application user ID (public.users.id)
       console.log('Retrieved application user_id from payment_sessions:', userId);
-      
+
       // The previous lookup for userData using auth_user_id is removed as it was incorrect.
       // We now directly use the user_id from payment_sessions.
     } else {
       // For regular calls, authenticate the user
       const supabase = await createClient();
       dbClient = supabase;
-      
+
       const {
         data: { user },
         error: authError,
@@ -137,7 +146,8 @@ export async function POST(req: NextRequest) {
 
     // Fetch the actual plan UUID from subscription_plans table
     let actualPlanUUID: string | null = null;
-    if (verifiedPlanId) { // Only query if verifiedPlanId is set
+    if (verifiedPlanId) {
+      // Only query if verifiedPlanId is set
       console.log(`Fetching plan UUID for plan name: ${verifiedPlanId}`);
       const { data: planData, error: planFetchError } = await dbClient
         .from('subscription_plans')
@@ -147,7 +157,10 @@ export async function POST(req: NextRequest) {
 
       if (planFetchError || !planData) {
         console.error(`Error fetching plan UUID for name "${verifiedPlanId}":`, planFetchError);
-        return NextResponse.json({ error: `Invalid plan specified: ${verifiedPlanId}. Plan not found.` }, { status: 400 });
+        return NextResponse.json(
+          { error: `Invalid plan specified: ${verifiedPlanId}. Plan not found.` },
+          { status: 400 }
+        );
       }
       actualPlanUUID = planData.id;
       console.log(`Found plan UUID: ${actualPlanUUID} for plan name: ${verifiedPlanId}`);

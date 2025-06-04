@@ -649,7 +649,7 @@ export function useFilters() {
         message: errorObj.message,
         name: errorObj.name,
         stack: errorObj.stack || 'No stack trace',
-        error: error
+        error: error,
       });
       return {
         data: [],

@@ -40,6 +40,8 @@ import { useData } from './DataContext';
 
 // @ts-nocheck - Temporarily disable type checking while the table schema issues are resolved
 
+// @ts-nocheck - Temporarily disable type checking while the table schema issues are resolved
+
 // Type definition for the chat data object
 interface ChatData {
   from?: string;
@@ -318,7 +320,7 @@ const InteractionLog = ({
               code: error.code || 'No code',
               details: error.details || 'No details',
               hint: error.hint || 'No hint',
-              stack: error.stack || 'No stack trace'
+              stack: error.stack || 'No stack trace',
             });
             const errorMessage = error.message || 'Unknown database error';
             setError(`Database error: ${errorMessage}`);
@@ -388,8 +390,8 @@ const InteractionLog = ({
         console.error('Error fetching interactions:', {
           message: error_ instanceof Error ? error_.message : 'Unknown error',
           name: error_ instanceof Error ? error_.name : 'Unknown error type',
-          stack: error_ instanceof Error ? (error_.stack || 'No stack trace') : 'No stack trace',
-          error: error_
+          stack: error_ instanceof Error ? error_.stack || 'No stack trace' : 'No stack trace',
+          error: error_,
         });
         setError(errorMessage);
         setLoading(false);

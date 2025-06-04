@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
       message: errorObj.message,
       name: errorObj.name,
       stack: errorObj.stack || 'No stack trace',
-      error: error
+      error: error,
     });
     return NextResponse.json({ error: 'Failed to fetch interactions' }, { status: 500 });
   }

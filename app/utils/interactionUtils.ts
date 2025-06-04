@@ -34,7 +34,7 @@ export async function getInteractions(
         code: error.code || 'No code',
         details: error.details || 'No details',
         hint: error.hint || 'No hint',
-        stack: error.stack || 'No stack trace'
+        stack: error.stack || 'No stack trace',
       });
       throw error;
     }
@@ -46,7 +46,7 @@ export async function getInteractions(
       message: errorObj.message,
       name: errorObj.name,
       stack: errorObj.stack || 'No stack trace',
-      error: error
+      error: error,
     });
     throw error;
   }

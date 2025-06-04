@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,10 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { StripePricingTable } from '@/components/ui/stripe-pricing-table';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { createClient } from '@/utils/supabase/client';
-import { StripePricingTable } from '@/components/ui/stripe-pricing-table';
 
 import { PricingTablePopup } from './PricingTablePopup';
 
@@ -66,7 +66,7 @@ export function CreateAssistantDialog({
   useEffect(() => {
     async function getUserId() {
       if (!open) return;
-      
+
       try {
         const supabase = createClient();
         const {
@@ -165,7 +165,7 @@ export function CreateAssistantDialog({
       const { session_id: newSessionId } = result;
 
       console.log('✅ Session created successfully:', newSessionId);
-      
+
       // Set session ID and move to payment step
       setSessionId(newSessionId);
       setCurrentStep('payment');
@@ -210,7 +210,9 @@ export function CreateAssistantDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className={`max-h-[85vh] overflow-y-auto ${currentStep === 'payment' ? 'sm:max-w-[900px]' : 'sm:max-w-[600px]'}`}>
+        <DialogContent
+          className={`max-h-[85vh] overflow-y-auto ${currentStep === 'payment' ? 'sm:max-w-[900px]' : 'sm:max-w-[600px]'}`}
+        >
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Button
