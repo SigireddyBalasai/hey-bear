@@ -87,6 +87,18 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// IMPORTANT DATABASE SCHEMA NOTE:
+// The successful operation of this POST handler, especially the insertion into 'payment_sessions',
+// depends on the database schema matching the state defined after the migration
+// 'supabase/migrations/20250603120000_fix_payment_sessions_user_id_fkey.sql'.
+// Specifically:
+// 1. The 'payment_sessions.user_id' column MUST reference 'public.users.id' (the application user ID).
+// 2. The RLS policy "Users can insert their own payment sessions" ON 'public.payment_sessions'
+//    MUST validate against 'public.users.auth_user_id' matching 'auth.uid()', and use the
+//    'public.users.id' for the 'user_id' field being inserted.
+// If these conditions are not met (e.g., if the 'payment_sessions.user_id' still references 'auth.users.id'
+// or RLS policies are outdated), this endpoint may return a 500 error with the message
+// "Failed to create payment session" due to RLS check failures.
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -100,17 +112,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the user record from users table to get the correct user_id
-    const { data: userData, error: userFetchError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-      
-    if (userFetchError || !userData) {
-      console.error('Error fetching user record:', userFetchError);
-      return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
+    let userData: { id: string } | null = null;
+    let userFetchError: any = null;
+    const maxRetries = 3;
+    const retryDelay = 500; // ms
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`Attempt ${attempt}/${maxRetries} to fetch user record from 'public.users' for auth_user_id: ${user.id}`);
+      const { data: currentData, error: currentError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (currentData && !currentError) {
+        userData = currentData;
+        userFetchError = null;
+        console.log(`Successfully fetched user record on attempt ${attempt}. User ID: ${userData.id}`);
+        break; // Exit loop on success
+      } else {
+        userData = null;
+        userFetchError = currentError;
+        console.warn(`Failed to fetch user record on attempt ${attempt}. Error: ${currentError?.message || 'No data returned'}`);
+        if (attempt < maxRetries) {
+          console.log(`Waiting ${retryDelay}ms before next attempt...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
     }
+      
+    if (!userData) { // This means all retries failed
+      console.error(`Failed to fetch user record from 'public.users' after ${maxRetries} attempts for auth_user_id: ${user.id}. Last error:`, userFetchError);
+      return NextResponse.json({ error: 'Failed to fetch user record from public.users after multiple attempts. Please try again shortly.' }, { status: 500 });
+    }
+    // At this point, userData is guaranteed to be non-null and contain { id: string }
 
     // Parse request body
     const body = (await req.json()) as RequestBody;
