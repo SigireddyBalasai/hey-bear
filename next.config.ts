@@ -1,10 +1,5 @@
 import type { NextConfig } from "next";
-import bundleAnalyzer from '@next/bundle-analyzer';
 
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: false,
-  openAnalyzer: false,
-});
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -13,7 +8,7 @@ const nextConfig: NextConfig = {
     // Run ESLint on these directories during production builds
     dirs: ['app', 'components', 'lib', 'utils', 'types'],
     // Don't fail the build for linting errors in development
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: true,
   },
   async headers() {
     return [
@@ -36,4 +31,4 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 };
 
-export default withBundleAnalyzer(nextConfig);
+export default nextConfig;

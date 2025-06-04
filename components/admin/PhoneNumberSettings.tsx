@@ -46,6 +46,24 @@ type TwilioSettings = {
   voiceEnabled: boolean;
 };
 
+// API Response interfaces
+interface TwilioSettingsResponse {
+  error?: string;
+  settings?: TwilioSettings;
+}
+
+interface SaveSettingsResponse {
+  error?: string;
+  success?: boolean;
+  message?: string;
+}
+
+interface TestConnectionResponse {
+  error?: string;
+  success?: boolean;
+  accountName?: string;
+}
+
 export function PhoneNumberSettings() {
   const [settings, setSettings] = useState<TwilioSettings>({
     accountSid: '',
@@ -74,11 +92,11 @@ export function PhoneNumberSettings() {
       const response = await fetch('/api/twilio/settings');
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as TwilioSettingsResponse;
         throw new Error(errorData.error ?? `Error ${response.status}: Failed to load settings`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as TwilioSettingsResponse;
       if (data.settings) {
         console.log('Settings loaded successfully');
         setSettings(data.settings);
@@ -113,7 +131,7 @@ export function PhoneNumberSettings() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as SaveSettingsResponse;
         throw new Error(errorData.error ?? 'Failed to save settings');
       }
 
@@ -142,7 +160,7 @@ export function PhoneNumberSettings() {
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as TestConnectionResponse;
 
       if (response.ok && data.success) {
         setTestResult({
@@ -203,7 +221,9 @@ export function PhoneNumberSettings() {
                 <Input
                   id="accountSid"
                   value={settings.accountSid}
-                  onChange={e => { setSettings({ ...settings, accountSid: e.target.value }); }}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setSettings({ ...settings, accountSid: e.target.value });
+                  }}
                   placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   className="mt-1.5 font-mono"
                 />
@@ -219,7 +239,9 @@ export function PhoneNumberSettings() {
                     variant="ghost"
                     size="sm"
                     className="h-6 w-6 p-0"
-                    onClick={() => { setShowAuthToken(!showAuthToken); }}
+                    onClick={() => {
+                      setShowAuthToken(!showAuthToken);
+                    }}
                   >
                     {showAuthToken ? (
                       <EyeOffIcon className="h-4 w-4" />
@@ -233,7 +255,9 @@ export function PhoneNumberSettings() {
                   id="authToken"
                   type={showAuthToken ? 'text' : 'password'}
                   value={settings.authToken}
-                  onChange={e => { setSettings({ ...settings, authToken: e.target.value }); }}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setSettings({ ...settings, authToken: e.target.value });
+                  }}
                   placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   className="mt-1.5 font-mono"
                 />
@@ -247,7 +271,9 @@ export function PhoneNumberSettings() {
                 <Input
                   id="webhookUrl"
                   value={settings.webhookUrl}
-                  onChange={e => { setSettings({ ...settings, webhookUrl: e.target.value }); }}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setSettings({ ...settings, webhookUrl: e.target.value });
+                  }}
                   placeholder="https://example.com/api/twilio/webhook"
                   className="mt-1.5 font-mono"
                 />
@@ -267,9 +293,9 @@ export function PhoneNumberSettings() {
                   <Switch
                     id="webhookEnabled"
                     checked={settings.webhookEnabled}
-                    onCheckedChange={checked =>
-                      { setSettings({ ...settings, webhookEnabled: checked }); }
-                    }
+                    onCheckedChange={(checked: boolean) => {
+                      setSettings({ ...settings, webhookEnabled: checked });
+                    }}
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2 rounded-md border p-3">
@@ -282,7 +308,9 @@ export function PhoneNumberSettings() {
                   <Switch
                     id="smsEnabled"
                     checked={settings.smsEnabled}
-                    onCheckedChange={checked => { setSettings({ ...settings, smsEnabled: checked }); }}
+                    onCheckedChange={(checked: boolean) => {
+                      setSettings({ ...settings, smsEnabled: checked });
+                    }}
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2 rounded-md border p-3">
@@ -295,7 +323,9 @@ export function PhoneNumberSettings() {
                   <Switch
                     id="voiceEnabled"
                     checked={settings.voiceEnabled}
-                    onCheckedChange={checked => { setSettings({ ...settings, voiceEnabled: checked }); }}
+                    onCheckedChange={(checked: boolean) => {
+                      setSettings({ ...settings, voiceEnabled: checked });
+                    }}
                   />
                 </div>
               </div>

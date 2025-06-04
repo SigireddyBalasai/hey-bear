@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     // Verify the user has access to this assistant
     const { data: assistantData, error: assistantError } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('user_id')
       .eq('id', assistantId)
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     // We need to find the record in the 'users' table within the 'users' schema
     // that matches this auth_user_id and get its 'id' column.
     const { data: appUserData, error: appUserError } = await supabase
-      .schema('users') // Target the 'users' schema
+      // Target the 'users' schema
       .from('users') // Target the 'users' table within the 'users' schema
       .select('id') // Select the application-specific 'id'
       .eq('auth_user_id', user.id) // Match against the auth user's ID

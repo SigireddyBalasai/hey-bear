@@ -14,42 +14,44 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 
-// Define UserUsageStats type locally since the function doesn't exist in the database
-type UserUsageStats = {
-  user_id: string;
-  total_messages: number;
-  assistant_count: number;
-  token_usage?: number | null;
-  cost_estimate?: number | null;
+// Define the type locally to avoid import issues
+interface UserUsageStats {
+  id?: string;
+  user_id?: string;
+  users?: {
+    full_name?: string | null;
+    email?: string | null;
+    created_at?: string | null;
+    last_active?: string | null;
+  };
+  date?: string | null;
+  message_count?: number;
+  token_usage?: number;
+  cost_estimate?: number;
+  total_messages?: number;
+  assistant_count?: number;
   first_interaction?: string | null;
   last_interaction?: string | null;
-  users?: {
-    full_name?: string;
-    email?: string;
-    created_at?: string;
-    last_active?: string;
-  };
-  date?: string;
-  message_count?: number;
-};
+}
 
 interface UserDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  userData: UserUsageStats | null;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly userData: UserUsageStats | null;
 }
+
+// Utility function to format date strings
+const formatDate = (dateStr?: string | null): string => {
+  if (!dateStr) return 'N/A';
+  try {
+    return new Date(dateStr).toLocaleString();
+  } catch {
+    return 'Invalid date';
+  }
+};
 
 export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalProps) {
   if (!userData) return null;
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'N/A';
-    try {
-      return new Date(dateStr).toLocaleString();
-    } catch {
-      return 'Invalid date';
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

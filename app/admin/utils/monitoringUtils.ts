@@ -24,13 +24,13 @@ export async function fetchSystemStats(): Promise<SystemStats> {
 
     // Get total users
     const { count: userCount } = await supabase
-      .schema('users')
+
       .from('users')
       .select('*', { count: 'exact', head: true });
 
     // Get active assistants
     const { count: assistantCount } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('*', { count: 'exact', head: true })
       .eq('pending', false);
@@ -40,7 +40,7 @@ export async function fetchSystemStats(): Promise<SystemStats> {
     yesterday.setDate(yesterday.getDate() - 1);
 
     const { data: interactions } = await supabase
-      .schema('analytics')
+
       .from('interactions')
       .select('is_error, duration')
       .gte('interaction_time', yesterday.toISOString());
@@ -83,7 +83,7 @@ export async function fetchRecentInteractions(limit = 10): Promise<RecentInterac
     const supabase = createClient();
 
     const { data: interactions } = await supabase
-      .schema('analytics')
+
       .from('interactions')
       .select('id, interaction_time, assistant_id, user_id, is_error, duration')
       .order('interaction_time', { ascending: false })

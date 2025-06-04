@@ -1,10 +1,33 @@
 import { NextResponse } from 'next/server';
 
 import twilio from 'twilio';
+import type { LocalInstance } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
 
 import { isAdmin as checkIsAdmin } from '@/utils/admin';
 // Renamed import
 import { createClient } from '@/utils/supabase/server';
+
+// Interface for request body
+interface AreaCodeRequest {
+  country?: string;
+}
+
+// Use Twilio SDK type instead of custom interface
+type TwilioPhoneNumber = LocalInstance;
+
+// Interface for area code response
+interface AreaCodeInfo {
+  areaCode: string;
+  region: string;
+  country: string;
+  phoneNumber: string;
+  capabilities: {
+    voice?: boolean;
+    SMS?: boolean;
+    MMS?: boolean;
+    fax?: boolean;
+  };
+}
 
 // Simplified API that returns flat area code data for the UI to sort and group
 export async function POST(request: Request) {
@@ -28,27 +51,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { country = 'US' } = body;
+    // Parse request body with proper typing
+    const requestBody = (await request.json()) as AreaCodeRequest;
+    const { country = 'US' } = requestBody;
 
     // Get the Twilio client using environment variables
     const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-    // Query available phone numbers from Twilio
-    // This is a simplified version - in a real implementation you might
-    // need to handle pagination and additional filters
-    const availablePhoneNumbers = await twilioClient.availablePhoneNumbers(country).fetch();
+    // Query available phone numbers from Twilio with proper typing
+    const availablePhoneNumbers = twilioClient.availablePhoneNumbers(country);
 
     // Extract relevant data from Twilio response
-    const areaCodes = (await availablePhoneNumbers.local().list()).map(number => {
+    const phoneNumberList = await availablePhoneNumbers.local.list();
+    const areaCodes: AreaCodeInfo[] = phoneNumberList.map((number: TwilioPhoneNumber) => {
       // Extract area code from the phone number
       // This is simplified - actual implementation depends on number format
-      const areaCode = number.phoneNumber.slice(0, 3); // Simplified example
+      const areaCode = number.phoneNumber.slice(2, 5); // Skip +1 and get area code
 
       return {
         areaCode,
-        region: number.locality || number.region || 'Unknown', // Use Twilio locality/region data if available
+        region: number.locality ?? number.region ?? 'Unknown', // Use Twilio locality/region data if available
         country: number.isoCountry,
         phoneNumber: number.phoneNumber,
         capabilities: number.capabilities,

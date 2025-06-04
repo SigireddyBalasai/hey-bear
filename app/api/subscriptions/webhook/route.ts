@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     const supabase = await createClient();
 
-    const interactionData: TablesInsert<{ schema: 'analytics' }, 'interactions'> = {
+    const interactionData: TablesInsert<'interactions'> = {
       request: payload.request_data,
       response: payload.response_data,
       assistant_id: payload.assistant_id ?? null,
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     // If the client is scoped only to 'public', this will fail.
     // It's assumed the client can access or is configured for the 'analytics' schema.
     const { data, error } = await supabase
-      .schema('analytics')
+
       .from('interactions') // This refers to 'interactions' in the 'analytics' schema as per TablesInsert type
       .insert(interactionData)
       .select()

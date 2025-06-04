@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
 
 import type { Database } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/client';
@@ -6,19 +7,28 @@ import { createClient } from '@/utils/supabase/client';
 // Define types based on the database schema
 type PhoneNumberRow = Database['public']['Tables']['phone_numbers']['Row'];
 
-interface TwilioNumber {
-  phoneNumber: string;
-  friendlyName: string;
-  capabilities: {
-    sms?: boolean;
-    voice?: boolean;
-    mms?: boolean;
-  };
-}
+// Use Twilio SDK type instead of custom interface
+type TwilioNumber = IncomingPhoneNumberInstance;
 
 interface DatabaseNumber {
   phone_number: string;
   isAssigned: boolean;
+}
+
+interface UserMetadata {
+  full_name?: string;
+  [key: string]: unknown;
+}
+
+interface AuthUser {
+  id: string;
+  email?: string;
+  user_metadata: UserMetadata;
+  [key: string]: unknown;
+}
+
+interface AuthDataResponse {
+  user: AuthUser | null;
 }
 
 interface PhoneNumbersData {
@@ -27,12 +37,18 @@ interface PhoneNumbersData {
   unmanagedNumbers: TwilioNumber[];
 }
 
+interface TwilioApiResponse {
+  success: boolean;
+  twilioNumbers: TwilioNumber[];
+  error?: string;
+}
+
 /**
  * Fetch all available phone numbers from the pool
  */
 export async function fetchAvailablePhoneNumbers() {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('phone_numbers')
       .select('*')
@@ -52,9 +68,9 @@ export async function fetchAvailablePhoneNumbers() {
  */
 export async function fetchAssignedPhoneNumbers() {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data, error } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select(
         `
@@ -75,14 +91,16 @@ export async function fetchAssignedPhoneNumbers() {
 
         try {
           const { data: userData } = await supabase
-            .schema('users')
+
             .from('users')
             .select('auth_user_id')
             .eq('id', item.user_id)
             .single();
 
           if (userData?.auth_user_id) {
-            const { data: authData } = await supabase.auth.admin.getUserById(userData.auth_user_id);
+            const { data: authData } = (await supabase.auth.admin.getUserById(
+              userData.auth_user_id
+            )) as { data: AuthDataResponse };
             ownerName = authData.user
               ? (authData.user.user_metadata.full_name ?? authData.user.email ?? 'Unknown Owner')
               : 'Unknown Owner';
@@ -106,8 +124,8 @@ export async function fetchAssignedPhoneNumbers() {
       })
     );
 
-    // Filter out any undefined values and return the valid data
-    return transformedData.filter((item): item is NonNullable<typeof item> => item !== undefined);
+    // Return the transformed data
+    return transformedData;
   } catch (error) {
     console.error('Error fetching assigned phone numbers:', error);
     toast.error('Failed to load assigned phone numbers');
@@ -194,7 +212,7 @@ export async function assignPhoneNumber(phoneNumberId: string, assistantId: stri
 
     // Update assistant record
     const { error: assistantError } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .update({ assigned_phone_number: phoneData.phone_number })
       .eq('id', assistantId);
@@ -254,7 +272,7 @@ export async function unassignPhoneNumber(phoneNumber: string | null) {
 
     // Find assistants using this phone number
     const { data: assistants, error: assistantError } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('id')
       .eq('assigned_phone_number', phoneNumber);
@@ -267,7 +285,7 @@ export async function unassignPhoneNumber(phoneNumber: string | null) {
     // Clear assigned phone number from assistant
     if (assistants.length > 0) {
       const { error: clearError } = await supabase
-        .schema('assistants')
+
         .from('assistants')
         .update({ assigned_phone_number: null })
         .eq('assigned_phone_number', phoneNumber);
@@ -342,7 +360,7 @@ export async function fetchAssistantsWithoutPhoneNumbers() {
 
     // Get assistants without an assigned phone number
     const { data: assistants, error } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select(
         `
@@ -364,7 +382,7 @@ export async function fetchAssistantsWithoutPhoneNumbers() {
       assistants.map(async assistant => {
         try {
           const { data: userData } = await supabase
-            .schema('users')
+
             .from('users')
             .select('auth_user_id')
             .eq('id', assistant.user_id)
@@ -376,7 +394,8 @@ export async function fetchAssistantsWithoutPhoneNumbers() {
             return {
               ...assistant,
               owner: authData.user?.email ?? 'Unknown',
-              owner_name: authData.user?.user_metadata.full_name ?? 'Unknown',
+              owner_name:
+                (authData.user?.user_metadata as { full_name?: string })?.full_name ?? 'Unknown',
             };
           }
         } catch (error_) {
@@ -409,11 +428,11 @@ export async function fetchAllPhoneNumbers(): Promise<PhoneNumbersData> {
     // Get numbers from Twilio through API
     const response = await fetch('/api/twilio/list');
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = (await response.json()) as { error?: string };
       throw new Error(errorData.error ?? 'Failed to fetch Twilio numbers');
     }
 
-    const twilioData = await response.json();
+    const twilioData = (await response.json()) as TwilioApiResponse;
     if (!twilioData.success) {
       throw new Error(twilioData.error ?? 'Unknown error');
     }
@@ -423,7 +442,7 @@ export async function fetchAllPhoneNumbers(): Promise<PhoneNumbersData> {
       isAssigned: p.is_assigned ?? false, // Handle null case by defaulting to false
     }));
 
-    const twilioNumbersList = twilioData.twilioNumbers ?? [];
+    const twilioNumbersList = twilioData.twilioNumbers;
 
     // Find unmanaged numbers (in Twilio but not in DB)
     const unmanagedNumbersList = twilioNumbersList.filter(

@@ -64,8 +64,8 @@ export function AdminSidebar() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Generate a random user count for demo purposes
-    setUserCount(Math.floor(Math.random() * 500) + 100);
+    // Use a fixed demo value instead of Math.random for consistency
+    setUserCount(348); // Fixed demo value
     setIsLoading(false);
   }, []);
 

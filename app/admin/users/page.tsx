@@ -64,6 +64,46 @@ import {
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
 
+// Helper function to get user initials
+const getInitials = (name: string = '') => {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+// Helper function to get badge variant for user status
+const getStatusBadgeVariant = (status: string) => {
+  if (status === 'active') return 'default';
+  if (status === 'inactive') return 'secondary';
+  return 'outline';
+};
+
+// Helper function to get status badge content
+const getStatusBadgeContent = (status: string) => {
+  if (status === 'active') {
+    return (
+      <>
+        <CheckCircle className="mr-1 h-3 w-3" /> Active
+      </>
+    );
+  }
+  if (status === 'inactive') {
+    return (
+      <>
+        <XCircle className="mr-1 h-3 w-3" /> Inactive
+      </>
+    );
+  }
+  return (
+    <>
+      <AlertCircle className="mr-1 h-3 w-3" /> Pending
+    </>
+  );
+};
+
 interface UserData {
   id: string;
   auth_user_id?: string;
@@ -144,9 +184,9 @@ export default function UsersPage() {
         created_at: userData.created_at as string,
         last_active: userData.last_active as string | null,
         is_admin: userData.is_admin as boolean,
-        total_interactions: Math.floor(Math.random() * 1000) + 50, // Would come from analytics
-        total_tokens: Math.floor(Math.random() * 100_000) + 5000, // Would come from analytics
-        cost_estimate: Number((Math.random() * 100 + 10).toFixed(2)), // Would come from analytics
+        total_interactions: 0, // Will be calculated from real analytics data
+        total_tokens: 0, // Will be calculated from real analytics data
+        cost_estimate: 0, // Will be calculated from real analytics data
       }));
     } catch (error) {
       console.error('Error in fetchRealUsers:', error);
@@ -187,7 +227,7 @@ export default function UsersPage() {
       }
     };
 
-    checkAdminStatus();
+    void checkAdminStatus();
   }, [router, supabase.auth, fetchRealUsers]);
 
   // Filter users based on search term and status
@@ -217,12 +257,12 @@ export default function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userData: UserData) => {
+  const handleDeleteUser = (userData: UserData) => {
     setUserToDelete(userData);
     setShowDeleteDialog(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (!userToDelete) return;
 
     try {
@@ -249,15 +289,6 @@ export default function UsersPage() {
     }
   };
 
-  const getInitials = (name: string = '') => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   if (isLoading) {
     return <Loading />;
   }
@@ -268,7 +299,13 @@ export default function UsersPage() {
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
+          <Button
+            onClick={() => {
+              router.push('/');
+            }}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
@@ -296,7 +333,13 @@ export default function UsersPage() {
               <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
               Refresh
             </Button>
-            <Button size="sm" className="gap-2" onClick={() => { router.push('/admin/users/new'); }}>
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                router.push('/admin/users/new');
+              }}
+            >
               <UserPlus className="h-4 w-4" />
               Add User
             </Button>
@@ -310,7 +353,9 @@ export default function UsersPage() {
               <Input
                 placeholder="Search users..."
                 value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); }}
+                onChange={e => {
+                  setSearchTerm(e.target.value);
+                }}
                 className="pl-9"
               />
             </div>
@@ -359,28 +404,8 @@ export default function UsersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        user.status === 'active'
-                          ? 'default'
-                          : user.status === 'inactive'
-                            ? 'secondary'
-                            : 'outline'
-                      }
-                    >
-                      {user.status === 'active' ? (
-                        <>
-                          <CheckCircle className="mr-1 h-3 w-3" /> Active
-                        </>
-                      ) : user.status === 'inactive' ? (
-                        <>
-                          <XCircle className="mr-1 h-3 w-3" /> Inactive
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="mr-1 h-3 w-3" /> Pending
-                        </>
-                      )}
+                    <Badge variant={getStatusBadgeVariant(user.status)}>
+                      {getStatusBadgeContent(user.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -407,7 +432,9 @@ export default function UsersPage() {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem
                           className="gap-2"
-                          onClick={() => { router.push(`/admin/user/${user.id}`); }}
+                          onClick={() => {
+                            router.push(`/admin/user/${user.id}`);
+                          }}
                         >
                           <User className="h-4 w-4" /> View Profile
                         </DropdownMenuItem>
@@ -429,7 +456,9 @@ export default function UsersPage() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="gap-2 text-destructive focus:text-destructive"
-                          onClick={() => handleDeleteUser(user)}
+                          onClick={() => {
+                            handleDeleteUser(user);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" /> Delete User
                         </DropdownMenuItem>
@@ -460,7 +489,12 @@ export default function UsersPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setShowDeleteDialog(false); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteDialog(false);
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button variant="destructive" onClick={confirmDelete}>

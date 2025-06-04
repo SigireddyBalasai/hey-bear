@@ -40,6 +40,12 @@ export interface AssistantData {
   params?: Record<string, unknown>;
 }
 
+interface ChatData {
+  from: string;
+  to: string;
+  body: string;
+}
+
 interface TwilioMessageDetailsProps {
   phoneNumber: string;
   open: boolean;
@@ -74,9 +80,9 @@ export function TwilioMessageDetails({
   };
 
   // Parse chat data from JSON string
-  const parseChatData = (chatStr: string) => {
+  const parseChatData = (chatStr: string): ChatData => {
     try {
-      return JSON.parse(chatStr);
+      return JSON.parse(chatStr) as ChatData;
     } catch {
       return { from: 'unknown', to: 'unknown', body: '' };
     }

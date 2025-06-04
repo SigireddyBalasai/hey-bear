@@ -69,10 +69,11 @@ const ConciergeInteractionDashboard = () => {
 
       if (user) {
         // Use the user's name from their profile data - could be from Google login
-        if (user.user_metadata.full_name) {
-          setUserName(user.user_metadata.full_name);
-        } else if (user.user_metadata.name) {
-          setUserName(user.user_metadata.name);
+        const metadata = user.user_metadata as { full_name?: string; name?: string };
+        if (metadata.full_name) {
+          setUserName(metadata.full_name);
+        } else if (metadata.name) {
+          setUserName(metadata.name);
         } else {
           setUserName('User');
         }
@@ -80,7 +81,7 @@ const ConciergeInteractionDashboard = () => {
         // If assistantId is available, fetch the assistant's name
         if (assistantId) {
           const { data, error } = await supabase
-            .schema('assistants')
+
             .from('assistants')
             .select('name')
             .eq('id', assistantId)
@@ -297,14 +298,18 @@ const ConciergeInteractionDashboard = () => {
             <Button
               variant={activeTab === 'table' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => { handleTabChange('table'); }}
+              onClick={() => {
+                handleTabChange('table');
+              }}
             >
               Table View
             </Button>
             <Button
               variant={activeTab === 'conversation' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => { handleTabChange('conversation'); }}
+              onClick={() => {
+                handleTabChange('conversation');
+              }}
             >
               Conversation View
             </Button>

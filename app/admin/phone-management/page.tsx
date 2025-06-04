@@ -37,7 +37,12 @@ export default function PhoneManagementPage() {
       const response = await fetch('/api/twilio/settings');
 
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as {
+          success: boolean;
+          settings?: {
+            accountSid: string;
+          };
+        };
         console.log('Twilio settings response:', data.success);
 
         if (data.success && data.settings) {
@@ -78,7 +83,7 @@ export default function PhoneManagementPage() {
 
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
-          .schema('users')
+
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)
@@ -124,7 +129,13 @@ export default function PhoneManagementPage() {
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
+          <Button
+            onClick={() => {
+              router.push('/');
+            }}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
@@ -138,7 +149,13 @@ export default function PhoneManagementPage() {
 
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center">
-            <Button variant="ghost" className="pl-0" onClick={() => { router.push('/admin'); }}>
+            <Button
+              variant="ghost"
+              className="pl-0"
+              onClick={() => {
+                router.push('/admin');
+              }}
+            >
               <ChevronLeft className="mr-1 h-4 w-4" />
               Back to Dashboard
             </Button>
@@ -188,7 +205,13 @@ export default function PhoneManagementPage() {
                 <p className="mx-auto mb-6 max-w-md text-muted-foreground">
                   Please configure your Twilio API credentials before managing phone numbers.
                 </p>
-                <Button onClick={() => { setActiveTab('settings'); }}>Configure API Settings</Button>
+                <Button
+                  onClick={() => {
+                    setActiveTab('settings');
+                  }}
+                >
+                  Configure API Settings
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -204,7 +227,13 @@ export default function PhoneManagementPage() {
                   Please configure your Twilio API credentials to view and manage your Twilio
                   account phone numbers.
                 </p>
-                <Button onClick={() => { setActiveTab('settings'); }}>Configure API Settings</Button>
+                <Button
+                  onClick={() => {
+                    setActiveTab('settings');
+                  }}
+                >
+                  Configure API Settings
+                </Button>
               </div>
             )}
           </TabsContent>

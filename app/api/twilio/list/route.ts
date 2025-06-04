@@ -19,7 +19,7 @@ export async function GET(_req: Request) {
 
     // Check admin status - Fix the issue by checking auth_user_id not user.id
     const { data: userData, error: userDataError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id) // Use auth_user_id instead of user.id

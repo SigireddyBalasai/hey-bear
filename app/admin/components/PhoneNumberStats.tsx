@@ -1,3 +1,4 @@
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -50,6 +51,34 @@ import { createClient } from '@/utils/supabase/client';
 
 import { TwilioMessageDetails } from './TwilioMessageDetails';
 
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
 // Register Chart.js components
 ChartJS.register(
   CategoryScale,
@@ -63,6 +92,113 @@ ChartJS.register(
   Legend,
   Filler
 );
+
+// Format phone number for display
+const formatPhoneNumber = (phoneNumber: string) => {
+  // Basic formatting for US numbers
+  if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
+    return `(${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5, 8)}-${phoneNumber.slice(8)}`;
+  }
+  return phoneNumber;
+};
+
+// Format date for display
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
+
+// Calculate average messages per day for a phone
+const getMessagesPerDay = (phone: { total_messages: number; active_days: number }): string => {
+  if (!phone.active_days || phone.active_days === 0) return '0';
+  return (phone.total_messages / phone.active_days).toFixed(1);
+};
+
+function getTimeframeDisplay(timeframe: string): string {
+  switch (timeframe) {
+    case '7d': {
+      return '7 Days';
+    }
+    case '90d': {
+      return '3 Months';
+    }
+    case '180d': {
+      return '6 Months';
+    }
+    default: {
+      return '30 Days';
+    }
+  }
+}
+
+function getTimeframeDescription(timeframe: string): string {
+  switch (timeframe) {
+    case '7d': {
+      return 'the last 7 days';
+    }
+    case '90d': {
+      return 'the last 3 months';
+    }
+    case '180d': {
+      return 'the last 6 months';
+    }
+    default: {
+      return 'the last 30 days';
+    }
+  }
+}
+
+function getTotalDays(timeframe: string): number {
+  switch (timeframe) {
+    case '7d': {
+      return 7;
+    }
+    case '90d': {
+      return 90;
+    }
+    case '180d': {
+      return 180;
+    }
+    default: {
+      return 30;
+    }
+  }
+}
+
+// Helper function to display active days fraction
+const getActiveDaysDisplay = (activeDays: number, timeframe: string): string => {
+  const totalDays = getTotalDays(timeframe);
+  return `${String(activeDays)}/${String(totalDays)}`;
+};
+
+// Calculate activity ratio (active days / timeframe days)
+const getActivityRatio = (phone: { active_days: number }, currentTimeframe: string): number => {
+  const totalDays = getTotalDays(currentTimeframe);
+  if (!phone.active_days) return 0;
+  return Math.min(100, Math.round((phone.active_days / totalDays) * 100));
+};
+
+// Calculate percentage with proper formatting
+const calculatePercentage = (value: number, total: number): string => {
+  if (!total) return '0';
+  return ((value / total) * 100).toFixed(1);
+};
+
+// Format last active time
+const getLastActiveTime = (lastMessage: string | null | undefined): string => {
+  return lastMessage ? formatDate(lastMessage) : 'Never';
+};
 
 // Define custom types for interactions
 type DatabaseWithInteractions = Database & {
@@ -108,9 +244,11 @@ type PhoneNumberStat = {
   phone_number: string;
   number: string;
   assistant_name?: string;
-  assistant?: string;
-  total_interactions: number;
-  unique_contacts: number;
+  assistant?: string | null;
+  assistant_id?: string | null;
+  user_id?: string | null;
+  total_interactions?: number;
+  unique_contacts?: number;
   last_interaction?: string;
   is_assigned: boolean;
   messages_sent: number;
@@ -118,8 +256,8 @@ type PhoneNumberStat = {
   total_messages: number;
   active_days: number;
   unique_users: number;
-  first_message?: string;
-  last_message?: string;
+  first_message?: string | null;
+  last_message?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 };
@@ -146,10 +284,8 @@ export function PhoneNumberStats() {
 
     try {
       // First, get all phone numbers with assistant details
-      const { data: phoneNumbers } = await supabase
-        .from('phone_numbers')
-        .select(
-          `
+      const { data: phoneNumbers } = await supabase.from('phone_numbers').select(
+        `
           id,
           phone_number,
           is_assigned,
@@ -159,35 +295,7 @@ export function PhoneNumberStats() {
             user_id
           )
         `
-        )
-        .returns<
-          Array<{
-            id: string;
-            phone_number: string;
-            is_assigned: boolean;
-            assistant: {
-              id: string;
-              name: string;
-              user_id: string;
-            } | null;
-          }>
-        >();
-
-      // Format the data
-      const _formattedPhoneStats = (phoneNumbers ?? []).map(phone => ({
-        id: phone.id,
-        number: phone.phone_number,
-        is_assigned: phone.is_assigned,
-        assistant: phone.assistant?.name ?? null,
-        assistant_id: phone.assistant?.id ?? null,
-        user_id: phone.assistant?.user_id ?? null,
-        messages_sent: 0,
-        messages_received: 0,
-        active_days: new Set<string>(),
-        first_message: null,
-        last_message: null,
-        unique_users: new Set<string>(),
-      }));
+      );
 
       // Calculate basic stats
       const assigned = phoneNumbers?.filter(p => p.is_assigned).length ?? 0;
@@ -218,7 +326,7 @@ export function PhoneNumberStats() {
 
       // Get message interactions for the phone numbers
       const { data: interactions, error: interactionError } = await supabase
-        .schema('analytics')
+
         .from('interactions')
         .select('*')
         .gte('interaction_time', startDate.toISOString())
@@ -227,40 +335,76 @@ export function PhoneNumberStats() {
       if (interactionError) throw interactionError;
 
       // Process phone usage data
-      const phoneData = new Map();
+      // Define the phone data structure for better typing
+      type PhoneDataType = {
+        id: string;
+        number: string;
+        phone_number: string;
+        is_assigned: boolean;
+        assistant: string | null;
+        assistant_id: string | null;
+        user_id: string | null;
+        messages_sent: number;
+        messages_received: number;
+        active_days: Set<string>;
+        first_message: string | null;
+        last_message: string | null;
+        unique_users: Set<string>;
+        total_interactions: number;
+        unique_contacts: number;
+      };
+
+      const phoneData = new Map<string, PhoneDataType>();
       let totalMessages = 0;
 
       // Initialize phone data
       phoneNumbers?.forEach(phone => {
+        // Type assertion to handle Supabase typing issues
+        const assistant = phone.assistant as unknown as AssistantDetails | null;
+
         phoneData.set(phone.phone_number, {
           id: phone.id,
           number: phone.phone_number,
-          is_assigned: phone.is_assigned,
-          assistant: phone.assistant?.name ?? null,
-          assistant_id: phone.assistant?.id ?? null,
-          user_id: phone.assistant?.user_id ?? null,
+          phone_number: phone.phone_number,
+          is_assigned: phone.is_assigned || false, // Ensure non-null boolean
+          assistant: assistant?.name ?? null,
+          assistant_id: assistant?.id ?? null,
+          user_id: assistant?.user_id ?? null,
           messages_sent: 0,
           messages_received: 0,
-          active_days: new Set(),
+          active_days: new Set<string>(),
           first_message: null,
           last_message: null,
-          unique_users: new Set(),
+          unique_users: new Set<string>(),
+          total_interactions: 0,
+          unique_contacts: 0,
         });
       });
 
       // Count interactions
       interactions.forEach(interaction => {
         try {
-          const chatData = JSON.parse(interaction.chat ?? '');
+          const chatData = JSON.parse(interaction.chat ?? '') as {
+            to?: string;
+            from?: string;
+            messages_sent?: number;
+            messages_received?: number;
+            unique_users?: number;
+            active_days?: number;
+            first_message?: string;
+            last_message?: string;
+          };
           let phoneNumber = null;
 
           // Determine phone number from interaction
-          if (typeof chatData === 'object' && chatData !== null) {
+          if (typeof chatData === 'object') {
             phoneNumber = chatData.to ?? chatData.from;
           }
 
           if (phoneNumber && phoneData.has(phoneNumber)) {
             const phoneStats = phoneData.get(phoneNumber);
+            if (!phoneStats) return;
+
             totalMessages++;
 
             // Check if phone sent or received the message
@@ -295,17 +439,17 @@ export function PhoneNumberStats() {
               }
             }
           }
-        } catch (error_) {
-          console.error('Error parsing chat data:', error_);
+        } catch (error) {
+          console.error('Error parsing chat data:', error);
         }
       });
 
       // Format phone stats into array and convert sets to numbers
       const finalStats = [...phoneData.values()].map(stats => ({
         ...stats,
-        total_messages: stats.messages_sent + stats.messages_received,
-        active_days: stats.active_days.size,
-        unique_users: stats.unique_users.size,
+        total_messages: Number(stats.messages_sent) + Number(stats.messages_received),
+        active_days: Number(stats.active_days.size),
+        unique_users: Number(stats.unique_users.size),
       }));
 
       // Sort by total messages
@@ -334,17 +478,8 @@ export function PhoneNumberStats() {
 
   // Call loadPhoneStats when timeframe changes
   useEffect(() => {
-    loadPhoneStats();
+    void loadPhoneStats();
   }, [timeframe, loadPhoneStats]);
-
-  // Format phone number for display
-  const formatPhoneNumber = (phoneNumber: string) => {
-    // Basic formatting for US numbers
-    if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
-      return `(${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5, 8)}-${phoneNumber.slice(8)}`;
-    }
-    return phoneNumber;
-  };
 
   // Generate data for messages by phone chart
   const generateMessagesChartData = () => {
@@ -383,49 +518,7 @@ export function PhoneNumberStats() {
     };
   };
 
-  // Calculate average messages per day for a phone
-  const getMessagesPerDay = (phone: { total_messages: number; active_days: number }) => {
-    if (!phone.active_days || phone.active_days === 0) return 0;
-    return (phone.total_messages / phone.active_days).toFixed(1);
-  };
-
-  // Calculate activity ratio (active days / timeframe days)
-  const getActivityRatio = (phone: { active_days: number }) => {
-    let totalDays = 30; // Default
-
-    switch (timeframe) {
-      case '7d': {
-        totalDays = 7;
-        break;
-      }
-      case '90d': {
-        totalDays = 90;
-        break;
-      }
-      case '180d': {
-        totalDays = 180;
-        break;
-      }
-      default: {
-        totalDays = 30;
-      }
-    }
-
-    if (!phone.active_days) return 0;
-
-    return Math.min(100, Math.round((phone.active_days / totalDays) * 100));
-  };
-
-  // Format date for display
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
+  // Export phone statistics data
   const exportData = () => {
     // Convert phone stats to CSV
     const headers = [
@@ -475,6 +568,7 @@ export function PhoneNumberStats() {
     link.remove();
   };
 
+  // View message details for a specific phone number
   const viewMessageDetails = (phoneNumber: string) => {
     setSelectedPhoneNumber(phoneNumber);
     setIsMessageDetailsOpen(true);
@@ -489,7 +583,12 @@ export function PhoneNumberStats() {
             <span>Phone Number Analytics</span>
           </div>
           <div className="flex gap-2">
-            <Select value={timeframe} onValueChange={value => { setTimeframe(value); }}>
+            <Select
+              value={timeframe}
+              onValueChange={value => {
+                setTimeframe(value);
+              }}
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="Timeframe" />
               </SelectTrigger>
@@ -509,7 +608,7 @@ export function PhoneNumberStats() {
       </CardHeader>
 
       <CardContent>
-        {error ? (
+        {error && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-center gap-2 text-amber-800">
               <RefreshCw className="h-5 w-5 text-amber-600" />
@@ -522,12 +621,14 @@ export function PhoneNumberStats() {
               </div>
             </div>
           </div>
-        ) : isLoading ? (
+        )}
+        {!error && isLoading && (
           <div className="py-8 text-center">
             <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground/50" />
             <p className="text-muted-foreground">Loading phone statistics...</p>
           </div>
-        ) : (
+        )}
+        {!error && !isLoading && (
           <div className="space-y-8">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -578,15 +679,7 @@ export function PhoneNumberStats() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Timeframe</p>
-                      <p className="text-2xl font-bold">
-                        {timeframe === '7d'
-                          ? '7 Days'
-                          : timeframe === '90d'
-                            ? '3 Months'
-                            : timeframe === '180d'
-                              ? '6 Months'
-                              : '30 Days'}
-                      </p>
+                      <p className="text-2xl font-bold">{getTimeframeDisplay(timeframe)}</p>
                     </div>
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
                       <Calendar className="h-5 w-5 text-amber-600" />
@@ -626,20 +719,14 @@ export function PhoneNumberStats() {
                       <p className="text-xs text-muted-foreground">Assigned</p>
                       <p className="text-lg font-medium">{usageSummary.assigned}</p>
                       <p className="text-xs text-muted-foreground">
-                        {usageSummary.total
-                          ? ((usageSummary.assigned / usageSummary.total) * 100).toFixed(1)
-                          : 0}
-                        %
+                        {calculatePercentage(usageSummary.assigned, usageSummary.total)}%
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground">Unassigned</p>
                       <p className="text-lg font-medium">{usageSummary.unassigned}</p>
                       <p className="text-xs text-muted-foreground">
-                        {usageSummary.total
-                          ? ((usageSummary.unassigned / usageSummary.total) * 100).toFixed(1)
-                          : 0}
-                        %
+                        {calculatePercentage(usageSummary.unassigned, usageSummary.total)}%
                       </p>
                     </div>
                   </div>
@@ -714,7 +801,9 @@ export function PhoneNumberStats() {
                         <tr
                           key={phone.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => { viewMessageDetails(phone.number); }}
+                          onClick={() => {
+                            viewMessageDetails(phone.number);
+                          }}
                         >
                           <td className="px-4 py-3">
                             <div className="font-mono">{phone.number}</div>
@@ -748,25 +837,27 @@ export function PhoneNumberStats() {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              <div
-                                className="h-2 rounded-full bg-blue-100"
-                                style={{
-                                  width: `${getActivityRatio(phone)}%`,
-                                  backgroundColor: `rgba(59, 130, 246, ${getActivityRatio(phone) / 100})`,
-                                }}
-                              />
-                              <span className="ml-1 text-xs">
-                                {phone.active_days}/
-                                {timeframe === '7d'
-                                  ? 7
-                                  : timeframe === '90d'
-                                    ? 90
-                                    : timeframe === '180d'
-                                      ? 180
-                                      : 30}
-                              </span>
-                            </div>
+                            {(() => {
+                              const activityRatio = getActivityRatio(phone, timeframe);
+                              const activityWidth = `${String(activityRatio)}%`;
+                              const activityOpacity = String(activityRatio / 100);
+                              const backgroundColor = `rgba(59, 130, 246, ${activityOpacity})`;
+
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <div
+                                    className="h-2 rounded-full bg-blue-100"
+                                    style={{
+                                      width: activityWidth,
+                                      backgroundColor,
+                                    }}
+                                  />
+                                  <span className="ml-1 text-xs">
+                                    {getActiveDaysDisplay(phone.active_days, timeframe)}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                             <div className="text-xs text-muted-foreground">
                               ~{getMessagesPerDay(phone)}/day
                             </div>
@@ -780,9 +871,7 @@ export function PhoneNumberStats() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>
-                                {phone.last_message ? formatDate(phone.last_message) : 'Never'}
-                              </span>
+                              <span>{getLastActiveTime(phone.last_message)}</span>
                             </div>
                           </td>
                         </tr>
@@ -800,20 +889,15 @@ export function PhoneNumberStats() {
         <TwilioMessageDetails
           phoneNumber={selectedPhoneNumber}
           open={isMessageDetailsOpen}
-          onClose={() => { setIsMessageDetailsOpen(false); }}
+          onClose={() => {
+            setIsMessageDetailsOpen(false);
+          }}
         />
       )}
 
       <CardFooter className="flex justify-between border-t pt-4">
         <p className="text-xs text-muted-foreground">
-          Data shown for{' '}
-          {timeframe === '7d'
-            ? 'the last 7 days'
-            : timeframe === '90d'
-              ? 'the last 3 months'
-              : timeframe === '180d'
-                ? 'the last 6 months'
-                : 'the last 30 days'}
+          Data shown for {getTimeframeDescription(timeframe)}
         </p>
       </CardFooter>
     </Card>

@@ -1,3 +1,5 @@
+import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
+
 import { createClient } from '@/utils/supabase/client';
 
 /**
@@ -10,23 +12,32 @@ export interface TwilioSettings {
   isConfigured: boolean;
 }
 
-/**
- * Interface for a Twilio phone number
- */
-export interface TwilioPhoneNumber {
-  sid: string;
-  phoneNumber: string;
-  friendlyName: string;
-  region: string;
-  capabilities: {
-    sms: boolean;
-    voice: boolean;
-    mms: boolean;
-  };
-  status: string;
-  inUse: boolean;
-  assignedTo?: string;
+interface TwilioSettingsResponse {
+  success: boolean;
+  settings?: Partial<TwilioSettings>;
 }
+
+interface TwilioNumbersResponse {
+  success: boolean;
+  numbers?: IncomingPhoneNumberInstance[];
+}
+
+interface SearchNumbersResponse {
+  success: boolean;
+  numbers?: string[];
+}
+
+interface PhoneNumberOperationResponse {
+  success: boolean;
+  error?: string;
+}
+
+// Use Twilio SDK type for phone numbers
+export type TwilioPhoneNumber = IncomingPhoneNumberInstance & {
+  // Additional properties for compatibility with existing code
+  inUse?: boolean;
+  assignedTo?: string;
+};
 
 /**
  * Fetch Twilio settings
@@ -35,25 +46,30 @@ export interface TwilioPhoneNumber {
 export const fetchTwilioSettings = async (): Promise<TwilioSettings> => {
   try {
     const response = await fetch('/api/twilio/settings');
-    
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch Twilio settings: ${response.status}`);
+      throw new Error(`Failed to fetch Twilio settings: ${response.status.toString()}`);
     }
-    
-    const { success, settings } = await response.json();
-    
+
+    const { success, settings } = (await response.json()) as TwilioSettingsResponse;
+
     if (!success || !settings) {
       return {
         accountSid: '',
         authToken: '',
         phoneNumbers: [],
-        isConfigured: false
+        isConfigured: false,
       };
     }
-    
+
+    // Type guard to ensure settings has the expected properties
+    const typedSettings: Partial<TwilioSettings> = settings;
+
     return {
-      ...settings,
-      isConfigured: !!settings.accountSid
+      accountSid: typedSettings.accountSid || '',
+      authToken: typedSettings.authToken || '',
+      phoneNumbers: typedSettings.phoneNumbers || [],
+      isConfigured: !!typedSettings.accountSid,
     };
   } catch (error) {
     console.error('Error fetching Twilio settings:', error);
@@ -61,7 +77,7 @@ export const fetchTwilioSettings = async (): Promise<TwilioSettings> => {
       accountSid: '',
       authToken: '',
       phoneNumbers: [],
-      isConfigured: false
+      isConfigured: false,
     };
   }
 };
@@ -80,12 +96,12 @@ export const saveTwilioSettings = async (settings: TwilioSettings): Promise<bool
       },
       body: JSON.stringify(settings),
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Failed to save Twilio settings: ${response.status}`);
+      throw new Error(`Failed to save Twilio settings: ${response.status.toString()}`);
     }
-    
-    const { success } = await response.json();
+
+    const { success } = (await response.json()) as PhoneNumberOperationResponse;
     return success;
   } catch (error) {
     console.error('Error saving Twilio settings:', error);
@@ -100,17 +116,17 @@ export const saveTwilioSettings = async (settings: TwilioSettings): Promise<bool
 export const fetchTwilioPhoneNumbers = async (): Promise<TwilioPhoneNumber[]> => {
   try {
     const response = await fetch('/api/twilio/numbers');
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch Twilio phone numbers: ${response.status}`);
     }
-    
-    const { success, numbers } = await response.json();
-    
+
+    const { success, numbers } = (await response.json()) as TwilioNumbersResponse;
+
     if (!success || !numbers) {
       return [];
     }
-    
+
     return numbers;
   } catch (error) {
     console.error('Error fetching Twilio phone numbers:', error);
@@ -123,7 +139,9 @@ export const fetchTwilioPhoneNumbers = async (): Promise<TwilioPhoneNumber[]> =>
  * @param phoneNumber Phone number to purchase
  * @returns Success status and the purchased number details
  */
-export const purchaseTwilioPhoneNumber = async (phoneNumber: string): Promise<{
+export const purchaseTwilioPhoneNumber = async (
+  phoneNumber: string
+): Promise<{
   success: boolean;
   number?: TwilioPhoneNumber;
   error?: string;
@@ -136,18 +154,24 @@ export const purchaseTwilioPhoneNumber = async (phoneNumber: string): Promise<{
       },
       body: JSON.stringify({ phoneNumber }),
     });
-    
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Failed to purchase number: ${response.status}`);
+      const errorData = (await response.json()) as { error?: string };
+      throw new Error(
+        errorData.error || `Failed to purchase number: ${response.status.toString()}`
+      );
     }
-    
-    return await response.json();
+
+    return (await response.json()) as {
+      success: boolean;
+      number?: TwilioPhoneNumber;
+      error?: string;
+    };
   } catch (error) {
     console.error('Error purchasing Twilio phone number:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to purchase phone number' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to purchase phone number',
     };
   }
 };
@@ -163,24 +187,24 @@ export const searchAvailablePhoneNumbers = async (
   areaCode?: string
 ): Promise<string[]> => {
   try {
-    const url = new URL('/api/twilio/search-numbers', window.location.origin);
+    const url = new URL('/api/twilio/search-numbers', globalThis.location.origin);
     url.searchParams.append('countryCode', countryCode);
     if (areaCode) {
       url.searchParams.append('areaCode', areaCode);
     }
-    
+
     const response = await fetch(url.toString());
-    
+
     if (!response.ok) {
       throw new Error(`Failed to search available numbers: ${response.status}`);
     }
-    
-    const { success, numbers } = await response.json();
-    
+
+    const { success, numbers } = (await response.json()) as SearchNumbersResponse;
+
     if (!success || !numbers) {
       return [];
     }
-    
+
     return numbers;
   } catch (error) {
     console.error('Error searching for available numbers:', error);
@@ -202,12 +226,12 @@ export const releaseTwilioPhoneNumber = async (phoneNumberSid: string): Promise<
       },
       body: JSON.stringify({ sid: phoneNumberSid }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to release phone number: ${response.status}`);
     }
-    
-    const { success } = await response.json();
+
+    const { success } = (await response.json()) as PhoneNumberOperationResponse;
     return success;
   } catch (error) {
     console.error('Error releasing Twilio phone number:', error);
@@ -225,44 +249,44 @@ export const getPhoneNumbersStatus = async (): Promise<{
 }> => {
   try {
     const supabase = createClient();
-    
+
     // Get all Twilio numbers
     const twilioNumbers = await fetchTwilioPhoneNumbers();
-    
+
     // Get all assistants with their assigned phone numbers
     const { data: assistants, error } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('id, name, assigned_phone_number');
-    
+
     if (error) throw error;
-    
+
     // Map of phone numbers to assistant names
-    const assignedNumbers = new Map();
-    
+    const assignedNumbers = new Map<string, string>();
+
     assistants?.forEach(assistant => {
       if (assistant.assigned_phone_number) {
         assignedNumbers.set(assistant.assigned_phone_number, assistant.name);
       }
     });
-    
+
     // Categorize numbers
     const available: TwilioPhoneNumber[] = [];
     const assigned: { number: TwilioPhoneNumber; assistantName: string }[] = [];
-    
+
     twilioNumbers.forEach(number => {
-      const assistantName = assignedNumbers.get(number.phoneNumber);
-      
+      const assistantName = assignedNumbers.get(number.phoneNumber) as string | undefined;
+
       if (assistantName) {
         assigned.push({
           number,
-          assistantName
+          assistantName,
         });
       } else {
         available.push(number);
       }
     });
-    
+
     return { available, assigned };
   } catch (error) {
     console.error('Error getting phone numbers status:', error);
@@ -274,31 +298,35 @@ export const getPhoneNumbersStatus = async (): Promise<{
  * Fetch phone numbers assigned to assistants
  * @returns Array of assigned phone number records
  */
-export const fetchAssignedPhoneNumbers = async (): Promise<Array<{
-  id: string;
-  number: string | null;
-  assistants: {
+export const fetchAssignedPhoneNumbers = async (): Promise<
+  Array<{
     id: string;
-    name: string;
-    user_id: string;
-  };
-}>> => {
+    number: string | null;
+    assistants: {
+      id: string;
+      name: string;
+      user_id: string;
+    };
+  }>
+> => {
   try {
     const supabase = createClient();
-    
+
     const { data, error } = await supabase
-      .schema('assistants')
+
       .from('assistants')
-      .select(`
+      .select(
+        `
         id,
         name,
         assigned_phone_number,
         user_id
-      `)
+      `
+      )
       .not('assigned_phone_number', 'is', null);
-    
+
     if (error) throw error;
-    
+
     // Format the result for consistency with previous API
     const formattedData = (data || []).map(assistant => ({
       id: assistant.id,
@@ -306,10 +334,10 @@ export const fetchAssignedPhoneNumbers = async (): Promise<Array<{
       assistants: {
         id: assistant.id,
         name: assistant.name,
-        user_id: assistant.user_id
-      }
+        user_id: assistant.user_id,
+      },
     }));
-    
+
     return formattedData;
   } catch (error) {
     console.error('Error fetching assigned phone numbers:', error);
@@ -321,27 +349,29 @@ export const fetchAssignedPhoneNumbers = async (): Promise<Array<{
  * Fetch assistants without phone numbers
  * @returns Array of assistants without phone numbers
  */
-export const fetchAssistantsWithoutPhoneNumbers = async (): Promise<Array<{
-  id: string;
-  name: string;
-  [key: string]: unknown;
-}>> => {
+export const fetchAssistantsWithoutPhoneNumbers = async (): Promise<
+  Array<{
+    id: string;
+    name: string;
+    [key: string]: unknown;
+  }>
+> => {
   try {
     const supabase = createClient();
-    
+
     // Get all assistants
     const { data: allAssistants, error: assistantsError } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('id, name, assigned_phone_number, user_id');
-    
+
     if (assistantsError) throw assistantsError;
-    
+
     // Filter out assistants with phone numbers
     const assistantsWithoutPhoneNumbers = allAssistants.filter(
       assistant => !assistant.assigned_phone_number
     );
-    
+
     return assistantsWithoutPhoneNumbers;
   } catch (error) {
     console.error('Error fetching assistants without phone numbers:', error);
@@ -363,12 +393,12 @@ export const addPhoneNumber = async (phoneNumber: string): Promise<boolean> => {
       },
       body: JSON.stringify({ phoneNumber }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to add phone number: ${response.status}`);
     }
-    
-    const { success } = await response.json();
+
+    const { success } = (await response.json()) as PhoneNumberOperationResponse;
     return success;
   } catch (error) {
     console.error('Error adding phone number:', error);
@@ -390,12 +420,12 @@ export const unassignPhoneNumber = async (phoneNumber: string): Promise<boolean>
       },
       body: JSON.stringify({ phoneNumber }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to unassign phone number: ${response.status}`);
     }
-    
-    const { success } = await response.json();
+
+    const { success } = (await response.json()) as PhoneNumberOperationResponse;
     return success;
   } catch (error) {
     console.error('Error unassigning phone number:', error);

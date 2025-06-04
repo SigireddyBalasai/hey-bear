@@ -36,6 +36,21 @@ interface AssistantPhoneNumberSelectorProps {
   webhookUrl: string;
 }
 
+interface AvailablePhoneNumbersResponse {
+  numbers: Array<{ id: string; phone_number: string }>;
+}
+
+interface PhoneNumberAssignmentResponse {
+  data?: {
+    twilioDetails?: TwilioAppInfo;
+  };
+  error?: string;
+}
+
+interface ErrorResponse {
+  error: string;
+}
+
 type TwilioAppInfo = {
   twimlApp?: {
     sid?: string;
@@ -87,11 +102,11 @@ export function AssistantPhoneNumberSelector({
       const response = await fetch('/api/phone-numbers/available');
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ErrorResponse;
         throw new Error(errorData.error ?? 'Failed to fetch available phone numbers');
       }
 
-      const { numbers } = await response.json();
+      const { numbers } = (await response.json()) as AvailablePhoneNumbersResponse;
       setAvailableNumbers(numbers ?? []);
     } catch (error) {
       console.error('Error fetching phone numbers:', error);
@@ -145,7 +160,7 @@ export function AssistantPhoneNumberSelector({
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as PhoneNumberAssignmentResponse;
 
       if (!response.ok) {
         throw new Error(data.error ?? 'Failed to assign phone number');
@@ -206,7 +221,7 @@ export function AssistantPhoneNumberSelector({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ErrorResponse;
         throw new Error(errorData.error ?? 'Failed to unassign Twilio phone number');
       }
 
@@ -307,7 +322,9 @@ export function AssistantPhoneNumberSelector({
                         <Checkbox
                           id="useDefaultWebhook"
                           checked={useDefaultWebhook}
-                          onCheckedChange={checked => { handleWebhookToggle(checked as boolean); }}
+                          onCheckedChange={checked => {
+                            handleWebhookToggle(checked as boolean);
+                          }}
                         />
                         <Label htmlFor="useDefaultWebhook">Use default webhook URL</Label>
                       </div>
@@ -317,7 +334,9 @@ export function AssistantPhoneNumberSelector({
                         <Input
                           id="webhook"
                           value={webhook}
-                          onChange={e => { setWebhook(e.target.value); }}
+                          onChange={e => {
+                            setWebhook(e.target.value);
+                          }}
                           disabled={useDefaultWebhook}
                           placeholder="https://your-webhook-url.com/path"
                         />
@@ -343,7 +362,12 @@ export function AssistantPhoneNumberSelector({
               )}
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setDialogOpen(false); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDialogOpen(false);
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button

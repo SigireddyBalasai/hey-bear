@@ -1,6 +1,25 @@
 import { NextResponse } from 'next/server';
 
+import type { ApplicationInstance } from 'twilio/lib/rest/api/v2010/account/application';
+import type { LocalListInstanceOptions } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
+import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
+
 import { createClient } from '@/utils/supabase/server';
+
+// Interface definitions for type safety
+interface RequestBody {
+  assistantId: string;
+  phoneNumber?: string;
+  webhook?: string;
+  webhookUrl?: string;
+  audioUrl?: string;
+  countryCode: string;
+  areaCode?: string;
+}
+
+// Type alias for the search parameters used with Twilio's availablePhoneNumbers API
+// This uses the Twilio SDK's LocalListInstanceOptions for improved type safety
+type TwilioSearchParams = LocalListInstanceOptions;
 
 export async function POST(request: Request) {
   const startTime = new Date();
@@ -22,10 +41,11 @@ export async function POST(request: Request) {
     );
 
     // Parse the request body
+    const requestBody = (await request.json()) as RequestBody;
     const { assistantId, phoneNumber, webhook, webhookUrl, audioUrl, countryCode, areaCode } =
-      await request.json();
+      requestBody;
     // Use webhookUrl if provided, otherwise fall back to webhook
-    const finalWebhookUrl = webhookUrl ?? webhook;
+    const finalWebhookUrl: string | undefined = webhookUrl ?? webhook;
 
     console.log(`[${new Date().toISOString()}] Phone Number Assignment - Request body:`, {
       assistantId,
@@ -45,26 +65,24 @@ export async function POST(request: Request) {
       );
     }
 
-    let phoneNumberToAssign = phoneNumber;
+    let phoneNumberToAssign: string | undefined = phoneNumber;
     if (!phoneNumber) {
       // If phoneNumber is not provided, search for an available number in the specified country
       console.log(
         `[${new Date().toISOString()}] Phone Number Assignment - No phone number provided, searching for available number in ${countryCode}`
       );
 
-      // Search for available phone numbers
-      const searchParams: {
-        country: string;
-        smsEnabled: boolean;
-        areaCode?: number;
-      } = {
-        country: countryCode,
+      // Search for available phone numbers using Twilio SDK type
+      const searchParams: TwilioSearchParams = {
         smsEnabled: true,
       };
 
       // Only add areaCode to the search params if it's provided and not empty
-      if (areaCode && areaCode.trim() !== '') {
-        searchParams.areaCode = Number.parseInt(areaCode.trim(), 10);
+      if (areaCode && typeof areaCode === 'string' && areaCode.trim() !== '') {
+        const parsedAreaCode = Number.parseInt(areaCode.trim(), 10);
+        if (!isNaN(parsedAreaCode)) {
+          searchParams.areaCode = parsedAreaCode;
+        }
       }
 
       try {
@@ -93,8 +111,7 @@ export async function POST(request: Request) {
           // Attempt to purchase a number
           try {
             // Don't include areaCode in purchaseParams if it doesn't exist or is empty
-            const purchaseSearchParams = {
-              country: countryCode,
+            const purchaseSearchParams: TwilioSearchParams = {
               smsEnabled: true,
             };
 
@@ -252,6 +269,14 @@ export async function POST(request: Request) {
       }
     }
 
+    // Ensure we have a valid phone number at this point
+    if (!phoneNumberToAssign) {
+      console.log(
+        `[${new Date().toISOString()}] Phone Number Assignment - Unable to obtain phone number`
+      );
+      return NextResponse.json({ error: 'Unable to obtain a valid phone number' }, { status: 500 });
+    }
+
     // Validate webhook URL if provided
     if (!finalWebhookUrl) {
       console.log(`[${new Date().toISOString()}] Phone Number Assignment - Missing webhook URL`);
@@ -268,7 +293,7 @@ export async function POST(request: Request) {
 
     // Check if assistant exists
     const { data: assistantData, error: assistantError } = await supabase
-      .schema('assistants') // Added schema
+      // Added schema
       .from('assistants')
       .select('id, assigned_phone_number')
       .eq('id', assistantId)
@@ -475,7 +500,7 @@ export async function POST(request: Request) {
 
     // 3. Update assistant with phone number
     const { error: updateAssistantError } = await supabase
-      .schema('assistants') // Added schema
+      // Added schema
       .from('assistants')
       .update({ assigned_phone_number: phoneNumberToAssign })
       .eq('id', assistantId);
@@ -624,33 +649,21 @@ async function verifyTwilioPhoneConfig(
   }
 }
 
-interface TwilioConfigResult {
-  sid: string;
-  friendlyName: string;
+interface TwilioConfigResult
+  extends Pick<ApplicationInstance, 'sid' | 'friendlyName' | 'smsUrl' | 'voiceUrl'> {
   dateCreated: string;
-  smsUrl: string | null;
-  voiceUrl: string | null;
-  twimlApp: {
-    sid: string;
-    friendlyName: string;
+  twimlApp: Pick<ApplicationInstance, 'sid' | 'friendlyName' | 'smsUrl' | 'voiceUrl'> & {
     dateCreated: string;
-    smsUrl: string | null;
-    voiceUrl: string | null;
   };
-  phoneNumber: {
-    phoneNumber: string;
-    smsApplicationSid: string | null;
-    voiceApplicationSid: string | null;
-    voiceUrl: string | null;
-  };
-  phoneDetails: {
-    sid: string;
-    phoneNumber: string;
-    smsApplicationSid: string | null;
-    voiceApplicationSid: string | null;
-    voiceUrl: string | null;
-  };
-  incomingPhoneNumbers: unknown[];
+  phoneNumber: Pick<
+    IncomingPhoneNumberInstance,
+    'phoneNumber' | 'smsApplicationSid' | 'voiceApplicationSid' | 'voiceUrl'
+  >;
+  phoneDetails: Pick<
+    IncomingPhoneNumberInstance,
+    'sid' | 'phoneNumber' | 'smsApplicationSid' | 'voiceApplicationSid' | 'voiceUrl'
+  >;
+  incomingPhoneNumbers: IncomingPhoneNumberInstance[];
   actualPhoneNumber: string;
 }
 
@@ -1124,8 +1137,10 @@ async function _updateTwilioWebhook(phoneNumber: string, _webhookUrl: string | n
     await client
       .incomingPhoneNumbers(incomingPhoneNumberSid)
       .update(updateParams)
-      .catch(error => {
-        throw new Error(`Failed to clear webhook URLs: ${error.message}`);
+      .catch((error: unknown) => {
+        throw new Error(
+          `Failed to clear webhook URLs: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       });
 
     console.log('Cleared application SIDs from phone number');
@@ -1136,8 +1151,10 @@ async function _updateTwilioWebhook(phoneNumber: string, _webhookUrl: string | n
       await client
         .applications(twimlAppSid)
         .remove()
-        .catch(error => {
-          throw new Error(`Failed to delete TwiML app: ${error.message}`);
+        .catch((error: unknown) => {
+          throw new Error(
+            `Failed to delete TwiML app: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
         });
       console.log('TwiML app deleted successfully');
     }

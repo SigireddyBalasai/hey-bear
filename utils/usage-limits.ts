@@ -1,7 +1,7 @@
 import type { Tables } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/server';
 
-type AssistantActivity = Tables<{ schema: 'assistants' }, 'assistant_activity'>;
+type AssistantActivity = Tables<'assistant_activity'>;
 
 interface UsageLimit {
   type: string;
@@ -42,19 +42,16 @@ export async function trackUsage(assistantId: string, type: UsageType): Promise<
 
     updateData.last_used_at = new Date().toISOString();
 
-    const { error } = await supabase
-      .schema('assistants')
-      .from('assistant_activity')
-      .upsert(
-        {
-          assistant_id: assistantId,
-          ...updateData,
-        },
-        {
-          onConflict: 'assistant_id',
-          count: 'exact',
-        }
-      );
+    const { error } = await supabase.from('assistant_activity').upsert(
+      {
+        assistant_id: assistantId,
+        ...updateData,
+      },
+      {
+        onConflict: 'assistant_id',
+        count: 'exact',
+      }
+    );
 
     if (error) {
       console.error('Error tracking usage:', error);
@@ -73,7 +70,7 @@ export async function isLimitReached(assistantId: string, type: UsageType): Prom
 
     // Get current usage
     const { data: activity, error: activityError } = await supabase
-      .schema('assistants')
+
       .from('assistant_activity')
       .select('*')
       .eq('assistant_id', assistantId)
@@ -86,7 +83,7 @@ export async function isLimitReached(assistantId: string, type: UsageType): Prom
 
     // Get limits
     const { data: limits, error: limitsError } = await supabase
-      .schema('assistants')
+
       .from('assistant_usage_limits')
       .select('*')
       .eq('assistant_id', assistantId)
@@ -127,7 +124,7 @@ export async function getUsageAndLimits(assistantId: string): Promise<UsageLimit
 
     // Get current usage
     const { data: activity, error: activityError } = await supabase
-      .schema('assistants')
+
       .from('assistant_activity')
       .select('*')
       .eq('assistant_id', assistantId)
@@ -140,7 +137,7 @@ export async function getUsageAndLimits(assistantId: string): Promise<UsageLimit
 
     // Get limits
     const { data: limits, error: limitsError } = await supabase
-      .schema('assistants')
+
       .from('assistant_usage_limits')
       .select('*')
       .eq('assistant_id', assistantId)

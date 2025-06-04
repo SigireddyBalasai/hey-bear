@@ -34,40 +34,22 @@ const StatCard = ({
     const fetchMetric = async () => {
       setIsLoading(true);
       try {
-        // In a real implementation, we would fetch from an API
-        // For now, use mock data based on the metricType
-        setTimeout(() => {
-          switch (metricType) {
-            case 'totalInteractions': {
-              setLocalValue(342);
-              break;
-            }
-            case 'activeContacts': {
-              setLocalValue(78);
-              break;
-            }
-            case 'interactionsPerContact': {
-              setLocalValue(4.3);
-              break;
-            }
-            case 'averageResponseTime': {
-              setLocalValue('1.2m');
-              break;
-            }
-            default: {
-              setLocalValue(0);
-            }
-          }
-          setIsLoading(false);
-        }, 800); // Simulated API delay
+        // This component should receive data from parent via props
+        // If no propValue is provided, we can't fetch data without context
+        if (propValue === undefined) {
+          console.warn(`StatCard: No value provided for metric type: ${metricType}`);
+          setLocalValue(0);
+        }
+        setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching metric:', error);
+        console.error('Error processing metric:', error);
+        setLocalValue(0);
         setIsLoading(false);
       }
     };
 
     fetchMetric();
-  }, [metricType, dateRange]);
+  }, [metricType, dateRange, propValue]);
 
   // Determine the value to display - either from props or from fetched data
   const displayValue = propValue ?? localValue;

@@ -23,6 +23,12 @@ import { AssistantCard } from '../../components/concierge/conciergeCard';
 // Constants for commonly used strings
 const CONNECTION_ERROR = 'Connection error';
 
+// Utility function to get URL parameters (moved to outer scope)
+const getUrlParameter = (name: string): string | null => {
+  if (typeof globalThis === 'undefined') return null;
+  return new URLSearchParams(globalThis.location.search).get(name);
+};
+
 // Prefix Tables import with underscore since we're not using it directly
 
 interface UserState {
@@ -38,6 +44,23 @@ type AssistantConfig = {
   business_phone?: string | null;
 } | null;
 
+interface NormalizedAssistantData {
+  assistant: {
+    id: string;
+    name: string;
+    is_starred?: boolean;
+    created_at: string;
+    assigned_phone_number?: string | null;
+    pending?: boolean;
+  };
+  config?: AssistantConfig;
+  subscription?: unknown;
+  usageLimits?: unknown;
+  activity?: unknown;
+  interactions_count: number;
+  last_interaction_at: string | null;
+}
+
 type AssistantWithNonNullableFields = Omit<NormalizedAssistantData, 'assistant' | 'config'> & {
   assistant: {
     id: string;
@@ -52,6 +75,7 @@ type AssistantWithNonNullableFields = Omit<NormalizedAssistantData, 'assistant' 
 
 export default function AssistantsPage() {
   const [user, setUser] = useState<UserState | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [normalizedAssistants, setNormalizedAssistants] = useState<
     AssistantWithNonNullableFields[]
   >([]);
@@ -72,6 +96,7 @@ export default function AssistantsPage() {
     businessName: '',
     sharePhoneNumber: false,
     phoneNumber: '',
+    selectedPlan: 'personal', // Default to personal plan
   });
 
   // Handle input changes for any field in the form
@@ -82,21 +107,18 @@ export default function AssistantsPage() {
     }));
   };
 
-  // Utility function to get URL parameters
-  const getUrlParameter = (name: string): string | null => {
-    if (typeof globalThis === 'undefined') return null;
-    return new URLSearchParams(globalThis.location.search).get(name);
-  };
-
   // Handle signing out
   const handleSignOut = () => {
     const supabase = createClient();
-    supabase.auth.signOut().then(() => {
-      setUser(null);
-      router.push('/sign-in');
-    }).catch((error: unknown) => {
-      console.error('Error signing out:', error);
-    });
+    void supabase.auth
+      .signOut()
+      .then(() => {
+        setUser(null);
+        router.push('/sign-in');
+      })
+      .catch((error: unknown) => {
+        console.error('Error signing out:', error);
+      });
   };
 
   // Handle deleting an assistant - now using real Supabase deletion
@@ -114,11 +136,7 @@ export default function AssistantsPage() {
       const supabase = createClient();
 
       // Delete from Supabase
-      const { error } = await supabase
-        .schema('assistants')
-        .from('assistants')
-        .delete()
-        .eq('id', assistantId);
+      const { error } = await supabase.from('assistants').delete().eq('id', assistantId);
 
       if (error) {
         console.error('Error deleting assistant:', error);
@@ -156,6 +174,7 @@ export default function AssistantsPage() {
       businessName: '',
       sharePhoneNumber: false,
       phoneNumber: '',
+      selectedPlan: 'personal', // Default to personal plan
     });
     setCreateDialogOpen(false);
 
@@ -190,23 +209,34 @@ export default function AssistantsPage() {
 
       // Get user ID from users table
       const { data: userData, error: userDataError } = await supabase
-        .schema('users')
         .from('users')
         .select('id')
         .eq('auth_user_id', user.id)
         .single();
 
       if (userDataError) {
+        // If error is "No rows found" this might be a new user - don't show error
+        if (userDataError.code === 'PGRST116') {
+          console.log('New user detected, no assistants yet');
+          setNormalizedAssistants([]);
+          setUserId(null);
+          setIsLoading(false);
+          return;
+        }
+
         console.error('Error fetching user data:', userDataError);
         toast(CONNECTION_ERROR, {
           description: 'Failed to fetch user data from server',
         });
+        setIsLoading(false);
         return;
       }
 
+      // Store the user ID for use in components
+      setUserId(userData.id);
+
       // Fetch assistants belonging to this user from the assistants schema
       const { data: assistantsData, error: assistantsError } = await supabase
-        .schema('assistants')
         .from('assistants')
         .select('*')
         .eq('user_id', userData.id)
@@ -220,18 +250,33 @@ export default function AssistantsPage() {
         return;
       }
 
-      // Transform the data to match the expected structure
-      const transformedAssistants = assistantsData.map(assistant => ({
-        assistant: assistant,
-        config: null as AssistantConfig,
-        subscription: undefined,
-        usageLimits: undefined,
-        activity: undefined,
-        interactions_count: 0,
-        last_interaction_at: null,
-      })) as AssistantWithNonNullableFields[];
+      // If no assistants exist, set empty array (don't use fallback dummy data)
+      if (!assistantsData || assistantsData.length === 0) {
+        console.log('User has 0 assistants');
+        setNormalizedAssistants([]);
+      } else {
+        // Transform the real data from the database
+        // Use actual data values or empty defaults, never dummy data
+        const transformedAssistants = assistantsData
+          .filter(assistant => assistant !== null) // Skip any null entries
+          .map(assistant => ({
+            assistant: {
+              ...assistant,
+              // Ensure name is always at least an empty string, never undefined
+              name: assistant.name || '',
+              // Explicitly set default value for starred status
+              is_starred: assistant.is_starred ?? false,
+            },
+            config: null as AssistantConfig,
+            subscription: undefined,
+            usageLimits: undefined,
+            activity: undefined,
+            interactions_count: 0, // Start with zero messages, not dummy data
+            last_interaction_at: null, // Start with null timestamp, not dummy data
+          })) as AssistantWithNonNullableFields[];
 
-      setNormalizedAssistants(transformedAssistants);
+        setNormalizedAssistants(transformedAssistants);
+      }
     } catch (error) {
       console.error('Error in fetchAssistants:', error);
       toast(CONNECTION_ERROR, {
@@ -249,67 +294,98 @@ export default function AssistantsPage() {
     const assistantId = getUrlParameter('assistant_id');
 
     if (success === 'true' && assistantId) {
-      setCheckoutStatus('success');
-      setCheckoutAssistantId(assistantId);
-
       // Show success message
       toast('Subscription successful', {
         description: 'Your No-Show has been successfully activated!',
       });
 
       // Fetch the updated list of assistants to reflect the change
-      fetchAssistants();
+      void fetchAssistants();
     } else if (canceled === 'true' && assistantId) {
-      setCheckoutStatus('canceled');
-      setCheckoutAssistantId(assistantId);
-
       // Show canceled message
       toast('Checkout canceled', {
         description: 'Your payment was not completed. The No-Show will remain inactive.',
       });
 
       // Fetch the updated list of assistants to reflect the change
-      fetchAssistants();
+      void fetchAssistants();
     }
   }, [fetchAssistants]);
 
-  // Effect to handle return from Stripe checkout - simplified to remove duplicate code
+  // Effect to handle return from Stripe checkout - updated to handle new payment flow
   useEffect(() => {
+    const paymentStatus = getUrlParameter('payment');
+    const openDialog = getUrlParameter('openDialog');
+
+    // Handle new payment flow with bot data
+    if ((paymentStatus === 'success' || paymentStatus === 'cancelled') && openDialog === 'true') {
+      // Extract bot data from URL parameters
+      const botData = {
+        name: getUrlParameter('name') || '',
+        description: getUrlParameter('description') || '',
+        conciergeName: getUrlParameter('conciergeName') || '',
+        personality: getUrlParameter('personality') || '',
+        businessName: getUrlParameter('businessName') || '',
+        sharePhoneNumber: getUrlParameter('sharePhoneNumber') === 'true',
+        phoneNumber: getUrlParameter('phoneNumber') || '',
+        selectedPlan: getUrlParameter('selectedPlan') || 'personal',
+      };
+
+      // Populate form data with bot data
+      setFormData(botData);
+
+      if (paymentStatus === 'success') {
+        // Show success message
+        toast.success('Payment successful!', {
+          description: 'Your subscription is active. Complete creating your assistant.',
+        });
+      } else {
+        // Show cancelled message
+        toast('Payment cancelled', {
+          description:
+            'You can complete the payment later. Your assistant details have been preserved.',
+        });
+      }
+
+      // Open the create dialog with preserved data
+      setCreateDialogOpen(true);
+
+      // Clean up URL parameters
+      globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
+    }
+
+    // Handle legacy payment flow (keep for backward compatibility)
     const success = getUrlParameter('success');
     const canceled = getUrlParameter('canceled');
     const assistantId = getUrlParameter('assistant_id');
 
     if (success === 'true' && assistantId) {
-      setCheckoutStatus('success');
-      setCheckoutAssistantId(assistantId);
-
       // Show success message
       toast.success('Payment successful', {
         description: 'Your No-Show has been activated with your subscription plan',
       });
     } else if (canceled === 'true' && assistantId) {
-      setCheckoutStatus('canceled');
-      setCheckoutAssistantId(assistantId);
-
       // Show canceled message
       toast('Payment canceled', {
         description: 'You can complete the payment later to activate your No-Show',
       });
     }
 
-    // Clear URL parameters and refresh list in both cases
+    // Clear URL parameters and refresh list in both legacy cases
     if ((success === 'true' || canceled === 'true') && assistantId) {
       globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
-      fetchAssistants();
+      void fetchAssistants();
     }
-  }, [fetchAssistants]);
+  }, [fetchAssistants, setFormData, setCreateDialogOpen]);
 
   // Fetch user and assistants data on component mount
   useEffect(() => {
-    fetchAssistants();
+    void fetchAssistants();
   }, [fetchAssistants]);
 
   // Filter assistants based on search query and selected tab
+  // NOTE: We're using real data from the database - never using dummy/fallback data
+  // Users may have 0 assistants which is a valid state - handle gracefully with empty states
   const filteredAssistants = normalizedAssistants.filter(assistantData => {
     const assistant = assistantData.assistant;
     const config = assistantData.config;
@@ -344,7 +420,6 @@ export default function AssistantsPage() {
 
       // Update in Supabase first
       const { error } = await supabase
-        .schema('assistants')
         .from('assistants')
         .update({ is_starred: isStarred })
         .eq('id', assistantId);
@@ -366,8 +441,10 @@ export default function AssistantsPage() {
         )
       );
 
+      const assistantName =
+        normalizedAssistants.find(a => a.assistant.id === assistantId)?.assistant.name ?? 'Unknown';
       toast(`Assistant ${isStarred ? 'starred' : 'unstarred'}`, {
-        description: `${normalizedAssistants.find(a => a.assistant.id === assistantId)?.assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`,
+        description: `${assistantName} has been ${isStarred ? 'starred' : 'unstarred'}`,
       });
     } catch (error: unknown) {
       console.error('Error toggling star:', error);
@@ -382,13 +459,13 @@ export default function AssistantsPage() {
 
   // Wrapper functions to handle async operations without returning promises
   const handleToggleStar = (assistantId: string, isStarred: boolean) => {
-    handleToggleStarAsync(assistantId, isStarred).catch(error => {
+    handleToggleStarAsync(assistantId, isStarred).catch((error: unknown) => {
       console.error('Error in handleToggleStar:', error);
     });
   };
 
   const handleDeleteAssistant = (assistantId: string) => {
-    handleDeleteAssistantAsync(assistantId).catch(error => {
+    handleDeleteAssistantAsync(assistantId).catch((error: unknown) => {
       console.error('Error in handleDeleteAssistant:', error);
     });
   };
@@ -427,6 +504,7 @@ export default function AssistantsPage() {
         handleInputChange={handleInputChange}
         handleCreateAssistant={handleCreateAssistant}
         isCreating={false}
+        userId={userId || undefined}
       />
 
       {/* Show coming soon for shared tab */}
@@ -441,13 +519,22 @@ export default function AssistantsPage() {
             soon.
           </p>
         </div>
-      ) : filteredAssistants.length === 0 ? (
+      ) : null}
+
+      {selectedTab !== 'shared' && filteredAssistants.length === 0 && (
         <EmptyState
           searchQuery={searchQuery}
-          onClearSearch={() => { setSearchQuery(''); }}
-          onCreateNew={() => { setCreateDialogOpen(true); }}
+          onClearSearch={() => {
+            setSearchQuery('');
+          }}
+          onCreateNew={() => {
+            setCreateDialogOpen(true);
+          }}
+          noAssistantsYet={normalizedAssistants.length === 0}
         />
-      ) : (
+      )}
+
+      {selectedTab !== 'shared' && filteredAssistants.length > 0 && (
         <AnimatePresence mode="wait">
           {/* Rest of the rendering logic for assistants */}
           {viewMode === 'grid' ? (
@@ -481,8 +568,12 @@ export default function AssistantsPage() {
                       total_messages: assistantData.interactions_count,
                       last_used_at: assistantData.last_interaction_at ?? undefined,
                     }}
-                    onToggleStar={(id, isStarred) => handleToggleStar(id, isStarred)}
-                    onDelete={id => handleDeleteAssistant(id)}
+                    onToggleStar={(id, isStarred) => {
+                      handleToggleStar(id, isStarred);
+                    }}
+                    onDelete={id => {
+                      handleDeleteAssistant(id);
+                    }}
                   />
                 </motion.div>
               ))}
@@ -528,7 +619,3 @@ export default function AssistantsPage() {
     </div>
   );
 }
-function setCheckoutStatus(arg0: string) {
-  throw new Error('Function not implemented.');
-}
-

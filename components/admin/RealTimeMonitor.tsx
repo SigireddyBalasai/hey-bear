@@ -137,7 +137,9 @@ export function RealTimeMonitor({
     if (!isMonitoring) return;
 
     const interval = setInterval(fetchRealData, refreshInterval);
-    return () => { clearInterval(interval); };
+    return () => {
+      clearInterval(interval);
+    };
   }, [isMonitoring, refreshInterval, fetchRealData]);
 
   const handleToggleMonitoring = useCallback(() => {
@@ -482,7 +484,13 @@ export function RealTimeMonitor({
             <Button variant="outline" size="sm" className="h-7 text-xs">
               Export Data
             </Button>
-            <Button size="sm" className="h-7 text-xs" onClick={() => { setAlertsCount(0); }}>
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setAlertsCount(0);
+              }}
+            >
               Clear Alerts
             </Button>
           </div>

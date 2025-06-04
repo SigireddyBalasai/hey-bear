@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 
 import twilio from 'twilio';
+import type { LocalInstance } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
 
 import { createClient } from '@/utils/supabase/server';
+
+interface SearchPhoneNumberRequest {
+  areaCode: string;
+  country?: string;
+  smsEnabled?: boolean;
+}
 
 export async function POST(req: Request) {
   try {
@@ -19,7 +26,7 @@ export async function POST(req: Request) {
 
     // Check admin status
     const { data: userData, error: userDataError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -30,7 +37,11 @@ export async function POST(req: Request) {
     }
 
     // Get search parameters
-    const { areaCode, country = 'US', smsEnabled = true } = await req.json();
+    const {
+      areaCode,
+      country = 'US',
+      smsEnabled = true,
+    } = (await req.json()) as SearchPhoneNumberRequest;
 
     if (!areaCode) {
       return NextResponse.json({ error: 'Area code is required' }, { status: 400 });
@@ -70,7 +81,9 @@ export async function POST(req: Request) {
 
     try {
       // Search for phone numbers using Twilio API
-      const availableNumbers = await client.availablePhoneNumbers(country).local.list(searchParams);
+      const availableNumbers = (await client
+        .availablePhoneNumbers(country)
+        .local.list(searchParams)) as LocalInstance[];
 
       // Format the response
       const formattedNumbers = availableNumbers.map(number => ({

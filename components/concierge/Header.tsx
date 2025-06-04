@@ -37,7 +37,7 @@ export function Header({ user, handleSignOut }: HeaderProps) {
       if (user) {
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
-          .schema('users')
+
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)

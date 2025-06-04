@@ -34,6 +34,20 @@ interface AssistantPhoneNumberSelectorProps {
   onPhoneNumberAssigned?: (phoneNumber: string) => void;
 }
 
+// Add interfaces for API responses
+interface AssignPhoneNumberResponse {
+  error?: string;
+  data?: {
+    phoneNumber: string;
+  };
+  phoneNumber?: string;
+}
+
+interface UnassignPhoneNumberResponse {
+  error?: string;
+  success?: boolean;
+}
+
 const COUNTRY_CODES: Record<CountryCode, { name: string; prefix: string }> = {
   US: { name: 'United States', prefix: '+1' },
   CA: { name: 'Canada', prefix: '+1' },
@@ -95,59 +109,60 @@ export function AssistantPhoneNumberSelector({
   const assignPhoneNumber = useCallback(async () => {
     setIsAssigning(true);
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Generate a random phone number based on the country code
-      let phoneNumber: string;
-
-      switch (selectedCountry) {
-        case 'US':
-        case 'CA': {
-          const areaCodeToUse = areaCode || '415';
-          const randomNumber = Math.floor(Math.random() * 10_000_000)
-            .toString()
-            .padStart(7, '0');
-          phoneNumber = `+1${areaCodeToUse}${randomNumber}`;
-          break;
-        }
-        case 'GB': {
-          const randomNumber = Math.floor(Math.random() * 1_000_000_000)
-            .toString()
-            .padStart(9, '0');
-          phoneNumber = `+447${randomNumber}`;
-          break;
-        }
-        case 'AU': {
-          const randomNumber = Math.floor(Math.random() * 10_000_000)
-            .toString()
-            .padStart(8, '0');
-          phoneNumber = `+614${randomNumber}`;
-          break;
-        }
-        default: {
-          const randomNumber = Math.floor(Math.random() * 10_000_000_000)
-            .toString()
-            .padStart(10, '0');
-          phoneNumber = `+1${randomNumber}`;
-        }
+      if (!selectedCountry) {
+        toast.error('Please select a country');
+        return;
       }
 
-      setCurrentPhoneNumber(phoneNumber);
+      // Build request body for real phone number assignment
+      const requestBody: {
+        assistantId: string;
+        countryCode: string;
+        areaCode?: string;
+      } = {
+        assistantId: _assistantId,
+        countryCode: selectedCountry,
+      };
+
+      // Only add areaCode if it's provided
+      if (areaCode && areaCode.trim() !== '') {
+        requestBody.areaCode = areaCode.trim();
+      }
+
+      const response = await fetch('/api/phone-numbers/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as AssignPhoneNumberResponse;
+        throw new Error(errorData.error || 'Failed to assign phone number');
+      }
+
+      const result = (await response.json()) as AssignPhoneNumberResponse;
+      const assignedNumber = result.data?.phoneNumber || result.phoneNumber;
+
+      if (!assignedNumber) {
+        throw new Error('No phone number received from assignment');
+      }
+
+      setCurrentPhoneNumber(assignedNumber);
       setDialogOpen(false);
 
       toast.success('Phone number assigned successfully!');
-
-      onPhoneNumberAssigned?.(phoneNumber);
+      onPhoneNumberAssigned?.(assignedNumber);
     } catch (error) {
       console.error('Error assigning phone number:', error);
-      toast.error('Failed to assign phone number');
+      toast.error(error instanceof Error ? error.message : 'Failed to assign phone number');
     } finally {
       setIsAssigning(false);
     }
-  }, [selectedCountry, areaCode, onPhoneNumberAssigned]);
+  }, [selectedCountry, areaCode, _assistantId, onPhoneNumberAssigned]);
 
-  // Clear/Unassign the current phone number (mock implementation)
+  // Unassign the current phone number
   const unassignPhoneNumber = useCallback(async () => {
     if (!currentPhoneNumber) return;
 
@@ -156,20 +171,32 @@ export function AssistantPhoneNumberSelector({
 
     setIsLoading(true);
     try {
-      // Add API call here when implementing
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/api/phone-numbers/unassign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assistantId: _assistantId,
+          phoneNumber: currentPhoneNumber,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as UnassignPhoneNumberResponse;
+        throw new Error(errorData.error || 'Failed to unassign phone number');
+      }
 
       setCurrentPhoneNumber(null);
       toast.success('Phone number unassigned successfully');
-
       onPhoneNumberAssigned?.('');
     } catch (error) {
       console.error('Error unassigning phone number:', error);
-      toast.error('Failed to unassign phone number');
+      toast.error(error instanceof Error ? error.message : 'Failed to unassign phone number');
     } finally {
       setIsLoading(false);
     }
-  }, [currentPhoneNumber, onPhoneNumberAssigned]);
+  }, [currentPhoneNumber, _assistantId, onPhoneNumberAssigned]);
 
   if (isLoading) {
     return (
@@ -256,7 +283,12 @@ export function AssistantPhoneNumberSelector({
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setDialogOpen(false); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDialogOpen(false);
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button onClick={assignPhoneNumber} disabled={isAssigning}>

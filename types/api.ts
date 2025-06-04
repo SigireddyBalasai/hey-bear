@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
 
 import type { Database } from '@/lib/db.types';
 
@@ -9,17 +10,8 @@ export interface ApiResponse<T = unknown> {
   status?: number;
 }
 
-// Twilio related types
-export interface TwilioPhone {
-  phoneNumber: string;
-  friendlyName: string;
-  status: string;
-  capabilities: {
-    voice: boolean;
-    SMS: boolean;
-    MMS: boolean;
-  };
-}
+// Twilio related types - use Twilio SDK types
+export type TwilioPhone = IncomingPhoneNumberInstance;
 
 export interface TwilioSettings {
   accountSid: string;

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { createClient } from '@/utils/supabase/server';
 
+interface ImportPhoneNumberRequest {
+  phoneNumber: string;
+}
+
 export async function POST(req: Request) {
   try {
     // Check authentication and admin permissions
@@ -18,7 +22,7 @@ export async function POST(req: Request) {
     // Check admin status directly instead of using the utility function
     // This matches how it's done in the list endpoint that works
     const { data: userData, error: userDataError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin, id')
       .eq('auth_user_id', user.id) // Use auth_user_id, not user.id
@@ -30,9 +34,9 @@ export async function POST(req: Request) {
     }
 
     // Get the phone number to import
-    const { phoneNumber } = await req.json();
+    const { phoneNumber } = (await req.json()) as ImportPhoneNumberRequest;
 
-    if (!phoneNumber) {
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
 

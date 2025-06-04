@@ -1,10 +1,19 @@
-import { AlertCircle, Check } from 'lucide-react';
+import React from 'react';
+
+import { AlertCircle, Check, CreditCard } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { SUBSCRIPTION_PLANS, formatPrice } from '@/lib/stripe';
+import { SUBSCRIPTION_PLANS, formatPrice } from '@/lib/subscription-plans';
 import { cn } from '@/lib/utils';
 
 interface SubscriptionPlanSelectorProps {
@@ -26,15 +35,15 @@ export function SubscriptionPlanSelector({
       <RadioGroup
         value={selectedPlan}
         onValueChange={onSelectPlan}
-        className="grid grid-cols-1 gap-4 md:grid-cols-2"
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
       >
         {/* Personal Plan */}
         <div>
           <RadioGroupItem value="personal" id="personal" className="peer sr-only" />
-          <Label htmlFor="personal" className="flex h-full flex-col">
+          <Label htmlFor="personal" className="flex flex-col h-full">
             <Card
               className={cn(
-                'h-full cursor-pointer border-2',
+                'cursor-pointer border-2 h-full',
                 selectedPlan === 'personal' ? 'border-primary' : 'border-muted'
               )}
             >
@@ -50,12 +59,20 @@ export function SubscriptionPlanSelector({
               <CardContent>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center">
-                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
                     <span>Basic document processing</span>
                   </li>
                   <li className="flex items-center">
-                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
                     <span>Standard response times</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    <span>1 phone number</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    <span>100 SMS messages/month</span>
                   </li>
                 </ul>
               </CardContent>
@@ -66,10 +83,10 @@ export function SubscriptionPlanSelector({
         {/* Business Plan */}
         <div>
           <RadioGroupItem value="business" id="business" className="peer sr-only" />
-          <Label htmlFor="business" className="flex h-full flex-col">
+          <Label htmlFor="business" className="flex flex-col h-full">
             <Card
               className={cn(
-                'h-full cursor-pointer border-2',
+                'cursor-pointer border-2 h-full',
                 selectedPlan === 'business' ? 'border-primary' : 'border-muted'
               )}
             >
@@ -85,16 +102,24 @@ export function SubscriptionPlanSelector({
               <CardContent>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center">
-                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
                     <span>Priority document processing</span>
                   </li>
                   <li className="flex items-center">
-                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
                     <span>Faster response times</span>
                   </li>
                   <li className="flex items-center">
-                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
                     <span>Enhanced support</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    <span>5 phone numbers</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    <span>1000 SMS messages/month</span>
                   </li>
                 </ul>
               </CardContent>
@@ -103,9 +128,9 @@ export function SubscriptionPlanSelector({
         </div>
       </RadioGroup>
 
-      <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4">
+      <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-md">
         <div className="flex items-start">
-          <AlertCircle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+          <AlertCircle className="h-5 w-5 text-amber-500 mr-2 mt-0.5" />
           <div className="text-sm text-amber-800">
             <p className="font-medium">Subscription Notice</p>
             <p className="mt-1">

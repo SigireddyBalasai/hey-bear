@@ -74,7 +74,9 @@ export function AdminHeader({ user }: AdminHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Avatar className="h-8 w-8 cursor-pointer">
-              <AvatarImage src={user.user_metadata.avatar_url ?? ''} />
+              <AvatarImage
+                src={(user.user_metadata as { avatar_url?: string })?.avatar_url ?? ''}
+              />
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
@@ -93,7 +95,12 @@ export function AdminHeader({ user }: AdminHeaderProps) {
               <DropdownMenuItem>Admin Settings</DropdownMenuItem>
             </Link>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleSignOut}>
+            <DropdownMenuItem
+              className="cursor-pointer text-red-600"
+              onClick={() => {
+                void handleSignOut();
+              }}
+            >
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

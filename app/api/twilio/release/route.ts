@@ -6,6 +6,12 @@ import { isAdmin as checkIsAdmin } from '@/utils/admin';
 // Renamed import
 import { createClient } from '@/utils/supabase/server';
 
+interface ReleasePhoneNumberRequest {
+  twilioSid?: string;
+  phoneNumber?: string;
+  adminId?: string;
+}
+
 // Initialize Twilio client
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -32,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     // Parse request body
-    const body = await request.json();
+    const body = (await request.json()) as ReleasePhoneNumberRequest;
     const { twilioSid, phoneNumber, adminId: _adminId } = body;
 
     if (!twilioSid && !phoneNumber) {

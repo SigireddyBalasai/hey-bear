@@ -1,8 +1,8 @@
 import type { Database, Tables } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/server';
 
-type Interaction = Tables<{ schema: 'analytics'; table: 'interactions' }>;
-type InteractionInsert = Database['analytics']['Tables']['interactions']['Insert'];
+type Interaction = Tables<'interactions'>;
+type InteractionInsert = Database['public']['Tables']['interactions']['Insert'];
 
 export async function getInteractions(
   assistantId?: string,
@@ -12,7 +12,7 @@ export async function getInteractions(
   try {
     const supabase = await createClient();
     let query = supabase
-      .schema('analytics')
+
       .from('interactions')
       .select('*')
       .order('interaction_time', { ascending: false })
@@ -29,13 +29,25 @@ export async function getInteractions(
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching interactions:', error);
+      console.error('Error fetching interactions:', {
+        message: error.message || 'Unknown error',
+        code: error.code || 'No code',
+        details: error.details || 'No details',
+        hint: error.hint || 'No hint',
+        stack: error.stack || 'No stack trace'
+      });
       throw error;
     }
 
     return data;
-  } catch (error) {
-    console.error('Error in getInteractions:', error);
+  } catch (error: unknown) {
+    const errorObj = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Error in getInteractions:', {
+      message: errorObj.message,
+      name: errorObj.name,
+      stack: errorObj.stack || 'No stack trace',
+      error: error
+    });
     throw error;
   }
 }
@@ -50,7 +62,7 @@ export async function getInteractionStats(assistantId: string): Promise<{
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .schema('analytics')
+
       .from('interactions')
       .select('duration, is_error, token_usage')
       .eq('assistant_id', assistantId);
@@ -98,7 +110,7 @@ export async function recordInteraction(
 
     // Get the application user ID from the auth user ID
     const { data: appUser, error: appUserError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('id')
       .eq('auth_user_id', authUserId)
@@ -123,10 +135,7 @@ export async function recordInteraction(
       // monthly_period can be derived or set here if needed, similar to logTwilioInteraction
     };
 
-    const { error: insertError } = await supabase
-      .schema('analytics')
-      .from('interactions')
-      .insert(interactionData);
+    const { error: insertError } = await supabase.from('interactions').insert(interactionData);
 
     if (insertError) {
       console.error('Error recording interaction:', insertError);
@@ -143,11 +152,7 @@ export async function deleteInteraction(interactionId: string): Promise<void> {
   try {
     const supabase = await createClient();
 
-    const { error } = await supabase
-      .schema('analytics')
-      .from('interactions')
-      .delete()
-      .eq('id', interactionId);
+    const { error } = await supabase.from('interactions').delete().eq('id', interactionId);
 
     if (error) {
       console.error('Error deleting interaction:', error);

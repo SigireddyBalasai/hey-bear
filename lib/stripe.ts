@@ -1,109 +1,41 @@
 import Stripe from 'stripe';
 
-// Check if we're on the client side
-const isClient = typeof globalThis !== 'undefined';
-
-// Server-side Stripe instance (for API routes)
-let stripe: Stripe | undefined;
-if (!isClient) {
-  // Only initialize on the server
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+// Only initialize Stripe on the server-side and when we have a valid key
+const createStripeInstance = (): Stripe | null => {
+  // Only run on server-side
+  if (typeof window !== 'undefined') {
+    return null;
+  }
+  
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  
+  // Check if we have a valid secret key (not a placeholder)
+  if (!secretKey || secretKey === 'your_stripe_secret_key' || secretKey.length < 10) {
+    console.warn('Stripe secret key is not configured or is a placeholder value');
+    return null;
+  }
+  
+  return new Stripe(secretKey, {
     apiVersion: '2025-03-31.basil',
   });
-}
-
-// Export server-side Stripe in a way that it's not bundled for client
-export { stripe };
-
-// Client-side Stripe instance and utilities
-let stripePromise: Promise<Stripe | null> | undefined;
-
-// Get the Stripe publishable key for client-side usage
-export const getStripePublishableKey = (): string => {
-  return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 };
 
-// Initialize Stripe on the client side
-export const getStripe = (): Promise<Stripe | null> =>
-  (stripePromise ??= (() => {
-    const publishableKey = getStripePublishableKey();
-    if (!publishableKey) {
-      console.error('Stripe publishable key is missing');
-      return Promise.resolve(null);
-    }
-    return Promise.resolve(new Stripe(publishableKey, { apiVersion: '2025-03-31.basil' }));
-  })());
+export const stripe = createStripeInstance();
 
-// Define subscription plans using NEXT_PUBLIC_ environment variables for client access
-export const SUBSCRIPTION_PLANS = {
-  PERSONAL: {
-    name: 'Personal',
-    id: process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PLAN_ID ?? process.env.STRIPE_PERSONAL_PLAN_ID,
-    price: 13.99,
-    features: [
-      'Document upload',
-      'Webpage referencing & crawling',
-      'Interaction analytics',
-      'Email support',
-      'Dedicated local phone number',
-      'SMS capabilities',
-      'Simple interface, easy management',
-      '300 messages/month (sent and received)',
-      '5 documents',
-      '5 webpages crawled',
-    ],
-    description: 'Perfect for individuals',
-  },
-  BUSINESS: {
-    name: 'Business',
-    id: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PLAN_ID ?? process.env.STRIPE_BUSINESS_PLAN_ID,
-    price: 34.99,
-    features: [
-      'Document upload',
-      'Webpage referencing & crawling',
-      'Interaction analytics',
-      'Priority email support',
-      'Dedicated local phone number',
-      'SMS capabilities',
-      'Webhook access',
-      'Simple interface, easy management',
-      '2,000 messages/month (sent and received)',
-      '25 documents',
-      '25 webpages crawled',
-    ],
-    description: 'For small to medium-sized businesses',
-  },
+export const getStripeInstance = (): Stripe | null => {
+  return stripe;
 };
 
-// Helper function to get formatted price with currency symbol
-export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(price);
-}
-
-// Helper function to check if a subscription is active
 export const isSubscriptionActive = (
   subscription: { status?: string } | null | undefined
 ): boolean => {
-  if (!subscription) return false;
-  return subscription.status === 'active' || subscription.status === 'trialing';
+  return subscription?.status === 'active' || subscription?.status === 'trialing';
 };
 
-// Helper function to get the subscription plan details
-export const getSubscriptionPlanDetails = (planId: string | undefined) => {
-  if (planId === SUBSCRIPTION_PLANS.PERSONAL.id) return SUBSCRIPTION_PLANS.PERSONAL;
-  if (planId === SUBSCRIPTION_PLANS.BUSINESS.id) return SUBSCRIPTION_PLANS.BUSINESS;
-  return null;
-};
-
-// Get the server-side Stripe instance
-export const getStripeInstance = (): Stripe | undefined => {
-  if (typeof globalThis !== 'undefined') {
-    console.warn('getStripeInstance should not be called client-side');
-    return undefined;
-  }
-  stripe ??= new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2025-03-31.basil' });
-  return stripe;
-};
+// Re-export subscription plans from the client-safe module
+export { 
+  SUBSCRIPTION_PLANS, 
+  formatPrice, 
+  getSubscriptionPlanDetails, 
+  getPlanLimits 
+} from './subscription-plans';

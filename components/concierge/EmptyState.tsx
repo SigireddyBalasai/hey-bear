@@ -6,9 +6,15 @@ type EmptyStateProps = {
   searchQuery: string;
   onClearSearch: () => void;
   onCreateNew: () => void;
+  noAssistantsYet?: boolean;
 };
 
-export function EmptyState({ searchQuery, onClearSearch, onCreateNew }: EmptyStateProps) {
+export function EmptyState({
+  searchQuery,
+  onClearSearch,
+  onCreateNew,
+  noAssistantsYet = true,
+}: EmptyStateProps) {
   const hasSearchQuery = Boolean(searchQuery);
 
   return (
@@ -16,11 +22,15 @@ export function EmptyState({ searchQuery, onClearSearch, onCreateNew }: EmptySta
       <div className="mb-4 rounded-full bg-muted p-4">
         <Bot className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="mb-2 text-xl font-semibold">No No-show found</h3>
+      <h3 className="mb-2 text-xl font-semibold">
+        {hasSearchQuery ? 'No No-show found' : 'No assistants found'}
+      </h3>
       <p className="mb-6 max-w-md text-muted-foreground">
         {hasSearchQuery
           ? `No No-show match your search for "${searchQuery}"`
-          : "You don't have any No-show yet. Create your first one to get started."}
+          : noAssistantsYet
+            ? "You don't have any assistants yet. Create your first one to get started."
+            : 'There are currently no assistants in your account.'}
       </p>
       {hasSearchQuery ? (
         <Button variant="outline" onClick={onClearSearch}>
@@ -30,7 +40,7 @@ export function EmptyState({ searchQuery, onClearSearch, onCreateNew }: EmptySta
       ) : (
         <Button onClick={onCreateNew}>
           <Plus className="mr-2 h-4 w-4" />
-          Create No-show
+          Create New Assistant
         </Button>
       )}
     </div>

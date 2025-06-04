@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: 'Admin dashboard for Hey Bear application',
 };
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({ children }: { readonly children: React.ReactNode }) {
   return <div className="min-h-screen bg-background">{children}</div>;
 }

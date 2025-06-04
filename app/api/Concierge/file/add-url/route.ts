@@ -3,8 +3,11 @@ import type { NextRequest } from 'next/server';
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import * as path from 'node:path';
+import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
+
+import { getPineconeClient } from '@/lib/pinecone';
+import { createClient } from '@/utils/supabase/server';
 
 // Create a logger function for consistent log formatting
 const logger = {
@@ -27,8 +30,9 @@ const logger = {
     status?: number,
     details?: unknown
   ) => {
+    const statusPart = status ? ` - ${String(status)}` : '';
     console.log(
-      `[CRAWL HTTP] ${new Date().toISOString()} - ${direction} - ${method} ${url}${status ? ` - ${status}` : ''}`,
+      `[CRAWL HTTP] ${new Date().toISOString()} - ${direction} - ${method} ${url}${statusPart}`,
       details ?? ''
     );
   },
@@ -39,7 +43,7 @@ const logger = {
 // Set maxDuration to 60 seconds to comply with Vercel hobby plan limitations
 export const maxDuration = 60;
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
-const FIRECRAWL_BASE_URL = 'http://34.30.131.11:11235';
+const FIRECRAWL_BASE_URL = 'https://34.30.131.11:11235';
 
 // Define types for Firecrawl responses based on the observed response structure
 interface FirecrawlTaskResponse {
@@ -47,6 +51,21 @@ interface FirecrawlTaskResponse {
   created_at: number;
   result?: FirecrawlResult;
   results?: FirecrawlResult[]; // Added to handle results array format
+}
+
+interface FirecrawlCrawlResponse {
+  task_id: string;
+}
+
+interface RequestBody {
+  assistantId: string;
+  pinecone_name: string;
+  url: string;
+}
+
+interface ErrorData {
+  detail?: string;
+  message?: string;
 }
 
 interface FirecrawlResult {
@@ -88,7 +107,7 @@ interface FirecrawlResult {
 const fetchWithLogging = async (url: string, options: RequestInit) => {
   const method = options.method ?? 'GET';
   const headers = options.headers ?? {};
-  const body = options.body ? JSON.parse(options.body as string) : undefined;
+  const body: unknown = options.body ? JSON.parse(options.body as string) : undefined;
   logger.http('REQUEST', method, url, undefined, {
     headers: Object.keys(headers),
     body,
@@ -99,7 +118,7 @@ const fetchWithLogging = async (url: string, options: RequestInit) => {
     const response = await fetch(url, options);
     const duration = Date.now() - startTime;
 
-    let responseData;
+    let responseData: unknown;
     let responseText = '';
 
     // Try to parse response as JSON
@@ -118,7 +137,7 @@ const fetchWithLogging = async (url: string, options: RequestInit) => {
     }
 
     logger.http('RESPONSE', method, url, response.status, {
-      duration: `${duration}ms`,
+      duration: `${String(duration)}ms`,
       ok: response.ok,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries()),
@@ -162,8 +181,9 @@ export async function POST(req: NextRequest) {
 
     if (authError) {
       logger.error('Authentication error', authError);
+      const errorMessage = authError instanceof Error ? authError.message : String(authError);
       return NextResponse.json(
-        { error: 'Unauthorized: Authentication error', details: authError.message },
+        { error: 'Unauthorized: Authentication error', details: errorMessage },
         { status: 401 }
       );
     }
@@ -176,9 +196,9 @@ export async function POST(req: NextRequest) {
     logger.info(`User authenticated successfully: ${user.id}`);
 
     // Validate request body
-    let body;
+    let body: RequestBody;
     try {
-      body = await req.json();
+      body = (await req.json()) as RequestBody;
       logger.debug('Request body parsed', { body });
     } catch (parseError) {
       logger.error('Failed to parse request body', parseError);
@@ -213,16 +233,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify assistant exists
-    logger.info(`Verifying assistant exists: ${assistantId}`);
-    const { data: _assistant, error: assistantError } = await supabase
-      .schema('assistants')
+    logger.info(`Verifying assistant exists: ${String(assistantId)}`);
+    const { error: assistantError } = await supabase
+
       .from('assistants')
       .select('*')
       .eq('id', assistantId)
       .single();
 
     if (assistantError) {
-      logger.error(`Error fetching assistant with ID ${assistantId}`, assistantError);
+      logger.error(`Error fetching assistant with ID ${String(assistantId)}`, assistantError);
       return NextResponse.json(
         { error: 'Failed to fetch assistant information', details: assistantError.message },
         { status: 500 }
@@ -256,10 +276,10 @@ export async function POST(req: NextRequest) {
 
     if (!crawlResponse.ok) {
       const errorStatus = crawlResponse.status;
-      let errorData;
+      let errorData: ErrorData;
 
       try {
-        errorData = await crawlResponse.json();
+        errorData = (await crawlResponse.json()) as ErrorData;
       } catch {
         errorData = { message: 'Could not parse error response' };
       }
@@ -276,7 +296,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const crawlData = await crawlResponse.json();
+    const crawlData = (await crawlResponse.json()) as FirecrawlCrawlResponse;
     const { task_id } = crawlData;
     logger.info(`Crawl task initiated with task ID: ${task_id}`);
 
@@ -307,9 +327,9 @@ export async function POST(req: NextRequest) {
       });
 
       if (!taskResponse.ok) {
-        let errorData;
+        let errorData: ErrorData;
         try {
-          errorData = await taskResponse.json();
+          errorData = (await taskResponse.json()) as ErrorData;
         } catch {
           errorData = { message: 'Could not parse error response' };
         }

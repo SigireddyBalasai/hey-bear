@@ -150,13 +150,20 @@ function Dashboard() {
     try {
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(
-        endDate.getDate() - (selectedTimeRange === '7d' ? 7 : selectedTimeRange === '30d' ? 30 : 90)
-      );
+
+      // Calculate days to subtract based on selected time range
+      let daysToSubtract = 30; // default
+      if (selectedTimeRange === '7d') {
+        daysToSubtract = 7;
+      } else if (selectedTimeRange === '90d') {
+        daysToSubtract = 90;
+      }
+
+      startDate.setDate(endDate.getDate() - daysToSubtract);
 
       // Get user stats - fetch only id and last_active, as full_name and email seem to be missing
       const { data: allUsers, error: usersError } = await supabase
-        .schema('users')
+
         .from('users')
         .select('id, last_active'); // Select only id and last_active
 
@@ -179,7 +186,7 @@ function Dashboard() {
 
       // Get interaction metrics
       const { data: interactions, error: interactionsError } = await supabase
-        .schema('analytics')
+
         .from('interactions')
         .select('*')
         .gte('interaction_time', startDate.toISOString())
@@ -323,7 +330,7 @@ function Dashboard() {
         setUser(currentUser);
 
         const { data: adminCheck, error: adminError } = await supabase
-          .schema('users')
+
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', currentUser.id)
@@ -344,41 +351,48 @@ function Dashboard() {
       }
     };
 
-    checkAdminStatus();
+    void checkAdminStatus();
   }, [router, supabase, loadDashboardData]);
 
   const generateChartData = (dataType: 'interactions' | 'tokens' | 'costs'): ChartData => {
     const { timeSeriesData } = dashboardStats;
 
+    // Helper function to get data values based on type
+    const getDataValue = (d: TimeSeriesDataPoint) => {
+      if (dataType === 'interactions') return d.interactions;
+      if (dataType === 'tokens') return d.totalTokens;
+      return d.costs;
+    };
+
+    // Helper function to get border color based on type
+    const getBorderColor = () => {
+      if (dataType === 'interactions') return 'rgb(75, 192, 192)';
+      if (dataType === 'tokens') return 'rgb(255, 99, 132)';
+      return 'rgb(255, 159, 64)';
+    };
+
+    // Helper function to get background color based on type
+    const getBackgroundColor = () => {
+      if (dataType === 'interactions') return 'rgba(75, 192, 192, 0.1)';
+      if (dataType === 'tokens') return 'rgba(255, 99, 132, 0.1)';
+      return 'rgba(255, 159, 64, 0.1)';
+    };
+
+    // Helper function to get label based on type
+    const getLabel = () => {
+      if (dataType === 'interactions') return 'Daily Interactions';
+      if (dataType === 'tokens') return 'Token Usage';
+      return 'Daily Costs';
+    };
+
     return {
       labels: timeSeriesData.map(d => d.date),
       datasets: [
         {
-          label:
-            dataType === 'interactions'
-              ? 'Daily Interactions'
-              : dataType === 'tokens'
-                ? 'Token Usage'
-                : 'Daily Costs',
-          data: timeSeriesData.map(d =>
-            dataType === 'interactions'
-              ? d.interactions
-              : dataType === 'tokens'
-                ? d.totalTokens
-                : d.costs
-          ),
-          borderColor:
-            dataType === 'interactions'
-              ? 'rgb(75, 192, 192)'
-              : dataType === 'tokens'
-                ? 'rgb(255, 99, 132)'
-                : 'rgb(255, 159, 64)',
-          backgroundColor:
-            dataType === 'interactions'
-              ? 'rgba(75, 192, 192, 0.1)'
-              : dataType === 'tokens'
-                ? 'rgba(255, 99, 132, 0.1)'
-                : 'rgba(255, 159, 64, 0.1)',
+          label: getLabel(),
+          data: timeSeriesData.map(data => getDataValue(data)),
+          borderColor: getBorderColor(),
+          backgroundColor: getBackgroundColor(),
           fill: true,
           tension: 0.3,
         },
@@ -414,7 +428,13 @@ function Dashboard() {
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
+          <Button
+            onClick={() => {
+              router.push('/');
+            }}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
@@ -466,7 +486,11 @@ function Dashboard() {
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Last{' '}
-                  {selectedTimeRange === '7d' ? '7' : selectedTimeRange === '30d' ? '30' : '90'}{' '}
+                  {(() => {
+                    if (selectedTimeRange === '7d') return '7';
+                    if (selectedTimeRange === '30d') return '30';
+                    return '90';
+                  })()}{' '}
                   days
                 </p>
               </div>
@@ -501,21 +525,27 @@ function Dashboard() {
               <Button
                 variant={selectedTimeRange === '7d' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => { setSelectedTimeRange('7d'); }}
+                onClick={() => {
+                  setSelectedTimeRange('7d');
+                }}
               >
                 Week
               </Button>
               <Button
                 variant={selectedTimeRange === '30d' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => { setSelectedTimeRange('30d'); }}
+                onClick={() => {
+                  setSelectedTimeRange('30d');
+                }}
               >
                 Month
               </Button>
               <Button
                 variant={selectedTimeRange === '90d' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => { setSelectedTimeRange('90d'); }}
+                onClick={() => {
+                  setSelectedTimeRange('90d');
+                }}
               >
                 Quarter
               </Button>
@@ -567,7 +597,7 @@ function Dashboard() {
                         y: {
                           ...chartOptions.scales.y,
                           ticks: {
-                            callback: value => `$${value}`,
+                            callback: value => `$${String(value)}`,
                           },
                         },
                       },
@@ -586,7 +616,9 @@ function Dashboard() {
               variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => { router.push('/admin/users'); }}
+              onClick={() => {
+                router.push('/admin/users');
+              }}
             >
               View All Users
             </Button>

@@ -46,11 +46,23 @@ const FilterComponent = ({
         <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
           <div>
             <label className="mb-1 block text-sm font-medium">From Date</label>
-            <Input type="date" value={fromDate} onChange={e => { onFromDateChange(e.target.value); }} />
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={e => {
+                onFromDateChange(e.target.value);
+              }}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">To Date</label>
-            <Input type="date" value={toDate} onChange={e => { onToDateChange(e.target.value); }} />
+            <Input
+              type="date"
+              value={toDate}
+              onChange={e => {
+                onToDateChange(e.target.value);
+              }}
+            />
           </div>
           <div>
             <h3 className="mb-2 font-medium">Concierge</h3>

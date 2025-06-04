@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
 
 import twilio from 'twilio';
+import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
 
 import { createClient } from '@/utils/supabase/server';
+
+interface PurchasePhoneNumberRequest {
+  phoneNumber: string;
+}
+
+// Use Twilio SDK type instead of custom interface
+type TwilioPhoneNumber = IncomingPhoneNumberInstance;
 
 export async function POST(req: Request) {
   try {
@@ -19,7 +27,7 @@ export async function POST(req: Request) {
 
     // Check admin status
     const { data: userData, error: userDataError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin, id')
       .eq('auth_user_id', user.id)
@@ -30,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     // Get the phone number to purchase
-    const { phoneNumber } = await req.json();
+    const { phoneNumber } = (await req.json()) as PurchasePhoneNumberRequest;
 
     if (!phoneNumber) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
@@ -52,11 +60,11 @@ export async function POST(req: Request) {
         process.env.TWILIO_WEBHOOK_URL ?? `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/webhook`;
 
       // Purchase the number with Twilio API
-      const purchasedNumber = await client.incomingPhoneNumbers.create({
+      const purchasedNumber = (await client.incomingPhoneNumbers.create({
         phoneNumber: phoneNumber,
         smsUrl: webhookUrl,
         smsMethod: 'POST',
-      });
+      })) as TwilioPhoneNumber;
 
       // Add the phone number to the database
       const { data: number, error: insertError } = await supabase
@@ -86,20 +94,17 @@ export async function POST(req: Request) {
       // Add to phone number poo
 
       // Log the purchase as an interaction for auditing
-      await supabase
-        .schema('analytics')
-        .from('interactions')
-        .insert({
-          user_id: userData.id,
-          chat: 'system',
-          request: 'Purchase phone number',
-          response: JSON.stringify({
-            action: 'purchase_phone_number',
-            number: purchasedNumber.phoneNumber,
-            sid: purchasedNumber.sid,
-          }),
-          interaction_time: new Date().toISOString(),
-        });
+      await supabase.from('interactions').insert({
+        user_id: userData.id,
+        chat: 'system',
+        request: 'Purchase phone number',
+        response: JSON.stringify({
+          action: 'purchase_phone_number',
+          number: purchasedNumber.phoneNumber,
+          sid: purchasedNumber.sid,
+        }),
+        interaction_time: new Date().toISOString(),
+      });
 
       return NextResponse.json({
         success: true,

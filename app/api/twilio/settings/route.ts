@@ -12,6 +12,10 @@ type TwilioSettings = {
   voiceEnabled: boolean;
 };
 
+interface UpdateSettingsRequest {
+  settings: TwilioSettings;
+}
+
 // Get current settings
 export async function GET(_req: Request) {
   try {
@@ -31,7 +35,7 @@ export async function GET(_req: Request) {
 
     // Check admin status - directly query the users table
     const { data: userData, error: userDataError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -93,7 +97,7 @@ export async function POST(req: Request) {
 
     // Check admin status - directly using auth_user_id
     const { data: userData, error: userDataError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -105,7 +109,7 @@ export async function POST(req: Request) {
     }
 
     // Get settings from request body
-    const { settings } = await req.json();
+    const { settings } = (await req.json()) as UpdateSettingsRequest;
 
     if (!settings) {
       return NextResponse.json({ error: 'Settings are required' }, { status: 400 });

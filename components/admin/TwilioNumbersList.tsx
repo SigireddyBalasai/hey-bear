@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { AlertTriangle, Check, ExternalLink, Phone, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
 
 import { fetchAllPhoneNumbers, importPhoneNumber } from '@/app/admin/utils/twilioUtils';
 import { Badge } from '@/components/ui/badge';
@@ -17,15 +18,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
-interface TwilioNumber {
-  phoneNumber: string;
-  friendlyName: string;
-  capabilities: {
-    sms?: boolean;
-    voice?: boolean;
-    mms?: boolean;
-  };
-}
+// Use Twilio SDK type instead of custom interface
+type TwilioNumber = IncomingPhoneNumberInstance;
 
 interface DatabaseNumber {
   phone_number: string;
@@ -47,9 +41,18 @@ export function TwilioNumbersList() {
 
     try {
       const data = await fetchAllPhoneNumbers();
-      setTwilioNumbers(data.twilioNumbers);
-      setDbNumbers(data.dbNumbers);
-      setUnmanagedNumbers(data.unmanagedNumbers);
+      // Type safety checks
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.twilioNumbers)) {
+          setTwilioNumbers(data.twilioNumbers as TwilioNumber[]);
+        }
+        if (Array.isArray(data.dbNumbers)) {
+          setDbNumbers(data.dbNumbers as DatabaseNumber[]);
+        }
+        if (Array.isArray(data.unmanagedNumbers)) {
+          setUnmanagedNumbers(data.unmanagedNumbers as TwilioNumber[]);
+        }
+      }
     } catch (error) {
       console.error('Error fetching phone numbers:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
@@ -65,7 +68,7 @@ export function TwilioNumbersList() {
     try {
       await importPhoneNumber(phoneNumber);
       toast.success('Phone number added to database');
-      fetchPhoneNumbers(); // Refresh data
+      void fetchPhoneNumbers(); // Refresh data
     } catch (error) {
       console.error('Error adding phone number:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to add number');
@@ -76,7 +79,7 @@ export function TwilioNumbersList() {
 
   // Load data on component mount
   useEffect(() => {
-    fetchPhoneNumbers();
+    void fetchPhoneNumbers();
   }, []);
 
   return (
@@ -237,9 +240,16 @@ export function TwilioNumbersList() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            window.open('https://www.twilio.com/console/phone-numbers/incoming', '_blank')
-          }
+          onClick={() => {
+            // Use noopener for security when opening external links
+            const newWindow = window.open(
+              'https://www.twilio.com/console/phone-numbers/incoming',
+              '_blank'
+            );
+            if (newWindow) {
+              newWindow.opener = null;
+            }
+          }}
         >
           <ExternalLink className="mr-1 h-3.5 w-3.5" />
           Manage in Twilio Console

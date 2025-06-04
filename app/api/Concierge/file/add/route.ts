@@ -26,8 +26,8 @@ const ALLOWED_FILE_TYPES = new Set([
 ]);
 
 // Define types based on db.types.ts
-type AssistantConfigFromDb = Database['assistants']['Tables']['assistant_configs']['Row'];
-type AssistantFromDb = Database['assistants']['Tables']['assistants']['Row'];
+type AssistantConfigFromDb = Database['public']['Tables']['assistant_configs']['Row'];
+type AssistantFromDb = Database['public']['Tables']['assistants']['Row'];
 
 // Type for an assistant with its configuration, specifically needing pinecone_name
 type TypedAssistantWithSpecificConfig = AssistantFromDb & {
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     if (!pinecone_name) {
       const { data: assistantData, error: assistantError } = await supabase
-        .schema('assistants')
+
         .from('assistants')
         .select('id, assistant_configs!inner(pinecone_name)') // Ensure inner join and select only needed fields
         .eq('id', assistantId)
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
       if (assistantError) {
         console.error('Error fetching assistant data or configuration:', assistantError);
-        const errorCode = (assistantError).code;
+        const errorCode = assistantError.code;
         return NextResponse.json(
           { error: 'Failed to fetch assistant configuration', details: assistantError.message },
           { status: errorCode === 'PGRST116' ? 404 : 500 }
@@ -131,22 +131,23 @@ export async function POST(req: NextRequest) {
       const assistant = pinecone.Assistant(pinecone_name); // pinecone_name is guaranteed non-null
 
       try {
-        const uploadResult = await assistant.uploadFile({
+        const options: UploadFileOptions = {
           path: tempFilePath,
-        } as UploadFileOptions);
+        };
+        const uploadResult = await assistant.uploadFile(options);
 
-        await fs
-          .unlink(tempFilePath)
-          .catch(error => { console.warn('Error deleting temp file:', error); });
+        await fs.unlink(tempFilePath).catch((error: unknown) => {
+          console.warn('Error deleting temp file:', error);
+        });
 
         return NextResponse.json({
           message: 'File uploaded successfully',
           fileId: uploadResult.id,
         });
       } catch (uploadError: unknown) {
-        await fs
-          .unlink(tempFilePath)
-          .catch(error => { console.warn('Error deleting temp file:', error); });
+        await fs.unlink(tempFilePath).catch((error: unknown) => {
+          console.warn('Error deleting temp file:', error);
+        });
 
         if (uploadError instanceof Error && uploadError.message.includes('Invalid file type')) {
           return NextResponse.json(

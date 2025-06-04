@@ -1,6 +1,6 @@
 import type { Tables } from '@/lib/db.types';
 
-export type Interaction = Tables<{ schema: 'analytics'; table: 'interactions' }> & {
+export type Interaction = Tables<'interactions'> & {
   date?: string;
   phoneNumber?: string;
   message?: string;

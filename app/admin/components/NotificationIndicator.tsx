@@ -3,7 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell } from 'lucide-react';
 
-import { getAdminNotifications, markNotificationAsRead } from '@/app/admin/utils/notifications';
+import {
+  type AdminNotification,
+  getAdminNotifications,
+  markNotificationAsRead,
+} from '@/app/admin/utils/notifications';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,7 +34,7 @@ export function NotificationIndicator({ userId }: NotificationIndicatorProps) {
   }, [userId]);
 
   useEffect(() => {
-    loadNotifications();
+    void loadNotifications();
   }, [userId, loadNotifications]);
 
   const handleMarkAsRead = async (notificationId: string) => {
@@ -56,19 +60,19 @@ export function NotificationIndicator({ userId }: NotificationIndicatorProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-        {loading ? (
-          <DropdownMenuItem disabled>Loading notifications...</DropdownMenuItem>
-        ) : notifications.length === 0 ? (
+        {loading && <DropdownMenuItem disabled>Loading notifications...</DropdownMenuItem>}
+        {!loading && notifications.length === 0 && (
           <DropdownMenuItem disabled className="text-xs text-muted-foreground">
             No notifications
           </DropdownMenuItem>
-        ) : (
+        )}
+        {!loading && notifications.length > 0 && (
           <>
             {notifications.map(notification => (
               <DropdownMenuItem
                 key={notification.id}
                 className={`flex flex-col items-start gap-1 p-3 ${notification.read ? 'opacity-70' : ''}`}
-                onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                onClick={() => !notification.read && void handleMarkAsRead(notification.id)}
               >
                 <div className="flex w-full items-center gap-2">
                   <span className={`text-sm font-medium ${getTypeColor(notification.type)}`}>
@@ -81,7 +85,7 @@ export function NotificationIndicator({ userId }: NotificationIndicatorProps) {
                 <p className="text-xs text-muted-foreground">{notification.message}</p>
                 <span className="text-[10px] text-muted-foreground">
                   {notification.created_at
-                    ? formatDistanceToNow(new Date(notification.created_at as string), {
+                    ? formatDistanceToNow(new Date(notification.created_at), {
                         addSuffix: true,
                       })
                     : 'Date not available'}

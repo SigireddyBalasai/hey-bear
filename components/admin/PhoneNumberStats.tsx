@@ -427,7 +427,9 @@ export function PhoneNumberStats({
                         <tr
                           key={phone.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => { onViewMessageDetails(phone.number); }}
+                          onClick={() => {
+                            onViewMessageDetails(phone.number);
+                          }}
                         >
                           <td className="px-4 py-3">
                             <div className="font-mono">{phone.number}</div>

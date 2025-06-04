@@ -52,11 +52,17 @@ export function TwilioNumbersList() {
       const response = await fetch('/api/twilio/list');
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as { error?: string };
         throw new Error(errorData.error ?? 'Failed to fetch Twilio numbers');
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        success?: boolean;
+        error?: string;
+        twilioNumbers?: TwilioNumber[];
+        dbNumbers?: DbNumber[];
+        unmanagedNumbers?: TwilioNumber[];
+      };
 
       if (!data.success) {
         throw new Error(data.error ?? 'Unknown error');
@@ -84,16 +90,19 @@ export function TwilioNumbersList() {
         body: JSON.stringify({ phoneNumber }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        error?: string;
+        success?: boolean;
+      };
 
       if (!response.ok) {
-        const errorMessage = data.error ?? `Failed with status: ${response.status}`;
+        const errorMessage = data.error ?? `Failed with status: ${String(response.status)}`;
         console.error('Import error:', data);
         throw new Error(errorMessage);
       }
 
       toast.success('Phone number added to database');
-      fetchTwilioNumbers(); // Refresh data
+      void fetchTwilioNumbers(); // Refresh data
     } catch (error) {
       console.error('Error adding phone number to database:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to add number');
@@ -104,7 +113,7 @@ export function TwilioNumbersList() {
 
   // Load data on component mount
   useEffect(() => {
-    fetchTwilioNumbers();
+    void fetchTwilioNumbers();
   }, []);
 
   return (
@@ -115,7 +124,12 @@ export function TwilioNumbersList() {
             <Phone className="h-5 w-5" />
             <span>Twilio Account Phone Numbers</span>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchTwilioNumbers} disabled={isLoading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchTwilioNumbers()}
+            disabled={isLoading}
+          >
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -124,7 +138,7 @@ export function TwilioNumbersList() {
       </CardHeader>
 
       <CardContent>
-        {error ? (
+        {error && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-center gap-2 text-amber-800">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
@@ -134,12 +148,14 @@ export function TwilioNumbersList() {
               </div>
             </div>
           </div>
-        ) : isLoading ? (
+        )}
+        {!error && isLoading && (
           <div className="py-8 text-center">
             <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground/50" />
             <p className="text-muted-foreground">Loading phone numbers from Twilio...</p>
           </div>
-        ) : (
+        )}
+        {!error && !isLoading && (
           <div className="space-y-6">
             {/* Unmanaged Numbers Section */}
             {unmanagedNumbers.length > 0 && (
@@ -265,9 +281,16 @@ export function TwilioNumbersList() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            window.open('https://www.twilio.com/console/phone-numbers/incoming', '_blank')
-          }
+          onClick={() => {
+            const newWindow = window.open(
+              'https://www.twilio.com/console/phone-numbers/incoming',
+              '_blank',
+              'noopener,noreferrer'
+            );
+            if (newWindow) {
+              newWindow.opener = null;
+            }
+          }}
         >
           <ExternalLink className="mr-1 h-3.5 w-3.5" />
           Manage in Twilio Console

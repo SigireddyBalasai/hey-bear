@@ -27,11 +27,41 @@ import {
 } from '@/components/ui/dialog';
 import { createClient } from '@/utils/supabase/client';
 
+// Utility functions moved to outer scope
+const formatPhoneNumber = (number: string): string => {
+  if (number.startsWith('+1') && number.length === 12) {
+    return `(${number.slice(2, 5)}) ${number.slice(5, 8)}-${number.slice(8)}`;
+  }
+  return number;
+};
+
+const parseChatData = (chatStr: string | null): { from: string; to: string; body: string } => {
+  if (!chatStr) return { from: 'unknown', to: 'unknown', body: '' };
+  try {
+    const parsed = JSON.parse(chatStr) as { from: string; to: string; body: string };
+    return parsed;
+  } catch {
+    return { from: 'unknown', to: 'unknown', body: '' };
+  }
+};
+
+const formatDate = (dateString: string): string => {
+  if (!dateString) return 'Unknown';
+  try {
+    return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+  } catch {
+    return dateString;
+  }
+};
+
+const getMessageContainerClass = (isIncoming: boolean): string => {
+  return `rounded-lg border p-4 ${isIncoming ? 'border-blue-100 bg-blue-50' : 'border-green-100 bg-green-50'}`;
+};
+
 type Message = {
   id: string;
   interaction_time: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  chat: any;
+  chat: string | null;
   from_phone?: string;
   to_phone?: string;
   message_body?: string;
@@ -49,9 +79,9 @@ type Assistant = {
 };
 
 interface TwilioMessageDetailsProps {
-  phoneNumber: string;
-  open: boolean;
-  onClose: () => void;
+  readonly phoneNumber: string;
+  readonly open: boolean;
+  readonly onClose: () => void;
 }
 
 export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessageDetailsProps) {
@@ -68,7 +98,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
 
     try {
       const { data: assistantData, error: assistantError } = await supabase
-        .schema('assistants')
+
         .from('assistants')
         .select('id, name, user_id')
         .eq('assigned_phone_number', phoneNumber)
@@ -86,7 +116,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
 
       // Get message count for pagination
       const { count, error: countError } = await supabase
-        .schema('analytics')
+
         .from('interactions')
         .select('id', { count: 'exact', head: true })
         .contains('chat', phoneNumber);
@@ -97,7 +127,7 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
 
       // Fetch messages for the current page
       const { data, error } = await supabase
-        .schema('analytics')
+
         .from('interactions')
         .select(
           `
@@ -127,36 +157,9 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
   // Fetch messages whenever phone number or page changes
   useEffect(() => {
     if (open && phoneNumber) {
-      fetchMessages();
+      void fetchMessages();
     }
   }, [open, phoneNumber, currentPage, fetchMessages]);
-
-  // Format phone number for display
-  const formatPhoneNumber = (number: string) => {
-    if (number.startsWith('+1') && number.length === 12) {
-      return `(${number.slice(2, 5)}) ${number.slice(5, 8)}-${number.slice(8)}`;
-    }
-    return number;
-  };
-
-  // Parse chat data from JSON string
-  const parseChatData = (chatStr: string) => {
-    try {
-      return JSON.parse(chatStr);
-    } catch {
-      return { from: 'unknown', to: 'unknown', body: '' };
-    }
-  };
-
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Unknown';
-    try {
-      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-    } catch {
-      return dateString;
-    }
-  };
 
   // Navigate to the previous page
   const previousPage = () => {
@@ -195,27 +198,26 @@ export function TwilioMessageDetails({ phoneNumber, open, onClose }: TwilioMessa
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
+        {isLoading && (
           <div className="py-8 text-center">
             <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
             <p className="text-muted-foreground">Loading message history...</p>
           </div>
-        ) : messages.length === 0 ? (
+        )}
+        {!isLoading && messages.length === 0 && (
           <div className="py-8 text-center">
             <MessageSquare className="mx-auto mb-4 h-10 w-10 text-muted-foreground opacity-50" />
             <p className="text-muted-foreground">No messages found for this phone number.</p>
           </div>
-        ) : (
+        )}
+        {!isLoading && messages.length > 0 && (
           <div className="space-y-4">
             {messages.map((message, _index) => {
               const chatData = parseChatData(message.chat);
               const isIncoming = chatData.to === phoneNumber;
 
               return (
-                <div
-                  key={message.id}
-                  className={`rounded-lg border p-4 ${isIncoming ? 'border-blue-100 bg-blue-50' : 'border-green-100 bg-green-50'}`}
-                >
+                <div key={message.id} className={getMessageContainerClass(isIncoming)}>
                   <div className="mb-3 flex items-start justify-between">
                     <Badge variant={isIncoming ? 'secondary' : 'default'} className="mb-2">
                       {isIncoming ? 'Incoming' : 'Outgoing'}

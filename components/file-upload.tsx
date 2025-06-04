@@ -34,6 +34,18 @@ interface AssistantPhoneNumberSelectorProps {
   currentPhoneNumber?: string | null;
 }
 
+interface AvailableNumbersResponse {
+  numbers: Array<{ id: string; phone_number: string }>;
+}
+
+interface ErrorResponse {
+  error: string;
+}
+
+interface AssignPhoneNumberResponse {
+  error?: string;
+}
+
 export function ConciergePhoneNumberSelector({
   assistantId,
   onAssigned,
@@ -75,11 +87,11 @@ export function ConciergePhoneNumberSelector({
       const response = await fetch('/api/phone-numbers/available');
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ErrorResponse;
         throw new Error(errorData.error ?? 'Failed to fetch available phone numbers');
       }
 
-      const { numbers } = await response.json();
+      const { numbers } = (await response.json()) as AvailableNumbersResponse;
       setAvailableNumbers(numbers ?? []);
     } catch (error) {
       console.error('Error fetching phone numbers:', error);
@@ -124,7 +136,7 @@ export function ConciergePhoneNumberSelector({
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as AssignPhoneNumberResponse;
 
       if (!response.ok) {
         throw new Error(data.error ?? 'Failed to assign phone number');
@@ -176,7 +188,7 @@ export function ConciergePhoneNumberSelector({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ErrorResponse;
         throw new Error(errorData.error ?? 'Failed to unassign phone number');
       }
 
@@ -275,7 +287,9 @@ export function ConciergePhoneNumberSelector({
                         <Checkbox
                           id="useDefaultWebhook"
                           checked={useDefaultWebhook}
-                          onCheckedChange={checked => { handleWebhookToggle(checked as boolean); }}
+                          onCheckedChange={checked => {
+                            handleWebhookToggle(checked as boolean);
+                          }}
                         />
                         <Label htmlFor="useDefaultWebhook">Use default webhook URL</Label>
                       </div>
@@ -285,7 +299,9 @@ export function ConciergePhoneNumberSelector({
                         <Input
                           id="webhook"
                           value={webhook}
-                          onChange={e => { setWebhook(e.target.value); }}
+                          onChange={e => {
+                            setWebhook(e.target.value);
+                          }}
                           disabled={useDefaultWebhook}
                           placeholder="https://your-webhook-url.com/path"
                         />
@@ -299,7 +315,12 @@ export function ConciergePhoneNumberSelector({
               )}
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setDialogOpen(false); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDialogOpen(false);
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button

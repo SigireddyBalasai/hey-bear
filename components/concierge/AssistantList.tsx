@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/utils/supabase/client';
 
 interface AssistantData {
   id: string;
@@ -54,37 +55,64 @@ export function AssistantList({
   const [isActionInProgressState, setIsActionInProgressState] = useState(isActionInProgress);
 
   // Handle toggle star action
-  const handleToggleStar = (id: string, isStarred: boolean) => {
+  const handleToggleStar = async (id: string, isStarred: boolean) => {
     if (onToggleStar) {
       onToggleStar(id, isStarred);
       return;
     }
 
     setIsActionInProgressState(true);
-    // Mock functionality without data fetching
-    setTimeout(() => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+
+        .from('assistants')
+        .update({ is_starred: isStarred })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
       toast(`Assistant ${isStarred ? 'starred' : 'unstarred'}`, {
         description: `${assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`,
       });
+    } catch (error) {
+      console.error('Error toggling star:', error);
+      toast.error('Failed to update star status');
+    } finally {
       setIsActionInProgressState(false);
-    }, 500);
+    }
   };
 
   // Handle delete action
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (onDelete) {
       onDelete(id);
       return;
     }
 
+    const confirmed = globalThis.confirm('Are you sure you want to delete this assistant?');
+    if (!confirmed) return;
+
     setIsActionInProgressState(true);
-    // Mock functionality without data fetching
-    setTimeout(() => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('assistants').delete().eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
       toast('Assistant deleted', {
         description: `${assistant.name} has been removed`,
       });
+    } catch (error) {
+      console.error('Error deleting assistant:', error);
+      toast.error('Failed to delete assistant');
+    } finally {
       setIsActionInProgressState(false);
-    }, 500);
+    }
   };
 
   // Get initials from name (e.g. "John Doe" -> "JD")
@@ -140,7 +168,7 @@ export function AssistantList({
   // Format the creation date
   const createdAt = assistant.created_at
     ? format(new Date(assistant.created_at), 'MMM d, yyyy')
-    : 'Unknown date';
+    : 'Recently created';
 
   return (
     <Card className="w-full p-4">
@@ -160,7 +188,7 @@ export function AssistantList({
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 p-0"
-                    onClick={e => {
+                    onClick={(e: React.MouseEvent) => {
                       e.preventDefault();
                       handleToggleStar(assistant.id, !assistant.is_starred);
                     }}
@@ -192,13 +220,11 @@ export function AssistantList({
               {assistant.description ?? 'No description provided'}
             </CardDescription>
 
-            {/* Show message count if available */}
-            {assistant.total_messages && assistant.total_messages > 0 && (
-              <Badge variant="outline" className="gap-1 text-xs">
-                <MessageSquare className="h-3 w-3" />
-                {assistant.total_messages}
-              </Badge>
-            )}
+            {/* Show message count or "No messages" if zero */}
+            <Badge variant="outline" className="gap-1 text-xs">
+              <MessageSquare className="h-3 w-3" />
+              {assistant.total_messages ? assistant.total_messages : 'New'}
+            </Badge>
           </div>
         </div>
 
@@ -244,7 +270,9 @@ export function AssistantList({
                   variant="ghost"
                   size="icon"
                   className="text-red-600"
-                  onClick={() => { handleDelete(assistant.id); }}
+                  onClick={() => {
+                    handleDelete(assistant.id);
+                  }}
                   disabled={isActionInProgressState}
                 >
                   {isActionInProgressState ? (

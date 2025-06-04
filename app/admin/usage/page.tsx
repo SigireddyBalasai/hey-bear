@@ -29,6 +29,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import type { UserStat } from '@/app/admin/types/dashboard';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { fetchUsageData } from '@/components/admin/utils/adminUtils';
 import { Loading } from '@/components/concierge/Loading';
 import { Button } from '@/components/ui/button';
@@ -134,7 +137,15 @@ export default function UsageAnalyticsPage() {
 
         setTotalStats(totalStats);
         setTimeSeriesData(timeSeriesData);
-        setUserStats(userStats);
+
+        // Calculate percentage for each user stat
+        const userStatsWithPercentage = userStats.map(user => ({
+          ...user,
+          email: user.email || '',
+          fullName: user.fullName || '',
+          percentage: totalStats.costs > 0 ? (user.costs / totalStats.costs) * 100 : 0,
+        }));
+        setUserStats(userStatsWithPercentage);
 
         // Calculate cost trends
         if (timeSeriesData.length > 0) {
@@ -202,7 +213,7 @@ export default function UsageAnalyticsPage() {
 
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
-          .schema('users')
+
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)
@@ -218,7 +229,7 @@ export default function UsageAnalyticsPage() {
 
         // Fetch real assistants
         const { data: assistantData } = await supabase
-          .schema('assistants')
+
           .from('assistants')
           .select('id, name')
           .eq('pending', false);
@@ -235,32 +246,32 @@ export default function UsageAnalyticsPage() {
       }
     };
 
-    checkAdminStatus();
+    void checkAdminStatus();
   }, [loadUsageData, router, selectedTimeframe, supabase]);
 
   // Handle timeframe change
   const handleTimeframeChange = (timeframe: string) => {
     setSelectedTimeframe(timeframe);
-    loadUsageData(timeframe);
+    void loadUsageData(timeframe);
   };
 
   // Handle model filter change
   const handleModelChange = (model: string) => {
     setSelectedModel(model);
     // Reload data with new model filter
-    loadUsageData(selectedTimeframe);
+    void loadUsageData(selectedTimeframe);
   };
 
   // Handle assistant change
   const handleAssistantChange = (assistant: string) => {
     setSelectedAssistant(assistant);
-    loadUsageData(selectedTimeframe, assistant);
+    void loadUsageData(selectedTimeframe, assistant);
   };
 
   // Add plan filter change handler
   const handlePlanChange = (plan: string) => {
     setSelectedPlan(plan);
-    loadUsageData(selectedTimeframe, selectedAssistant, plan);
+    void loadUsageData(selectedTimeframe, selectedAssistant, plan);
   };
 
   // Generate time series data for chart
@@ -331,7 +342,13 @@ export default function UsageAnalyticsPage() {
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
+          <Button
+            onClick={() => {
+              router.push('/');
+            }}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
@@ -412,28 +429,36 @@ export default function UsageAnalyticsPage() {
           <Button
             variant={selectedTimeframe === '7d' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => { handleTimeframeChange('7d'); }}
+            onClick={() => {
+              handleTimeframeChange('7d');
+            }}
           >
             7 days
           </Button>
           <Button
             variant={selectedTimeframe === '30d' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => { handleTimeframeChange('30d'); }}
+            onClick={() => {
+              handleTimeframeChange('30d');
+            }}
           >
             30 days
           </Button>
           <Button
             variant={selectedTimeframe === '90d' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => { handleTimeframeChange('90d'); }}
+            onClick={() => {
+              handleTimeframeChange('90d');
+            }}
           >
             90 days
           </Button>
           <Button
             variant={selectedTimeframe === '180d' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => { handleTimeframeChange('180d'); }}
+            onClick={() => {
+              handleTimeframeChange('180d');
+            }}
           >
             180 days
           </Button>
@@ -511,7 +536,7 @@ export default function UsageAnalyticsPage() {
                         beginAtZero: true,
                         ticks: {
                           callback: function (value) {
-                            return '$' + value;
+                            return '$' + String(value);
                           },
                         },
                       },
@@ -523,9 +548,9 @@ export default function UsageAnalyticsPage() {
                             const dataIndex = context.dataIndex;
                             const day = timeSeriesData[dataIndex] || { tokens: 0, interactions: 0 };
                             return [
-                              `Cost: $${context.raw}`,
+                              `Cost: $${Number(context.raw).toFixed(2)}`,
                               `Tokens: ${day.tokens.toLocaleString()}`,
-                              `Interactions: ${day.interactions}`,
+                              `Interactions: ${String(day.interactions)}`,
                             ];
                           },
                         },
@@ -557,7 +582,7 @@ export default function UsageAnalyticsPage() {
                         callbacks: {
                           label: function (context) {
                             const dataPoint = tokenDistribution[context.dataIndex];
-                            return `${dataPoint.type}: ${dataPoint.tokens.toLocaleString()} (${dataPoint.percentage}%)`;
+                            return `${dataPoint.type}: ${String(dataPoint.tokens.toLocaleString())} (${String(dataPoint.percentage)}%)`;
                           },
                         },
                       },
@@ -618,9 +643,9 @@ export default function UsageAnalyticsPage() {
                   return (
                     <div key={index} className="grid grid-cols-5 border-b p-3">
                       <div>
-                        <div className="font-medium">{user.fullName ?? 'Unknown User'}</div>
+                        <div className="font-medium">{user.fullName || 'Unknown User'}</div>
                         <div className="text-sm text-muted-foreground">
-                          {user.email ?? `User ID: ${user.userId}`}
+                          {user.email || `User ID: ${String(user.userId)}`}
                         </div>
                       </div>
                       <div className="text-right">{user.interactions}</div>
@@ -634,7 +659,13 @@ export default function UsageAnalyticsPage() {
             </div>
           </CardContent>
           <CardFooter className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={() => { router.push('/admin/user-usage'); }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                router.push('/admin/user-usage');
+              }}
+            >
               View All Users
             </Button>
           </CardFooter>
@@ -668,9 +699,9 @@ export default function UsageAnalyticsPage() {
                           const dataIndex = context.dataIndex;
                           const day = timeSeriesData[dataIndex] || { costs: 0, activeUsers: 0 };
                           return [
-                            `Tokens: ${context.raw}`,
+                            `Tokens: ${String(context.raw)}`,
                             `Cost: $${day.costs.toFixed(2)}`,
-                            `Active Users: ${day.activeUsers}`,
+                            `Active Users: ${String(day.activeUsers)}`,
                           ];
                         },
                       },

@@ -1,33 +1,33 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Added import
+import type { AssistantFilesList } from '@pinecone-database/pinecone';
 
 import type { Database } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
 
-// Define types based on db.types.ts
-type AssistantConfigFromDb = Database['assistants']['Tables']['assistant_configs']['Row'];
-type AssistantFromDb = Database['assistants']['Tables']['assistants']['Row'];
+// Use Supabase database types directly
+type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
+type AssistantRow = Database['public']['Tables']['assistants']['Row'];
 
-// Type for an assistant with its full configuration
-type TypedAssistantWithFullConfig = AssistantFromDb & {
-  assistant_configs: AssistantConfigFromDb; // Non-nullable due to the inner join with assistant_configs
+// Type for an assistant with its full configuration using Supabase types
+type AssistantWithConfig = AssistantRow & {
+  assistant_configs: AssistantConfigRow; // Non-nullable due to the inner join
 };
+
+// Request body interface using proper naming
+interface ListFilesRequest {
+  assistantId?: string;
+  pinecone_name?: string;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // Validate request body
-    const body = await req.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
-    }
+    // Validate request body with proper typing
+    const body = (await req.json()) as ListFilesRequest;
 
-    const { assistantId, pinecone_name: providedPineconeName } = body as {
-      assistantId?: string;
-      pinecone_name?: string;
-    }; // Type assertion for body
+    const { assistantId, pinecone_name: providedPineconeName } = body;
 
     // Validate required fields
     if (!assistantId) {
@@ -53,15 +53,15 @@ export async function POST(req: NextRequest) {
     if (!assistantPineconeName) {
       // Fetch the assistant and its configuration from the database
       const { data: assistantData, error: assistantError } = await supabase
-        .schema('assistants') // Schema for the 'assistants' table
+        // Schema for the 'assistants' table
         .from('assistants') // The 'assistants' table
         .select('id, assistant_configs!inner(*)') // Fetch all columns from assistant_configs
         .eq('id', assistantId)
-        .single<TypedAssistantWithFullConfig>(); // Apply the updated type here
+        .single<AssistantWithConfig>(); // Use the Supabase-based type
 
       if (assistantError) {
         console.error('Error fetching assistant data or configuration:', assistantError);
-        const errorCode = (assistantError).code;
+        const errorCode = assistantError.code;
         return NextResponse.json(
           { error: 'Failed to fetch assistant configuration', details: assistantError.message },
           { status: errorCode === 'PGRST116' ? 404 : 500 }
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
       // Get Pinecone client and list files for this assistant
       const pinecone = getPineconeClient();
       const assistant = pinecone.Assistant(assistantPineconeName); // assistantPineconeName is guaranteed non-null
-      const files = await assistant.listFiles();
+      const files: AssistantFilesList = await assistant.listFiles();
 
       return NextResponse.json({ files });
     } catch (error: unknown) {

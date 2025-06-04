@@ -7,10 +7,14 @@ import { isAdmin as checkIsAdmin } from '@/utils/admin';
 // Renamed import
 import { createClient } from '@/utils/supabase/server';
 
+interface RemovePhoneNumberRequest {
+  phoneNumber: string;
+}
+
 const twilioClient = Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 export async function POST(req: NextRequest) {
-  const { phoneNumber } = await req.json();
+  const { phoneNumber } = (await req.json()) as RemovePhoneNumberRequest;
   const supabase = await createClient();
 
   const {
@@ -29,8 +33,8 @@ export async function POST(req: NextRequest) {
 
   const { data: phoneData, error: fetchError } = await supabase
     .from('phone_numbers')
-    .select('id')
-    .eq('number', phoneNumber)
+    .select('twilio_sid')
+    .eq('phone_number', phoneNumber)
     .single();
 
   if (fetchError) {
@@ -38,9 +42,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await twilioClient.incomingPhoneNumbers(phoneData.id).remove();
+    if (phoneData.twilio_sid) {
+      await twilioClient.incomingPhoneNumbers(phoneData.twilio_sid).remove();
+    }
 
-    const { error } = await supabase.from('phone_numbers').delete().eq('number', phoneNumber);
+    const { error } = await supabase.from('phone_numbers').delete().eq('phone_number', phoneNumber);
 
     if (error) throw error;
 
@@ -48,8 +54,9 @@ export async function POST(req: NextRequest) {
       success: true,
       message: `Phone number ${phoneNumber} removed from pool`,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error removing number:', error);
-    return NextResponse.json({ success: false, error: 'Failed to remove number' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to remove number';
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

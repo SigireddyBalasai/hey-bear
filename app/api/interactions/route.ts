@@ -4,6 +4,17 @@ import type { NextRequest } from 'next/server';
 import { recordInteraction } from '@/app/utils/interactionUtils';
 import { createClient } from '@/utils/supabase/server';
 
+interface InteractionRequest {
+  assistantId: string;
+  chat: string | null;
+  request: string;
+  response: string;
+  tokenUsage?: number;
+  costEstimate?: number;
+  duration?: number;
+  isError?: boolean;
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
 
@@ -19,6 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse the request body
+    const requestBody = (await request.json()) as InteractionRequest;
     const {
       assistantId,
       chat,
@@ -28,7 +40,7 @@ export async function POST(request: NextRequest) {
       costEstimate,
       duration,
       isError,
-    } = await request.json();
+    } = requestBody;
 
     // Use the utility function to record the interaction with correct user ID mapping
     const success = await recordInteraction(

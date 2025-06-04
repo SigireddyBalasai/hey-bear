@@ -14,20 +14,22 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 
-// Define a direct interface instead of referencing a non-existent DB function
+// Define the type locally to avoid import issues
 interface UserUsageStats {
   id?: string;
   user_id?: string;
   users?: {
-    full_name?: string | null | undefined;
-    email?: string | null | undefined;
-    created_at?: string | null | undefined;
-    last_active?: string | null | undefined;
+    full_name?: string | null;
+    email?: string | null;
+    created_at?: string | null;
+    last_active?: string | null;
   };
-  date?: string | null | undefined;
+  date?: string | null;
   message_count?: number;
   token_usage?: number;
   cost_estimate?: number;
+  total_messages?: number;
+  assistant_count?: number;
 }
 
 interface UserDetailModalProps {

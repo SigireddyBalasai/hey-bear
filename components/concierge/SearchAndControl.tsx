@@ -32,7 +32,9 @@ export function SearchAndControls({
           placeholder="Search no-shows..."
           className="pl-10"
           value={searchQuery}
-          onChange={e => { onSearchChange(e.target.value); }}
+          onChange={e => {
+            onSearchChange(e.target.value);
+          }}
         />
       </div>
 
@@ -45,7 +47,9 @@ export function SearchAndControls({
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="icon"
                   className="h-9 w-9"
-                  onClick={() => { onViewModeChange('grid'); }}
+                  onClick={() => {
+                    onViewModeChange('grid');
+                  }}
                   aria-label="Grid view"
                 >
                   <LayoutGrid className="h-4 w-4" />
@@ -54,7 +58,9 @@ export function SearchAndControls({
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="icon"
                   className="h-9 w-9"
-                  onClick={() => { onViewModeChange('list'); }}
+                  onClick={() => {
+                    onViewModeChange('list');
+                  }}
                   aria-label="List view"
                 >
                   <LayoutList className="h-4 w-4" />

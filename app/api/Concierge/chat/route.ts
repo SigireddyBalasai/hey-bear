@@ -1,22 +1,33 @@
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import type { Database } from '@/lib/db.types';
+import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
 import { UsageType, isLimitReached, trackUsage } from '@/utils/usage-limits';
 
-type InteractionsInsert = Database['analytics']['Tables']['interactions']['Insert'];
+interface ChatRequest {
+  assistantId: string;
+  message: string;
+}
+
+type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];
 
 export async function POST(req: NextRequest) {
   try {
     const requestTimestamp = new Date();
-    const body = await req.json();
+    const body = (await req.json()) as ChatRequest;
     const { assistantId, message } = body;
 
-    if (!assistantId || !message) {
+    // Type guard to ensure we have valid strings
+    const validAssistantId = typeof assistantId === 'string' ? assistantId : '';
+    const validMessage = typeof message === 'string' ? message : '';
+
+    if (!validAssistantId || !validMessage) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const isLimitExceeded = await isLimitReached(assistantId, UsageType.MESSAGE_RECEIVED);
+    const isLimitExceeded = await isLimitReached(validAssistantId, UsageType.MESSAGE_RECEIVED);
     if (isLimitExceeded) {
       return NextResponse.json(
         {
@@ -31,10 +42,10 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
 
     const { data: assistantDetail, error: assistantError } = await supabase
-      .schema('assistants')
+
       .from('assistant_detail_view')
       .select('*')
-      .eq('id', assistantId)
+      .eq('id', validAssistantId)
       .single();
 
     if (assistantError) {
@@ -49,11 +60,24 @@ export async function POST(req: NextRequest) {
 
     const pinecone = getPineconeClient();
 
+    // Type the Pinecone response
+    interface PineconeResponse {
+      message?: {
+        content?: string;
+      };
+      usage?: {
+        totalTokens?: number;
+        promptTokens?: number;
+        completionTokens?: number;
+      };
+      citations?: unknown;
+    }
+
     const assistant = pinecone.Assistant(pinecone_name);
 
-    const messages = [{ role: 'user', content: message }];
+    const messages = [{ role: 'user', content: validMessage }];
 
-    const response = await assistant.chat({ messages });
+    const response = (await assistant.chat({ messages })) as PineconeResponse;
 
     const responseTimestamp = new Date();
     const responseDuration = responseTimestamp.getTime() - requestTimestamp.getTime();
@@ -62,16 +86,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Assistant returned no response' }, { status: 500 });
     }
 
-    await trackUsage(assistantId, UsageType.MESSAGE_SENT);
+    await trackUsage(validAssistantId, UsageType.MESSAGE_SENT);
 
     const tokenCount = response.usage?.totalTokens ?? 0;
     const costRate = 0.002 / 1000;
     const costEstimate = tokenCount * costRate;
-    const monthlyPeriod = `${requestTimestamp.getFullYear()}-${String(requestTimestamp.getMonth() + 1).padStart(2, '0')}`;
+    const monthlyPeriod = `${String(requestTimestamp.getFullYear())}-${String(requestTimestamp.getMonth() + 1).padStart(2, '0')}`;
 
     const interactionData: InteractionsInsert = {
       request: JSON.stringify(messages),
-      assistant_id: assistantId,
+      assistant_id: validAssistantId,
       chat: JSON.stringify(messages),
       response: response.message.content ?? '',
       duration: responseDuration,
@@ -85,13 +109,13 @@ export async function POST(req: NextRequest) {
       monthly_period: monthlyPeriod,
     };
 
-    await supabase.schema('analytics').from('interactions').insert([interactionData]);
+    await supabase.from('interactions').insert([interactionData]);
 
     await supabase
-      .schema('assistants')
+
       .from('assistants')
       .update({ updated_at: requestTimestamp.toISOString() })
-      .eq('id', assistantId);
+      .eq('id', validAssistantId);
 
     return NextResponse.json({
       response: response.message.content ?? '',

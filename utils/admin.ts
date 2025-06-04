@@ -5,7 +5,7 @@ export async function isAdmin(userId: string): Promise<boolean> {
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin')
       .eq('id', userId)
@@ -34,11 +34,7 @@ export async function getAdminSettings(): Promise<Record<string, unknown>> {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .schema('public')
-      .from('usage_statistics')
-      .select('*')
-      .single();
+    const { data, error } = await supabase.from('usage_statistics').select('*').single();
 
     if (error) {
       console.error('Error fetching admin settings:', error);
@@ -56,11 +52,7 @@ export async function updateAdminSettings(settings: Record<string, unknown>): Pr
   try {
     const supabase = await createClient();
 
-    const { error } = await supabase
-      .schema('public')
-      .from('usage_statistics')
-      .update(settings)
-      .eq('id', '1'); // Assuming single row for settings
+    const { error } = await supabase.from('usage_statistics').update(settings).eq('id', '1'); // Assuming single row for settings
 
     if (error) {
       console.error('Error updating admin settings:', error);
@@ -83,22 +75,19 @@ export async function getSystemStats(): Promise<{
 
     // Get total users
     const { count: userCount } = await supabase
-      .schema('users')
+
       .from('users')
       .select('*', { count: 'exact', head: true });
 
     // Get active assistants
     const { count: assistantCount } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('*', { count: 'exact', head: true })
       .eq('pending', false);
 
     // Get interaction stats
-    const { data: stats } = await supabase
-      .schema('analytics')
-      .from('interactions')
-      .select('token_usage');
+    const { data: stats } = await supabase.from('interactions').select('token_usage');
 
     const totalInteractions = (stats ?? []).length;
     const totalTokens = (stats ?? []).reduce((sum, curr) => sum + (curr.token_usage ?? 0), 0);

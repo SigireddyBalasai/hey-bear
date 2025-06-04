@@ -48,7 +48,9 @@ export function FileErrorDialog({
               variant="outline"
               size="sm"
               className="flex w-full items-center justify-between"
-              onClick={() => { setShowDetails(!showDetails); }}
+              onClick={() => {
+                setShowDetails(!showDetails);
+              }}
             >
               <span>Technical Details</span>
               {showDetails ? (

@@ -30,6 +30,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/utils/supabase/client';
 
 // Define a clean interface for the assistant data
 export interface AssistantCardData {
@@ -64,54 +65,86 @@ export function AssistantCard({
   const [isActionInProgressState, setIsActionInProgressState] = useState(isActionInProgress);
 
   // Handle toggle star action
-  const handleToggleStar = (id: string, isStarred: boolean) => {
+  const handleToggleStar = async (id: string, isStarred: boolean) => {
     if (onToggleStar) {
       onToggleStar(id, isStarred);
       return;
     }
 
     setIsActionInProgressState(true);
-    // Mock functionality without data fetching
-    setTimeout(() => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+
+        .from('assistants')
+        .update({ is_starred: isStarred })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
       toast(`Assistant ${isStarred ? 'starred' : 'unstarred'}`, {
         description: `${assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`,
       });
+    } catch (error) {
+      console.error('Error toggling star:', error);
+      toast.error('Failed to update star status');
+    } finally {
       setIsActionInProgressState(false);
-    }, 500);
+    }
   };
 
   // Handle delete action
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (onDelete) {
       onDelete(id);
       return;
     }
 
+    const confirmed = globalThis.confirm('Are you sure you want to delete this assistant?');
+    if (!confirmed) return;
+
     setIsActionInProgressState(true);
-    // Mock functionality without data fetching
-    setTimeout(() => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('assistants').delete().eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
       toast('Assistant deleted', {
         description: `${assistant.name} has been removed`,
       });
+    } catch (error) {
+      console.error('Error deleting assistant:', error);
+      toast.error('Failed to delete assistant');
+    } finally {
       setIsActionInProgressState(false);
-    }, 500);
+    }
   };
 
   // Handle upgrade action
-  const handleUpgrade = (id: string) => {
+  const handleUpgrade = async (id: string) => {
     if (onUpgrade) {
       onUpgrade(id);
       return;
     }
 
     setIsActionInProgressState(true);
-    // Mock functionality without data fetching
-    setTimeout(() => {
+    try {
       toast('Starting upgrade process', {
         description: `Upgrading ${assistant.name}`,
       });
+      // Navigate to upgrade page
       globalThis.location.href = `/upgrade?assistant_id=${id}`;
-    }, 500);
+    } catch (error) {
+      console.error('Error during upgrade:', error);
+      toast.error('Failed to start upgrade process');
+    } finally {
+      setIsActionInProgressState(false);
+    }
   };
 
   // Loading state
@@ -142,7 +175,7 @@ export function AssistantCard({
 
   const createdAt = assistant.created_at
     ? format(new Date(assistant.created_at), 'MMM d, yyyy')
-    : 'Unknown date';
+    : 'Recently created';
 
   const lastUsedDate = assistant.last_used_at
     ? format(new Date(assistant.last_used_at), 'MMM d, yyyy')
@@ -161,7 +194,9 @@ export function AssistantCard({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 p-0"
-                  onClick={() => { handleToggleStar(assistant.id, !assistant.is_starred); }}
+                  onClick={() => {
+                    handleToggleStar(assistant.id, !assistant.is_starred);
+                  }}
                   disabled={isActionInProgressState}
                 >
                   {isActionInProgressState ? (
@@ -212,12 +247,12 @@ export function AssistantCard({
           )}
         </div>
 
-        {assistant.total_messages && assistant.total_messages > 0 && (
-          <div className="flex items-center text-sm text-muted-foreground">
-            <MessageSquare className="mr-1 h-4 w-4" />
-            <span>{assistant.total_messages} messages</span>
-          </div>
-        )}
+        <div className="flex items-center text-sm text-muted-foreground">
+          <MessageSquare className="mr-1 h-4 w-4" />
+          <span>
+            {assistant.total_messages ? `${assistant.total_messages} messages` : 'No messages yet'}
+          </span>
+        </div>
 
         <div className="mt-3">
           <div className="text-xs text-muted-foreground">Created {createdAt}</div>
@@ -232,7 +267,9 @@ export function AssistantCard({
               variant="outline"
               size="sm"
               className="text-xs"
-              onClick={() => { handleUpgrade(assistant.id); }}
+              onClick={() => {
+                handleUpgrade(assistant.id);
+              }}
               disabled={isActionInProgressState}
             >
               {isActionInProgressState ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
@@ -250,7 +287,9 @@ export function AssistantCard({
                 variant="ghost"
                 size="icon"
                 className="text-red-600"
-                onClick={() => { handleDelete(assistant.id); }}
+                onClick={() => {
+                  handleDelete(assistant.id);
+                }}
                 disabled={isActionInProgressState}
               >
                 {isActionInProgressState ? (

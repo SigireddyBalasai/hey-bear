@@ -49,7 +49,7 @@ interface PhoneNumber {
 }
 
 // Assistant type from the database
-type AssistantRow = Database['assistants']['Tables']['assistants']['Row'];
+type AssistantRow = Database['public']['Tables']['assistants']['Row'];
 interface Assistant extends Partial<AssistantRow> {
   id: string;
   name: string;
@@ -61,7 +61,6 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
   const [assignedNumbers, setAssignedNumbers] = useState<PhoneNumber[]>([]);
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const [areaCode, setAreaCode] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState('US');
@@ -88,7 +87,7 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
 
   // Load data on component mount
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   // Removed unused _handleAddPhoneNumber function
@@ -105,7 +104,7 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
     if (confirmed) {
       const success = await unassignPhoneNumber(phoneNumber);
       if (success) {
-        loadData();
+        void loadData();
       }
     }
   };
@@ -144,11 +143,11 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as { error?: string };
         throw new Error(errorData.error ?? 'Failed to assign phone number');
       }
 
-      const _data = await response.json();
+      await response.json();
       toast.success(`Phone number assigned successfully to assistant`);
 
       // Reset selection
@@ -156,7 +155,7 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
       setAreaCode('');
 
       // Refresh phone number list
-      loadData();
+      void loadData();
     } catch (error) {
       console.error('Error assigning phone number from country:', error);
       toast.error(
@@ -196,13 +195,13 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
                 These assistants have assigned phone numbers.
               </div>
 
-              {isLoading ? (
-                <div className="py-8 text-center">Loading assigned numbers...</div>
-              ) : assignedNumbers.length === 0 ? (
+              {isLoading && <div className="py-8 text-center">Loading assigned numbers...</div>}
+              {!isLoading && assignedNumbers.length === 0 && (
                 <div className="py-8 text-center text-muted-foreground">
                   No phone numbers are currently assigned to any assistant.
                 </div>
-              ) : (
+              )}
+              {!isLoading && assignedNumbers.length > 0 && (
                 <div className="rounded-md border">
                   <div className="grid grid-cols-3 bg-muted px-4 py-3 font-medium">
                     <div>Assistant</div>
@@ -298,7 +297,9 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
                     id="areaCode"
                     placeholder="e.g. 415"
                     value={areaCode}
-                    onChange={e => { setAreaCode(e.target.value); }}
+                    onChange={e => {
+                      setAreaCode(e.target.value);
+                    }}
                     className="font-mono"
                   />
                 </div>

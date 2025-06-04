@@ -1,8 +1,324 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
-  analytics: {
+  public: {
     Tables: {
+      assistant_activity: {
+        Row: {
+          assistant_id: string;
+          created_at: string;
+          last_activity_at: string | null;
+          last_message_at: string | null;
+          last_used_at: string | null;
+          total_documents: number | null;
+          total_interactions: number | null;
+          total_messages: number | null;
+          total_tokens: number | null;
+          total_webpages: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          assistant_id: string;
+          created_at?: string;
+          last_activity_at?: string | null;
+          last_message_at?: string | null;
+          last_used_at?: string | null;
+          total_documents?: number | null;
+          total_interactions?: number | null;
+          total_messages?: number | null;
+          total_tokens?: number | null;
+          total_webpages?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          assistant_id?: string;
+          created_at?: string;
+          last_activity_at?: string | null;
+          last_message_at?: string | null;
+          last_used_at?: string | null;
+          total_documents?: number | null;
+          total_interactions?: number | null;
+          total_messages?: number | null;
+          total_tokens?: number | null;
+          total_webpages?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_activity_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: true;
+            referencedRelation: 'assistant_detail_view';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_activity_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: true;
+            referencedRelation: 'assistants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      assistant_configs: {
+        Row: {
+          business_name: string | null;
+          business_phone: string | null;
+          concierge_name: string | null;
+          created_at: string;
+          description: string | null;
+          display_name: string | null;
+          id: string;
+          personality: string | null;
+          pinecone_name: string | null;
+          share_phone_number: boolean | null;
+          system_prompt: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          business_name?: string | null;
+          business_phone?: string | null;
+          concierge_name?: string | null;
+          created_at?: string;
+          description?: string | null;
+          display_name?: string | null;
+          id: string;
+          personality?: string | null;
+          pinecone_name?: string | null;
+          share_phone_number?: boolean | null;
+          system_prompt?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          business_name?: string | null;
+          business_phone?: string | null;
+          concierge_name?: string | null;
+          created_at?: string;
+          description?: string | null;
+          display_name?: string | null;
+          id?: string;
+          personality?: string | null;
+          pinecone_name?: string | null;
+          share_phone_number?: boolean | null;
+          system_prompt?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_configs_id_fkey';
+            columns: ['id'];
+            isOneToOne: true;
+            referencedRelation: 'assistant_detail_view';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_configs_id_fkey';
+            columns: ['id'];
+            isOneToOne: true;
+            referencedRelation: 'assistants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      assistant_subscriptions: {
+        Row: {
+          assistant_id: string;
+          cancel_at_period_end: boolean | null;
+          created_at: string;
+          current_period_end: string | null;
+          current_period_start: string | null;
+          id: string;
+          payment_session_id: string | null;
+          plan_id: string;
+          status: string;
+          stripe_subscription_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          assistant_id: string;
+          cancel_at_period_end?: boolean | null;
+          created_at?: string;
+          current_period_end?: string | null;
+          current_period_start?: string | null;
+          id?: string;
+          payment_session_id?: string | null;
+          plan_id: string;
+          status: string;
+          stripe_subscription_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          assistant_id?: string;
+          cancel_at_period_end?: boolean | null;
+          created_at?: string;
+          current_period_end?: string | null;
+          current_period_start?: string | null;
+          id?: string;
+          payment_session_id?: string | null;
+          plan_id?: string;
+          status?: string;
+          stripe_subscription_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_subscriptions_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: true;
+            referencedRelation: 'assistant_detail_view';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_subscriptions_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: true;
+            referencedRelation: 'assistants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_subscriptions_payment_session_id_fkey';
+            columns: ['payment_session_id'];
+            isOneToOne: false;
+            referencedRelation: 'payment_sessions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_subscriptions_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'subscription_plans';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      assistant_usage_limits: {
+        Row: {
+          assistant_id: string;
+          created_at: string;
+          document_limit: number | null;
+          max_messages: number | null;
+          max_tokens: number | null;
+          message_limit: number | null;
+          token_limit: number | null;
+          updated_at: string;
+          webpage_limit: number | null;
+        };
+        Insert: {
+          assistant_id: string;
+          created_at?: string;
+          document_limit?: number | null;
+          max_messages?: number | null;
+          max_tokens?: number | null;
+          message_limit?: number | null;
+          token_limit?: number | null;
+          updated_at?: string;
+          webpage_limit?: number | null;
+        };
+        Update: {
+          assistant_id?: string;
+          created_at?: string;
+          document_limit?: number | null;
+          max_messages?: number | null;
+          max_tokens?: number | null;
+          message_limit?: number | null;
+          token_limit?: number | null;
+          updated_at?: string;
+          webpage_limit?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_usage_limits_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: true;
+            referencedRelation: 'assistant_detail_view';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_usage_limits_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: true;
+            referencedRelation: 'assistants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      assistants: {
+        Row: {
+          assigned_phone_number: string | null;
+          created_at: string;
+          id: string;
+          is_starred: boolean | null;
+          name: string;
+          pending: boolean | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          assigned_phone_number?: string | null;
+          created_at?: string;
+          id?: string;
+          is_starred?: boolean | null;
+          name: string;
+          pending?: boolean | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          assigned_phone_number?: string | null;
+          created_at?: string;
+          id?: string;
+          is_starred?: boolean | null;
+          name?: string;
+          pending?: boolean | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistants_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      audit_logs: {
+        Row: {
+          action: string;
+          action_timestamp: string;
+          created_at: string;
+          details: Json | null;
+          entity_id: string;
+          entity_type: string;
+          id: string;
+          performed_by: string;
+          related_entity_id: string | null;
+        };
+        Insert: {
+          action: string;
+          action_timestamp?: string;
+          created_at?: string;
+          details?: Json | null;
+          entity_id: string;
+          entity_type: string;
+          id?: string;
+          performed_by: string;
+          related_entity_id?: string | null;
+        };
+        Update: {
+          action?: string;
+          action_timestamp?: string;
+          created_at?: string;
+          details?: Json | null;
+          entity_id?: string;
+          entity_type?: string;
+          id?: string;
+          performed_by?: string;
+          related_entity_id?: string | null;
+        };
+        Relationships: [];
+      };
       interaction_metrics: {
         Row: {
           ai_model: string | null;
@@ -108,1489 +424,15 @@ export type Database = {
           updated_at?: string | null;
           user_id?: string | null;
         };
-        Relationships: [];
-      };
-      interactions_p2024_05: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2024_06: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2024_07: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2024_08: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2024_09: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2024_10: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2024_11: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2024_12: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_01: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_02: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_03: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_04: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_05: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_06: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_07: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_08: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_09: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_10: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_11: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2025_12: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2026_01: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2026_02: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2026_03: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2026_04: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_p2026_05: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      interactions_partitioned: {
-        Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
-          created_at: string;
-          duration: number | null;
-          id: string;
-          input_tokens: number | null;
-          interaction_time: string;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string;
-          response: string;
-          token_usage: number | null;
-          updated_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request: string;
-          response: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          assistant_id?: string | null;
-          chat?: string | null;
-          cost_estimate?: number | null;
-          created_at?: string;
-          duration?: number | null;
-          id?: string;
-          input_tokens?: number | null;
-          interaction_time?: string;
-          is_error?: boolean | null;
-          monthly_period?: string | null;
-          output_tokens?: number | null;
-          request?: string;
-          response?: string;
-          token_usage?: number | null;
-          updated_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'analytics_interactions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       interactions_shadow: {
         Row: {
@@ -1649,405 +491,87 @@ export type Database = {
         };
         Relationships: [];
       };
-    };
-    Views: {
-      all_interactions: {
+      notifications: {
         Row: {
-          assistant_id: string | null;
-          chat: string | null;
-          cost_estimate: number | null;
           created_at: string | null;
-          duration: number | null;
-          id: string | null;
-          input_tokens: number | null;
-          interaction_time: string | null;
-          is_error: boolean | null;
-          monthly_period: string | null;
-          output_tokens: number | null;
-          request: string | null;
-          response: string | null;
-          token_usage: number | null;
+          id: string;
+          message: string;
+          read: boolean | null;
+          title: string;
+          type: string;
           updated_at: string | null;
-          user_id: string | null;
-        };
-        Relationships: [];
-      };
-    };
-    Functions: {
-      apply_partition_policies: {
-        Args: Record<PropertyKey, never>;
-        Returns: undefined;
-      };
-      ensure_partition_exists: {
-        Args: { year_month: string };
-        Returns: undefined;
-      };
-      insert_interaction: {
-        Args: {
-          p_assistant_id: string;
-          p_user_id: string;
-          p_request: string;
-          p_response: string;
-          p_interaction_time?: string;
-          p_chat?: string;
-          p_is_error?: boolean;
-          p_token_usage?: number;
-          p_input_tokens?: number;
-          p_output_tokens?: number;
-          p_duration?: number;
-          p_cost_estimate?: number;
-        };
-        Returns: string;
-      };
-      insert_interaction_metrics: {
-        Args: {
-          p_interaction_id: string;
-          p_input_tokens?: number;
-          p_output_tokens?: number;
-          p_cost_estimate?: number;
-          p_response_time_ms?: number;
-          p_ai_model?: string;
-          p_client_info?: Json;
-          p_sentiment_score?: number;
-        };
-        Returns: undefined;
-      };
-      refresh_materialized_views: {
-        Args: Record<PropertyKey, never>;
-        Returns: undefined;
-      };
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-  assistants: {
-    Tables: {
-      assistant_activity: {
-        Row: {
-          assistant_id: string;
-          created_at: string;
-          last_activity_at: string | null;
-          last_message_at: string | null;
-          last_used_at: string | null;
-          total_documents: number | null;
-          total_interactions: number | null;
-          total_messages: number | null;
-          total_tokens: number | null;
-          total_webpages: number | null;
-          updated_at: string;
-        };
-        Insert: {
-          assistant_id: string;
-          created_at?: string;
-          last_activity_at?: string | null;
-          last_message_at?: string | null;
-          last_used_at?: string | null;
-          total_documents?: number | null;
-          total_interactions?: number | null;
-          total_messages?: number | null;
-          total_tokens?: number | null;
-          total_webpages?: number | null;
-          updated_at?: string;
-        };
-        Update: {
-          assistant_id?: string;
-          created_at?: string;
-          last_activity_at?: string | null;
-          last_message_at?: string | null;
-          last_used_at?: string | null;
-          total_documents?: number | null;
-          total_interactions?: number | null;
-          total_messages?: number | null;
-          total_tokens?: number | null;
-          total_webpages?: number | null;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'assistant_activity_assistant_id_fkey';
-            columns: ['assistant_id'];
-            isOneToOne: true;
-            referencedRelation: 'assistant_detail_view';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'assistant_activity_assistant_id_fkey';
-            columns: ['assistant_id'];
-            isOneToOne: true;
-            referencedRelation: 'assistants';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      assistant_configs: {
-        Row: {
-          business_name: string | null;
-          business_phone: string | null;
-          created_at: string;
-          description: string | null;
-          display_name: string | null;
-          id: string;
-          personality: string | null;
-          pinecone_name: string | null;
-          system_prompt: string | null;
-          updated_at: string;
-        };
-        Insert: {
-          business_name?: string | null;
-          business_phone?: string | null;
-          created_at?: string;
-          description?: string | null;
-          display_name?: string | null;
-          id: string;
-          personality?: string | null;
-          pinecone_name?: string | null;
-          system_prompt?: string | null;
-          updated_at?: string;
-        };
-        Update: {
-          business_name?: string | null;
-          business_phone?: string | null;
-          created_at?: string;
-          description?: string | null;
-          display_name?: string | null;
-          id?: string;
-          personality?: string | null;
-          pinecone_name?: string | null;
-          system_prompt?: string | null;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'assistant_configs_id_fkey';
-            columns: ['id'];
-            isOneToOne: true;
-            referencedRelation: 'assistant_detail_view';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'assistant_configs_id_fkey';
-            columns: ['id'];
-            isOneToOne: true;
-            referencedRelation: 'assistants';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      assistant_subscriptions: {
-        Row: {
-          assistant_id: string;
-          cancel_at_period_end: boolean | null;
-          created_at: string;
-          current_period_end: string | null;
-          current_period_start: string | null;
-          id: string;
-          plan_id: string;
-          status: string;
-          stripe_subscription_id: string | null;
-          updated_at: string;
-        };
-        Insert: {
-          assistant_id: string;
-          cancel_at_period_end?: boolean | null;
-          created_at?: string;
-          current_period_end?: string | null;
-          current_period_start?: string | null;
-          id?: string;
-          plan_id: string;
-          status: string;
-          stripe_subscription_id?: string | null;
-          updated_at?: string;
-        };
-        Update: {
-          assistant_id?: string;
-          cancel_at_period_end?: boolean | null;
-          created_at?: string;
-          current_period_end?: string | null;
-          current_period_start?: string | null;
-          id?: string;
-          plan_id?: string;
-          status?: string;
-          stripe_subscription_id?: string | null;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'assistant_subscriptions_assistant_id_fkey';
-            columns: ['assistant_id'];
-            isOneToOne: true;
-            referencedRelation: 'assistant_detail_view';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'assistant_subscriptions_assistant_id_fkey';
-            columns: ['assistant_id'];
-            isOneToOne: true;
-            referencedRelation: 'assistants';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      assistant_usage_limits: {
-        Row: {
-          assistant_id: string;
-          created_at: string;
-          document_limit: number | null;
-          max_messages: number | null;
-          max_tokens: number | null;
-          message_limit: number | null;
-          token_limit: number | null;
-          updated_at: string;
-          webpage_limit: number | null;
-        };
-        Insert: {
-          assistant_id: string;
-          created_at?: string;
-          document_limit?: number | null;
-          max_messages?: number | null;
-          max_tokens?: number | null;
-          message_limit?: number | null;
-          token_limit?: number | null;
-          updated_at?: string;
-          webpage_limit?: number | null;
-        };
-        Update: {
-          assistant_id?: string;
-          created_at?: string;
-          document_limit?: number | null;
-          max_messages?: number | null;
-          max_tokens?: number | null;
-          message_limit?: number | null;
-          token_limit?: number | null;
-          updated_at?: string;
-          webpage_limit?: number | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'assistant_usage_limits_assistant_id_fkey';
-            columns: ['assistant_id'];
-            isOneToOne: true;
-            referencedRelation: 'assistant_detail_view';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'assistant_usage_limits_assistant_id_fkey';
-            columns: ['assistant_id'];
-            isOneToOne: true;
-            referencedRelation: 'assistants';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      assistants: {
-        Row: {
-          assigned_phone_number: string | null;
-          created_at: string;
-          id: string;
-          is_starred: boolean | null;
-          name: string;
-          pending: boolean | null;
-          updated_at: string;
           user_id: string;
         };
         Insert: {
-          assigned_phone_number?: string | null;
-          created_at?: string;
+          created_at?: string | null;
           id?: string;
-          is_starred?: boolean | null;
-          name: string;
-          pending?: boolean | null;
-          updated_at?: string;
+          message: string;
+          read?: boolean | null;
+          title: string;
+          type: string;
+          updated_at?: string | null;
           user_id: string;
         };
         Update: {
-          assigned_phone_number?: string | null;
-          created_at?: string;
+          created_at?: string | null;
           id?: string;
-          is_starred?: boolean | null;
-          name?: string;
-          pending?: boolean | null;
-          updated_at?: string;
+          message?: string;
+          read?: boolean | null;
+          title?: string;
+          type?: string;
+          updated_at?: string | null;
           user_id?: string;
         };
         Relationships: [];
       };
-    };
-    Views: {
-      assistant_detail_view: {
+      payment_sessions: {
         Row: {
-          assistant_created_at: string | null;
-          assistant_name: string | null;
-          assistant_updated_at: string | null;
-          business_name: string | null;
-          config_created_at: string | null;
-          config_updated_at: string | null;
-          current_period_end: string | null;
-          description: string | null;
-          display_name: string | null;
-          id: string | null;
-          last_activity_at: string | null;
-          max_messages: number | null;
-          max_tokens: number | null;
-          personality: string | null;
-          pinecone_name: string | null;
-          plan_id: string | null;
-          subscription_status: string | null;
-          system_prompt: string | null;
-          total_interactions: number | null;
-          user_id: string | null;
-        };
-        Relationships: [];
-      };
-    };
-    Functions: {
-      [_ in never]: never;
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-  public: {
-    Tables: {
-      audit_logs: {
-        Row: {
-          action: string;
-          action_timestamp: string;
+          amount_total: number | null;
+          assistant_config_data: Json;
           created_at: string;
-          details: Json | null;
-          entity_id: string;
-          entity_type: string;
+          currency: string | null;
+          customer_email: string | null;
+          expires_at: string | null;
           id: string;
-          performed_by: string;
-          related_entity_id: string | null;
+          plan_id: string | null;
+          session_id: string;
+          status: string;
+          stripe_checkout_session_id: string | null;
+          stripe_customer_id: string | null;
+          updated_at: string;
+          user_id: string;
         };
         Insert: {
-          action: string;
-          action_timestamp?: string;
+          amount_total?: number | null;
+          assistant_config_data: Json;
           created_at?: string;
-          details?: Json | null;
-          entity_id: string;
-          entity_type: string;
+          currency?: string | null;
+          customer_email?: string | null;
+          expires_at?: string | null;
           id?: string;
-          performed_by: string;
-          related_entity_id?: string | null;
+          plan_id?: string | null;
+          session_id: string;
+          status?: string;
+          stripe_checkout_session_id?: string | null;
+          stripe_customer_id?: string | null;
+          updated_at?: string;
+          user_id: string;
         };
         Update: {
-          action?: string;
-          action_timestamp?: string;
+          amount_total?: number | null;
+          assistant_config_data?: Json;
           created_at?: string;
-          details?: Json | null;
-          entity_id?: string;
-          entity_type?: string;
+          currency?: string | null;
+          customer_email?: string | null;
+          expires_at?: string | null;
           id?: string;
-          performed_by?: string;
-          related_entity_id?: string | null;
+          plan_id?: string | null;
+          session_id?: string;
+          status?: string;
+          stripe_checkout_session_id?: string | null;
+          stripe_customer_id?: string | null;
+          updated_at?: string;
+          user_id?: string;
         };
         Relationships: [];
       };
@@ -2100,7 +624,22 @@ export type Database = {
           updated_at?: string;
           voice_url?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'phone_numbers_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: false;
+            referencedRelation: 'assistant_detail_view';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'phone_numbers_assistant_id_fkey';
+            columns: ['assistant_id'];
+            isOneToOne: false;
+            referencedRelation: 'assistants';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       subscription_plans: {
         Row: {
@@ -2189,9 +728,99 @@ export type Database = {
         };
         Relationships: [];
       };
+      users: {
+        Row: {
+          auth_user_id: string;
+          company: string | null;
+          country: string | null;
+          created_at: string;
+          feature_flags: Json | null;
+          full_name: string | null;
+          id: string;
+          is_admin: boolean | null;
+          last_active: string | null;
+          onboarding_completed: boolean | null;
+          preferred_payment_method: string | null;
+          stripe_customer_id: string | null;
+          timezone: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          auth_user_id: string;
+          company?: string | null;
+          country?: string | null;
+          created_at?: string;
+          feature_flags?: Json | null;
+          full_name?: string | null;
+          id?: string;
+          is_admin?: boolean | null;
+          last_active?: string | null;
+          onboarding_completed?: boolean | null;
+          preferred_payment_method?: string | null;
+          stripe_customer_id?: string | null;
+          timezone?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          auth_user_id?: string;
+          company?: string | null;
+          country?: string | null;
+          created_at?: string;
+          feature_flags?: Json | null;
+          full_name?: string | null;
+          id?: string;
+          is_admin?: boolean | null;
+          last_active?: string | null;
+          onboarding_completed?: boolean | null;
+          preferred_payment_method?: string | null;
+          stripe_customer_id?: string | null;
+          timezone?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
-      [_ in never]: never;
+      assistant_detail_view: {
+        Row: {
+          assistant_created_at: string | null;
+          assistant_name: string | null;
+          assistant_updated_at: string | null;
+          business_name: string | null;
+          config_created_at: string | null;
+          config_updated_at: string | null;
+          current_period_end: string | null;
+          description: string | null;
+          display_name: string | null;
+          id: string | null;
+          last_activity_at: string | null;
+          max_messages: number | null;
+          max_tokens: number | null;
+          personality: string | null;
+          pinecone_name: string | null;
+          plan_id: string | null;
+          subscription_status: string | null;
+          system_prompt: string | null;
+          total_interactions: number | null;
+          user_id: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_subscriptions_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'subscription_plans';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistants_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Functions: {
       add_file_chunk: {
@@ -2204,6 +833,10 @@ export type Database = {
         };
         Returns: string;
       };
+      apply_partition_policies: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
       cleanup_old_audit_logs: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
@@ -2212,18 +845,39 @@ export type Database = {
         Args: { p_file_id: string; p_vector_count: number; p_status?: string };
         Returns: boolean;
       };
-      create_unpaid_assistant: {
+      ensure_partition_exists: {
+        Args: { year_month: string };
+        Returns: undefined;
+      };
+      insert_interaction: {
         Args: {
+          p_assistant_id: string;
           p_user_id: string;
-          p_name: string;
-          p_description?: string;
-          p_personality?: string;
-          p_business_name?: string;
-          p_concierge_name?: string;
-          p_share_phone_number?: boolean;
-          p_business_phone?: string;
+          p_request: string;
+          p_response: string;
+          p_interaction_time?: string;
+          p_chat?: string;
+          p_is_error?: boolean;
+          p_token_usage?: number;
+          p_input_tokens?: number;
+          p_output_tokens?: number;
+          p_duration?: number;
+          p_cost_estimate?: number;
         };
-        Returns: Json;
+        Returns: string;
+      };
+      insert_interaction_metrics: {
+        Args: {
+          p_interaction_id: string;
+          p_input_tokens?: number;
+          p_output_tokens?: number;
+          p_cost_estimate?: number;
+          p_response_time_ms?: number;
+          p_ai_model?: string;
+          p_client_info?: Json;
+          p_sentiment_score?: number;
+        };
+        Returns: undefined;
       };
       is_admin: {
         Args: Record<PropertyKey, never>;
@@ -2239,6 +893,10 @@ export type Database = {
           p_capabilities?: Json;
         };
         Returns: string;
+      };
+      refresh_materialized_views: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
       };
       search_file_metadata: {
         Args: { p_assistant_id: string; p_query: string; p_limit?: number };
@@ -2287,132 +945,6 @@ export type Database = {
         | 'October'
         | 'November'
         | 'December';
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-  users: {
-    Tables: {
-      customer_profiles: {
-        Row: {
-          company: string | null;
-          country: string | null;
-          created_at: string;
-          feature_flags: Json | null;
-          full_name: string | null;
-          onboarding_completed: boolean | null;
-          preferred_payment_method: string | null;
-          stripe_customer_id: string | null;
-          timezone: string | null;
-          updated_at: string;
-          user_id: string;
-        };
-        Insert: {
-          company?: string | null;
-          country?: string | null;
-          created_at?: string;
-          feature_flags?: Json | null;
-          full_name?: string | null;
-          onboarding_completed?: boolean | null;
-          preferred_payment_method?: string | null;
-          stripe_customer_id?: string | null;
-          timezone?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
-        Update: {
-          company?: string | null;
-          country?: string | null;
-          created_at?: string;
-          feature_flags?: Json | null;
-          full_name?: string | null;
-          onboarding_completed?: boolean | null;
-          preferred_payment_method?: string | null;
-          stripe_customer_id?: string | null;
-          timezone?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'customer_profiles_user_id_fkey';
-            columns: ['user_id'];
-            isOneToOne: true;
-            referencedRelation: 'users';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      notifications: {
-        Row: {
-          created_at: string | null;
-          id: string;
-          message: string;
-          read: boolean | null;
-          title: string;
-          type: string;
-          updated_at: string | null;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string | null;
-          id?: string;
-          message: string;
-          read?: boolean | null;
-          title: string;
-          type: string;
-          updated_at?: string | null;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string | null;
-          id?: string;
-          message?: string;
-          read?: boolean | null;
-          title?: string;
-          type?: string;
-          updated_at?: string | null;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-      users: {
-        Row: {
-          auth_user_id: string;
-          created_at: string;
-          id: string;
-          is_admin: boolean | null;
-          last_active: string | null;
-          updated_at: string;
-        };
-        Insert: {
-          auth_user_id: string;
-          created_at?: string;
-          id?: string;
-          is_admin?: boolean | null;
-          last_active?: string | null;
-          updated_at?: string;
-        };
-        Update: {
-          auth_user_id?: string;
-          created_at?: string;
-          id?: string;
-          is_admin?: boolean | null;
-          last_active?: string | null;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      [_ in never]: never;
-    };
-    Enums: {
-      [_ in never]: never;
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -2522,12 +1054,6 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
-  analytics: {
-    Enums: {},
-  },
-  assistants: {
-    Enums: {},
-  },
   public: {
     Enums: {
       country: ['US', 'Canada'],
@@ -2546,8 +1072,5 @@ export const Constants = {
         'December',
       ],
     },
-  },
-  users: {
-    Enums: {},
   },
 } as const;

@@ -59,6 +59,13 @@ interface ServiceStatus {
   responseTime: number;
 }
 
+// Helper function to determine badge variant
+const getBadgeVariant = (status: string) => {
+  if (status === 'operational') return 'outline';
+  if (status === 'degraded') return 'secondary';
+  return 'destructive';
+};
+
 export default function MonitoringPage() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -92,7 +99,7 @@ export default function MonitoringPage() {
 
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
-          .schema('users')
+
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)
@@ -144,14 +151,17 @@ export default function MonitoringPage() {
 
         // Generate real system logs from recent interactions and events
         const realLogs = [
-          `[${new Date().toISOString()}] INFO: System monitoring active - ${systemStats.totalInteractions} total interactions`,
-          `[${new Date().toISOString()}] INFO: ${systemStats.totalUsers} registered users, ${systemStats.activeAssistants} assistants deployed`,
-          ...recentInteractions
-            .slice(0, 8)
-            .map(
-              interaction =>
-                `[${interaction.interaction_time}] ${interaction.is_error ? 'ERROR' : 'INFO'}: ${interaction.is_error ? 'Failed interaction' : 'Successful interaction'} - Assistant: ${interaction.assistant_id ?? 'unknown'} User: ${interaction.user_id?.slice(0, 8) ?? 'unknown'}...`
-            ),
+          `[${new Date().toISOString()}] INFO: System monitoring active - ${String(systemStats.totalInteractions)} total interactions`,
+          `[${new Date().toISOString()}] INFO: ${String(systemStats.totalUsers)} registered users, ${String(systemStats.activeAssistants)} assistants deployed`,
+          ...recentInteractions.slice(0, 8).map(interaction => {
+            const assistantId = String(interaction.assistant_id ?? 'unknown');
+            const userIdSlice = interaction.user_id ? interaction.user_id.slice(0, 8) : 'unknown';
+            const userId = String(userIdSlice);
+            const status = interaction.is_error ? 'ERROR' : 'INFO';
+            const message = interaction.is_error ? 'Failed interaction' : 'Successful interaction';
+            const interactionTime = String(interaction.interaction_time || 'Unknown time');
+            return `[${interactionTime}] ${status}: ${message} - Assistant: ${assistantId} User: ${userId}...`;
+          }),
         ];
 
         setSystemLogs(realLogs);
@@ -163,15 +173,13 @@ export default function MonitoringPage() {
       }
     };
 
-    checkAdminStatus();
+    void checkAdminStatus();
   }, [router, supabase]);
 
   // Handle interval change
   const handleIntervalChange = (value: string) => {
     setRefreshInterval(Number.parseInt(value, 10));
-  };
-
-  // Manual refresh handler
+  }; // Manual refresh handler
   const handleManualRefresh = () => {
     toast('Refreshing', {
       description: 'Manually refreshing all monitoring data',
@@ -180,16 +188,20 @@ export default function MonitoringPage() {
     // This would trigger an actual refresh in a real app
     // For now, just add some variation to the service statuses
     setServiceStatuses(prev => {
-      return prev.map(service => ({
-        ...service,
-        responseTime: service.responseTime + Math.floor(Math.random() * 20 - 10),
-        status:
-          Math.random() > 0.9
-            ? service.status === 'operational'
-              ? 'degraded'
-              : 'operational'
-            : service.status,
-      }));
+      return prev.map(service => {
+        const shouldChangeStatus = Math.random() > 0.9; // Demo purposes only
+        let newStatus = service.status;
+        if (shouldChangeStatus) {
+          newStatus = service.status === 'operational' ? 'degraded' : 'operational';
+        }
+
+        return {
+          ...service,
+
+          responseTime: service.responseTime + Math.floor(Math.random() * 20 - 10), // Demo purposes only
+          status: newStatus,
+        };
+      });
     });
 
     // Add new log entry
@@ -209,18 +221,25 @@ export default function MonitoringPage() {
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
+          <Button
+            onClick={() => {
+              router.push('/');
+            }}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
   }
 
   // Get overall system status
-  const overallStatus = serviceStatuses.some(s => s.status === 'outage')
-    ? 'outage'
-    : serviceStatuses.some(s => s.status === 'degraded')
-      ? 'degraded'
-      : 'operational';
+  let overallStatus = 'operational';
+  if (serviceStatuses.some(s => s.status === 'outage')) {
+    overallStatus = 'outage';
+  } else if (serviceStatuses.some(s => s.status === 'degraded')) {
+    overallStatus = 'degraded';
+  }
 
   return (
     <div className="flex">
@@ -253,29 +272,28 @@ export default function MonitoringPage() {
               Refresh Now
             </Button>
 
-            <Badge
-              variant={
-                overallStatus === 'operational'
-                  ? 'outline'
-                  : overallStatus === 'degraded'
-                    ? 'secondary'
-                    : 'destructive'
-              }
-              className="ml-2 px-3 py-1"
-            >
-              {overallStatus === 'operational' ? (
-                <>
-                  <CheckCircle className="mr-1 h-4 w-4" /> All Systems Operational
-                </>
-              ) : overallStatus === 'degraded' ? (
-                <>
-                  <AlertTriangle className="mr-1 h-4 w-4" /> Degraded Performance
-                </>
-              ) : (
-                <>
-                  <XCircle className="mr-1 h-4 w-4" /> Service Disruption
-                </>
-              )}
+            <Badge variant={getBadgeVariant(overallStatus)} className="ml-2 px-3 py-1">
+              {(() => {
+                if (overallStatus === 'operational') {
+                  return (
+                    <>
+                      <CheckCircle className="mr-1 h-4 w-4" /> All Systems Operational
+                    </>
+                  );
+                }
+                if (overallStatus === 'degraded') {
+                  return (
+                    <>
+                      <AlertTriangle className="mr-1 h-4 w-4" /> Degraded Performance
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    <XCircle className="mr-1 h-4 w-4" /> Service Disruption
+                  </>
+                );
+              })()}
             </Badge>
           </div>
         </div>
@@ -312,22 +330,18 @@ export default function MonitoringPage() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={
-                            service.status === 'operational'
-                              ? 'outline'
-                              : service.status === 'degraded'
-                                ? 'secondary'
-                                : 'destructive'
-                          }
+                          variant={(() => {
+                            if (service.status === 'operational') return 'outline';
+                            if (service.status === 'degraded') return 'secondary';
+                            return 'destructive';
+                          })()}
                           className="px-2 py-0.5"
                         >
-                          {service.status === 'operational' ? (
-                            <>Operational</>
-                          ) : service.status === 'degraded' ? (
-                            <>Degraded</>
-                          ) : (
-                            <>Outage</>
-                          )}
+                          {(() => {
+                            if (service.status === 'operational') return <>Operational</>;
+                            if (service.status === 'degraded') return <>Degraded</>;
+                            return <>Outage</>;
+                          })()}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -420,17 +434,16 @@ export default function MonitoringPage() {
                   {systemLogs.map((log, index) => {
                     const isError = log.includes('ERROR');
                     const isWarning = log.includes('WARN');
+
+                    let textColorClass = 'text-muted-foreground';
+                    if (isError) {
+                      textColorClass = 'text-red-500';
+                    } else if (isWarning) {
+                      textColorClass = 'text-amber-500';
+                    }
+
                     return (
-                      <div
-                        key={index}
-                        className={`border-b py-2 last:border-0 ${
-                          isError
-                            ? 'text-red-500'
-                            : isWarning
-                              ? 'text-amber-500'
-                              : 'text-muted-foreground'
-                        }`}
-                      >
+                      <div key={index} className={`border-b py-2 last:border-0 ${textColorClass}`}>
                         {log}
                       </div>
                     );

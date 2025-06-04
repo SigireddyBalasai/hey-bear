@@ -63,7 +63,7 @@ export function PhoneNumberSettings() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadSettings();
+    void loadSettings();
   }, []);
 
   const loadSettings = async () => {
@@ -74,11 +74,12 @@ export function PhoneNumberSettings() {
       const response = await fetch('/api/twilio/settings');
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error ?? `Error ${response.status}: Failed to load settings`);
+        const errorData = (await response.json()) as { error?: string };
+        const statusText = String(response.status);
+        throw new Error(errorData.error ?? `Error ${statusText}: Failed to load settings`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { settings?: TwilioSettings };
       if (data.settings) {
         console.log('Settings loaded successfully');
         setSettings(data.settings);
@@ -113,7 +114,7 @@ export function PhoneNumberSettings() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as { error?: string };
         throw new Error(errorData.error ?? 'Failed to save settings');
       }
 
@@ -142,12 +143,17 @@ export function PhoneNumberSettings() {
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        success?: boolean;
+        accountName?: string;
+        error?: string;
+      };
 
       if (response.ok && data.success) {
+        const accountName = data.accountName ? String(data.accountName) : 'Verified';
         setTestResult({
           success: true,
-          message: `Connected successfully! Account: ${data.accountName ?? 'Verified'}`,
+          message: `Connected successfully! Account: ${accountName}`,
         });
       } else {
         setTestResult({
@@ -178,24 +184,31 @@ export function PhoneNumberSettings() {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {error ? (
+        {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error Loading Settings</AlertTitle>
             <AlertDescription className="flex items-center justify-between">
               <div>{error}</div>
-              <Button variant="outline" size="sm" onClick={loadSettings} className="ml-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loadSettings()}
+                className="ml-2"
+              >
                 <RefreshCw className="mr-1 h-3.5 w-3.5" />
                 Retry
               </Button>
             </AlertDescription>
           </Alert>
-        ) : isLoading ? (
+        )}
+        {isLoading && (
           <div className="py-6 text-center">
             <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground/50" />
             <p className="text-muted-foreground">Loading settings...</p>
           </div>
-        ) : (
+        )}
+        {!isLoading && !error && (
           <>
             <div className="grid gap-4">
               <div>
@@ -203,7 +216,9 @@ export function PhoneNumberSettings() {
                 <Input
                   id="accountSid"
                   value={settings.accountSid}
-                  onChange={e => { setSettings({ ...settings, accountSid: e.target.value }); }}
+                  onChange={e => {
+                    setSettings({ ...settings, accountSid: e.target.value });
+                  }}
                   placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   className="mt-1.5 font-mono"
                 />
@@ -219,7 +234,9 @@ export function PhoneNumberSettings() {
                     variant="ghost"
                     size="sm"
                     className="h-6 w-6 p-0"
-                    onClick={() => { setShowAuthToken(!showAuthToken); }}
+                    onClick={() => {
+                      setShowAuthToken(!showAuthToken);
+                    }}
                   >
                     {showAuthToken ? (
                       <EyeOffIcon className="h-4 w-4" />
@@ -233,7 +250,9 @@ export function PhoneNumberSettings() {
                   id="authToken"
                   type={showAuthToken ? 'text' : 'password'}
                   value={settings.authToken}
-                  onChange={e => { setSettings({ ...settings, authToken: e.target.value }); }}
+                  onChange={e => {
+                    setSettings({ ...settings, authToken: e.target.value });
+                  }}
                   placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   className="mt-1.5 font-mono"
                 />
@@ -247,7 +266,9 @@ export function PhoneNumberSettings() {
                 <Input
                   id="webhookUrl"
                   value={settings.webhookUrl}
-                  onChange={e => { setSettings({ ...settings, webhookUrl: e.target.value }); }}
+                  onChange={e => {
+                    setSettings({ ...settings, webhookUrl: e.target.value });
+                  }}
                   placeholder="https://example.com/api/twilio/webhook"
                   className="mt-1.5 font-mono"
                 />
@@ -267,9 +288,9 @@ export function PhoneNumberSettings() {
                   <Switch
                     id="webhookEnabled"
                     checked={settings.webhookEnabled}
-                    onCheckedChange={checked =>
-                      { setSettings({ ...settings, webhookEnabled: checked }); }
-                    }
+                    onCheckedChange={checked => {
+                      setSettings({ ...settings, webhookEnabled: checked });
+                    }}
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2 rounded-md border p-3">
@@ -282,7 +303,9 @@ export function PhoneNumberSettings() {
                   <Switch
                     id="smsEnabled"
                     checked={settings.smsEnabled}
-                    onCheckedChange={checked => { setSettings({ ...settings, smsEnabled: checked }); }}
+                    onCheckedChange={checked => {
+                      setSettings({ ...settings, smsEnabled: checked });
+                    }}
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2 rounded-md border p-3">
@@ -295,7 +318,9 @@ export function PhoneNumberSettings() {
                   <Switch
                     id="voiceEnabled"
                     checked={settings.voiceEnabled}
-                    onCheckedChange={checked => { setSettings({ ...settings, voiceEnabled: checked }); }}
+                    onCheckedChange={checked => {
+                      setSettings({ ...settings, voiceEnabled: checked });
+                    }}
                   />
                 </div>
               </div>
@@ -366,16 +391,15 @@ export function PhoneNumberSettings() {
                     vault.
                   </p>
                   <div className="mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        window.open('https://www.twilio.com/docs/usage/security', '_blank')
-                      }
+                    <a
+                      href="https://www.twilio.com/docs/usage/security"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
                     >
-                      <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                      <ExternalLink className="h-3.5 w-3.5" />
                       Twilio Security Documentation
-                    </Button>
+                    </a>
                   </div>
                 </AccordionContent>
               </AccordionItem>

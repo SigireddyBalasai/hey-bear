@@ -8,22 +8,24 @@ import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
 
 // Define the type for the data expected from Supabase using db.types.ts
-type AssistantConfigFromDb = Database['assistants']['Tables']['assistant_configs']['Row'];
-type AssistantFromDb = Database['assistants']['Tables']['assistants']['Row'];
+type AssistantConfigFromDb = Database['public']['Tables']['assistant_configs']['Row'];
+type AssistantFromDb = Database['public']['Tables']['assistants']['Row'];
 
 type TypedAssistantWithSpecificConfig = AssistantFromDb & {
   // !inner join in select means assistant_configs object is expected
   assistant_configs: AssistantConfigFromDb; // Changed from Pick to full type
 };
 
+interface DeleteFileRequest {
+  assistantId: string;
+  pinecone_name?: string;
+  fileId: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Validate request body
-    const body = await req.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
-    }
-
+    const body = (await req.json()) as DeleteFileRequest;
     const { assistantId, pinecone_name, fileId } = body;
 
     if (!assistantId || !fileId) {
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     if (!assistantPineconeName) {
       const { data: assistantData, error: assistantError } = await supabase
-        .schema('assistants')
+
         .from('assistants')
         .select('id, assistant_configs!inner(*)') // Fetch all columns from assistant_configs
         .eq('id', assistantId)
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
 
       if (assistantError) {
         console.error('Error fetching assistant data or configuration:', assistantError);
-        const errorCode = (assistantError).code;
+        const errorCode = assistantError.code;
         return NextResponse.json(
           { error: 'Failed to fetch assistant configuration', details: assistantError.message },
           { status: errorCode === 'PGRST116' ? 404 : 500 }

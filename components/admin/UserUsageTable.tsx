@@ -43,17 +43,48 @@ import {
 
 import { UserDetailModal } from './UserDetailModal';
 
+// Get initials (moved to outer scope)
+const getInitials = (name?: string | null) => {
+  // Allow null or undefined
+  if (!name) return 'UN';
+
+  return (
+    name
+      .split(' ')
+      .map(part => part[0] || '')
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'UN'
+  );
+};
+
+// Format date safely (moved to outer scope)
+const formatDate = (dateStr?: string | null) => {
+  if (!dateStr) return { short: 'N/A', year: '' };
+
+  try {
+    const date = new Date(dateStr);
+    return {
+      short: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      year: date.toLocaleDateString('en-US', { year: 'numeric' }),
+    };
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return { short: 'Invalid date', year: '' };
+  }
+};
+
 // Define a type for the user stats directly
 interface UserUsageStats {
   id?: string;
   user_id?: string;
   users?: {
-    full_name?: string | null | undefined; // Allow null or undefined
-    email?: string | null | undefined; // Allow null or undefined
-    created_at?: string | null | undefined; // Allow null or undefined
-    last_active?: string | null | undefined; // Allow null or undefined
+    full_name?: string | null;
+    email?: string | null;
+    created_at?: string | null;
+    last_active?: string | null;
   };
-  date?: string | null | undefined; // Allow null or undefined
+  date?: string | null;
   message_count?: number;
   token_usage?: number;
   cost_estimate?: number;
@@ -132,42 +163,6 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
     setDetailModalOpen(true);
   };
 
-  // Get initials
-  const getInitials = (name?: string | null) => {
-    // Allow null or undefined
-    if (!name) return 'UN';
-
-    return (
-      name
-        .split(' ')
-        .map(part => part[0] || '')
-        .join('')
-        .toUpperCase()
-        .slice(0, 2) || 'UN'
-    );
-  };
-
-  // Format date safely
-  const formatDate = (dateStr?: string | null) => {
-    // Allow null or undefined
-    if (!dateStr)
-      return {
-        short: 'N/A',
-        year: '',
-      };
-
-    try {
-      const date = new Date(dateStr);
-      return {
-        short: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        year: date.toLocaleDateString('en-US', { year: 'numeric' }),
-      };
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return { short: 'Invalid date', year: '' };
-    }
-  };
-
   return (
     <div>
       <div className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center">
@@ -177,7 +172,9 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
             placeholder="Search users..."
             className="w-full pl-8"
             value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); }}
+            onChange={e => {
+              setSearchTerm(e.target.value);
+            }}
           />
         </div>
         <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
@@ -202,29 +199,48 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuLabel>Sort by</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { handleSort('date'); }} className="flex justify-between">
+              <DropdownMenuItem
+                onClick={() => {
+                  handleSort('date');
+                }}
+                className="flex justify-between"
+              >
                 Date
                 {sortField === 'date' && <ArrowUpDown className="h-3.5 w-3.5" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { handleSort('user'); }} className="flex justify-between">
+              <DropdownMenuItem
+                onClick={() => {
+                  handleSort('user');
+                }}
+                className="flex justify-between"
+              >
                 User Name
                 {sortField === 'user' && <ArrowUpDown className="h-3.5 w-3.5" />}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => { handleSort('messages'); }}
+                onClick={() => {
+                  handleSort('messages');
+                }}
                 className="flex justify-between"
               >
                 Message Count
                 {sortField === 'messages' && <ArrowUpDown className="h-3.5 w-3.5" />}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => { handleSort('tokens'); }}
+                onClick={() => {
+                  handleSort('tokens');
+                }}
                 className="flex justify-between"
               >
                 Token Usage
                 {sortField === 'tokens' && <ArrowUpDown className="h-3.5 w-3.5" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { handleSort('cost'); }} className="flex justify-between">
+              <DropdownMenuItem
+                onClick={() => {
+                  handleSort('cost');
+                }}
+                className="flex justify-between"
+              >
                 Cost
                 {sortField === 'cost' && <ArrowUpDown className="h-3.5 w-3.5" />}
               </DropdownMenuItem>
@@ -308,7 +324,9 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem
-                            onClick={() => { handleViewDetails(item); }}
+                            onClick={() => {
+                              handleViewDetails(item);
+                            }}
                             className="gap-2"
                           >
                             <Eye className="h-4 w-4" /> View Details
@@ -363,7 +381,9 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
 
       <UserDetailModal
         isOpen={detailModalOpen}
-        onClose={() => { setDetailModalOpen(false); }}
+        onClose={() => {
+          setDetailModalOpen(false);
+        }}
         userData={selectedUser}
       />
     </div>

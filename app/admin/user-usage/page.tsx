@@ -23,7 +23,7 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
 
     // Get usage data directly from analytics.interactions table
     const { data: interactions, error } = await supabase
-      .schema('analytics')
+
       .from('interactions')
       .select('user_id, token_usage, cost_estimate')
       .gte('interaction_time', startDate.toISOString())
@@ -74,7 +74,7 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
       user_id: item.user_id,
       users: {
         id: item.user_id,
-        email: `user-${(item.user_id).slice(0, 8)}@example.com`, // We'd need to join with auth users for real email
+        email: `user-${item.user_id.slice(0, 8)}@example.com`, // We'd need to join with auth users for real email
       },
       total_interactions: item.interactions_count,
       total_tokens: item.token_usage,
@@ -133,7 +133,7 @@ export default function UserUsagePage() {
 
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
-          .schema('users')
+
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)
@@ -158,7 +158,7 @@ export default function UserUsagePage() {
       }
     };
 
-    checkAdminStatus();
+    void checkAdminStatus();
   }, [router, supabase, dateRange.from, dateRange.to]);
 
   // Handle date range changes - fetch real data based on date range
@@ -184,7 +184,13 @@ export default function UserUsagePage() {
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
+          <Button
+            onClick={() => {
+              router.push('/');
+            }}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
@@ -217,7 +223,9 @@ export default function UserUsagePage() {
                 from: dateRange.from,
                 to: dateRange.to,
               }}
-              onDateRangeChange={handleDateRangeChange}
+              onDateRangeChange={range => {
+                void handleDateRangeChange(range);
+              }}
             />
 
             <Button variant="outline" className="gap-2">

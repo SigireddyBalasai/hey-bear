@@ -5,6 +5,13 @@ import twilio from 'twilio';
 import { logSMSMessage, updateSMSStatus } from '@/utils/sms-monitoring';
 import { createClient } from '@/utils/supabase/server';
 
+// Interface for request body
+interface DirectSMSRequest {
+  to: string;
+  message: string;
+  assistantId?: string;
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -16,7 +23,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { to, message, assistantId } = await request.json();
+    const requestBody = (await request.json()) as DirectSMSRequest;
+    const { to, message, assistantId } = requestBody;
 
     if (!to || !message) {
       return NextResponse.json(
@@ -35,7 +43,7 @@ export async function POST(request: Request) {
     if (assistantId) {
       try {
         const { data: assistant } = await supabase
-          .schema('assistants')
+
           .from('assistants')
           .select('id, name, assigned_phone_number')
           .eq('id', assistantId)

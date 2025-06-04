@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 
 import twilio from 'twilio';
+import type { AccountInstance } from 'twilio/lib/rest/api/v2010/account';
 
 import { createClient } from '@/utils/supabase/server';
+
+interface TestConnectionRequest {
+  accountSid: string;
+  authToken: string;
+}
 
 export async function POST(req: Request) {
   try {
@@ -19,7 +25,7 @@ export async function POST(req: Request) {
 
     // Check admin status directly without using the utility
     const { data: userData, error: userDataError } = await supabase
-      .schema('users')
+
       .from('users')
       .select('is_admin')
       .eq('auth_user_id', user.id)
@@ -31,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     // Get credentials from request body
-    const { accountSid, authToken } = await req.json();
+    const { accountSid, authToken } = (await req.json()) as TestConnectionRequest;
 
     if (!accountSid || !authToken) {
       return NextResponse.json(
@@ -53,7 +59,7 @@ export async function POST(req: Request) {
       const client = twilio(accountSid, actualAuthToken);
 
       // Make a simple request to test the connection
-      const account = await client.api.accounts(accountSid).fetch();
+      const account = (await client.api.accounts(accountSid).fetch()) as AccountInstance;
 
       return NextResponse.json({
         success: true,

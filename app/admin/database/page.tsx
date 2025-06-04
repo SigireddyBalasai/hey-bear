@@ -29,7 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type MaintenanceAction = 'vacuum' | 'refresh' | 'aggregate' | 'partition' | 'archive' | 'full';
 
-interface TableSize {
+// Database stats types
+interface TableSizeData {
   table_name: string;
   size_bytes: number;
   size_pretty: string;
@@ -39,12 +40,12 @@ interface TableSize {
   bloat_size: string;
 }
 
-interface TableRowCount {
+interface TableRowCountData {
   table_name: string;
   row_count: number;
 }
 
-interface IndexStat {
+interface IndexStatData {
   table_name: string;
   index_name: string;
   index_size: string;
@@ -52,17 +53,32 @@ interface IndexStat {
   last_used: string;
 }
 
+// Helper function for formatting bytes
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const size = sizes[i];
+  const value = Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2));
+  return `${String(value)} ${size || 'Bytes'}`;
+};
+
+// Removed custom interfaces - use Supabase types directly
+
 export default function DatabasePage() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<MaintenanceAction | null>(null);
-  const [tableSizes, setTableSizes] = useState<TableSize[]>([]);
-  const [rowCounts, setRowCounts] = useState<TableRowCount[]>([]);
-  const [indexStats, setIndexStats] = useState<IndexStat[]>([]);
+  const [tableSizes, setTableSizes] = useState<TableSizeData[]>([]);
+  const [rowCounts, setRowCounts] = useState<TableRowCountData[]>([]);
+  const [indexStats, setIndexStats] = useState<IndexStatData[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('tables');
 
+  const RUNNING_TEXT = 'Running...';
+
   useEffect(() => {
-    fetchDatabaseStats();
+    void fetchDatabaseStats();
   }, []);
 
   const fetchDatabaseStats = async () => {
@@ -73,7 +89,13 @@ export default function DatabasePage() {
         throw new Error('Failed to fetch database stats');
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        success: boolean;
+        tableSizes?: TableSizeData[];
+        rowCounts?: TableRowCountData[];
+        indexStats?: IndexStatData[];
+        message?: string;
+      };
 
       if (data.success) {
         setTableSizes(data.tableSizes ?? []);
@@ -106,12 +128,15 @@ export default function DatabasePage() {
         throw new Error(`Failed to run ${action} maintenance`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        success: boolean;
+        message?: string;
+      };
 
       if (data.success) {
         toast.success(data.message ?? `${action} maintenance completed successfully`);
         // Refresh stats after maintenance
-        fetchDatabaseStats();
+        void fetchDatabaseStats();
       } else {
         toast.error(data.message ?? `Failed to run ${action} maintenance`);
       }
@@ -123,18 +148,27 @@ export default function DatabasePage() {
     }
   };
 
+  // Helper function to render bloat percentage badge
+  const renderBloatBadge = (bloatPercentage: number) => {
+    const percentage = bloatPercentage.toFixed(1);
+    if (bloatPercentage > 40) {
+      return <Badge variant="destructive">{percentage}%</Badge>;
+    }
+    if (bloatPercentage > 20) {
+      return (
+        <Badge variant="default" className="bg-amber-500">
+          {percentage}%
+        </Badge>
+      );
+    }
+    return <Badge variant="secondary">{percentage}%</Badge>;
+  };
+
   // Find largest tables for quick reference
   const largestTables = [...tableSizes].sort((a, b) => b.size_bytes - a.size_bytes).slice(0, 5);
 
   // Find total database size
   const totalSizeBytes = tableSizes.reduce((sum, table) => sum + table.size_bytes, 0);
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   return (
     <div className="container mx-auto p-4">
@@ -217,7 +251,7 @@ export default function DatabasePage() {
               disabled={actionLoading !== null}
             >
               <Database className="h-4 w-4" />
-              {actionLoading === 'vacuum' ? 'Running...' : 'Vacuum & Analyze'}
+              {actionLoading === 'vacuum' ? RUNNING_TEXT : 'Vacuum & Analyze'}
             </Button>
 
             <Button
@@ -227,7 +261,7 @@ export default function DatabasePage() {
               disabled={actionLoading !== null}
             >
               <RefreshCw className="h-4 w-4" />
-              {actionLoading === 'refresh' ? 'Running...' : 'Refresh Materialized Views'}
+              {actionLoading === 'refresh' ? RUNNING_TEXT : 'Refresh Materialized Views'}
             </Button>
 
             <Button
@@ -237,7 +271,7 @@ export default function DatabasePage() {
               disabled={actionLoading !== null}
             >
               <BarChart className="h-4 w-4" />
-              {actionLoading === 'aggregate' ? 'Running...' : 'Aggregate Stats'}
+              {actionLoading === 'aggregate' ? RUNNING_TEXT : 'Aggregate Stats'}
             </Button>
 
             <Button
@@ -247,7 +281,7 @@ export default function DatabasePage() {
               disabled={actionLoading !== null}
             >
               <Calendar className="h-4 w-4" />
-              {actionLoading === 'partition' ? 'Running...' : 'Create Next Partition'}
+              {actionLoading === 'partition' ? RUNNING_TEXT : 'Create Next Partition'}
             </Button>
 
             <Button
@@ -257,13 +291,13 @@ export default function DatabasePage() {
                 if (
                   confirm('Archive data older than 12 months? This operation cannot be undone.')
                 ) {
-                  runMaintenance('archive');
+                  void runMaintenance('archive');
                 }
               }}
               disabled={actionLoading !== null}
             >
               <ArchiveIcon className="h-4 w-4" />
-              {actionLoading === 'archive' ? 'Running...' : 'Archive Old Data'}
+              {actionLoading === 'archive' ? RUNNING_TEXT : 'Archive Old Data'}
             </Button>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
@@ -279,14 +313,18 @@ export default function DatabasePage() {
                 <Button
                   variant={activeTab === 'size' ? 'secondary' : 'ghost'}
                   size="sm"
-                  onClick={() => { setActiveTab('size'); }}
+                  onClick={() => {
+                    setActiveTab('size');
+                  }}
                 >
                   Size
                 </Button>
                 <Button
                   variant={activeTab === 'bloat' ? 'secondary' : 'ghost'}
                   size="sm"
-                  onClick={() => { setActiveTab('bloat'); }}
+                  onClick={() => {
+                    setActiveTab('bloat');
+                  }}
                 >
                   Bloat
                 </Button>
@@ -303,53 +341,50 @@ export default function DatabasePage() {
               <div className="flex h-48 items-center justify-center">
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : activeTab === 'size' ? (
-              <>
-                {largestTables.map((table, _index) => (
-                  <div key={table.table_name} className="mb-4">
-                    <div className="mb-1 flex justify-between">
-                      <span className="text-sm font-medium">{table.table_name}</span>
-                      <span className="text-sm text-muted-foreground">{table.size_pretty}</span>
-                    </div>
-                    <Progress
-                      value={Math.round(
-                        (table.size_bytes / (largestTables[0]?.size_bytes || 1)) * 100
-                      )}
-                      className="h-2"
-                    />
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {table.total_rows.toLocaleString()} rows
-                    </div>
-                  </div>
-                ))}
-              </>
             ) : (
-              <>
-                {largestTables.map((table, _index) => (
-                  <div key={table.table_name} className="mb-4">
-                    <div className="mb-1 flex justify-between">
-                      <span className="text-sm font-medium">{table.table_name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {table.bloat_percentage.toFixed(1)}% bloat
-                      </span>
-                    </div>
-                    <Progress
-                      value={Math.min(Math.round(table.bloat_percentage), 100)}
-                      className="h-2"
-                      indicatorColor={
-                        table.bloat_percentage > 40
-                          ? 'bg-destructive'
-                          : table.bloat_percentage > 20
-                            ? 'bg-amber-500'
-                            : undefined
-                      }
-                    />
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Size: {table.table_size}, Bloat: {table.bloat_size}
-                    </div>
-                  </div>
-                ))}
-              </>
+              <div>
+                {activeTab === 'size' ? (
+                  <>
+                    {largestTables.map((table, _index) => (
+                      <div key={table.table_name} className="mb-4">
+                        <div className="mb-1 flex justify-between">
+                          <span className="text-sm font-medium">{table.table_name}</span>
+                          <span className="text-sm text-muted-foreground">{table.size_pretty}</span>
+                        </div>
+                        <Progress
+                          value={Math.round(
+                            (table.size_bytes / (largestTables[0]?.size_bytes || 1)) * 100
+                          )}
+                          className="h-2"
+                        />
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {table.total_rows.toLocaleString()} rows
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {largestTables.map((table, _index) => (
+                      <div key={table.table_name} className="mb-4">
+                        <div className="mb-1 flex justify-between">
+                          <span className="text-sm font-medium">{table.table_name}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {table.bloat_percentage.toFixed(1)}% bloat
+                          </span>
+                        </div>
+                        <Progress
+                          value={Math.min(Math.round(table.bloat_percentage), 100)}
+                          className="h-2"
+                        />
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Size: {table.table_size}, Bloat: {table.bloat_size}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -413,23 +448,26 @@ export default function DatabasePage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                indexStats.map(index => (
-                  <TableRow key={`${index.table_name}-${index.index_name}`}>
-                    <TableCell>{index.table_name}</TableCell>
-                    <TableCell className="font-medium">{index.index_name}</TableCell>
-                    <TableCell>{index.index_size}</TableCell>
-                    <TableCell className="text-right">{index.scans.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">
-                      {index.scans === 0 ? (
-                        <Badge variant="destructive" className="ml-auto">
-                          Never Used
-                        </Badge>
-                      ) : (
-                        index.last_used
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                indexStats.map(index => {
+                  const uniqueKey = `${String(index.table_name)}-${String(index.index_name)}`;
+                  return (
+                    <TableRow key={uniqueKey}>
+                      <TableCell>{index.table_name}</TableCell>
+                      <TableCell className="font-medium">{index.index_name}</TableCell>
+                      <TableCell>{index.index_size}</TableCell>
+                      <TableCell className="text-right">{index.scans.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        {index.scans === 0 ? (
+                          <Badge variant="destructive" className="ml-auto">
+                            Never Used
+                          </Badge>
+                        ) : (
+                          index.last_used
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -459,15 +497,7 @@ export default function DatabasePage() {
                     <TableCell>{table.table_size}</TableCell>
                     <TableCell>{table.bloat_size}</TableCell>
                     <TableCell className="text-right">
-                      {table.bloat_percentage > 40 ? (
-                        <Badge variant="destructive">{table.bloat_percentage.toFixed(1)}%</Badge>
-                      ) : table.bloat_percentage > 20 ? (
-                        <Badge variant="default" className="bg-amber-500">
-                          {table.bloat_percentage.toFixed(1)}%
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">{table.bloat_percentage.toFixed(1)}%</Badge>
-                      )}
+                      {renderBloatBadge(table.bloat_percentage)}
                     </TableCell>
                   </TableRow>
                 ))

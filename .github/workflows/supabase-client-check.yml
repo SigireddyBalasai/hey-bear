@@ -1,0 +1,83 @@
+name: Supabase Client Usage Check
+
+on:
+  pull_request:
+    branches: [main, master, dev]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/utils/supabase/**'
+
+jobs:
+  check-supabase-client:
+    name: Check Supabase Client Usage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Specific check for Supabase client usage
+      - name: Check Supabase Client Usage
+        run: |
+          echo "Checking for incorrect Supabase client import patterns..."
+
+          # Check that server components don't import client
+          echo "Checking server components for client imports..."
+          FILES_WITH_ISSUES=$(grep -l "from '@/utils/supabase/client'" --include="*.{ts,tsx}" ./app/api/ ./app/actions.ts 2>/dev/null || true)
+
+          if [ -n "$FILES_WITH_ISSUES" ]; then
+            echo "❌ Found server components/API routes importing client Supabase client:"
+            echo "$FILES_WITH_ISSUES"
+            echo ""
+            echo "Server-side code should use: import { createClient } from '@/utils/supabase/server'"
+            exit 1
+          fi
+
+          # Check that client components don't import server
+          echo "Checking client components for server imports..."
+          CLIENT_FILES_WITH_ISSUES=$(grep -l "from '@/utils/supabase/server'" --include="*.{ts,tsx}" ./components/ 2>/dev/null || true)
+
+          if [ -n "$CLIENT_FILES_WITH_ISSUES" ]; then
+            echo "❌ Found client components importing server Supabase client:"
+            echo "$CLIENT_FILES_WITH_ISSUES"
+            echo ""
+            echo "Client components should use: import { createClient } from '@/utils/supabase/client'"
+            exit 1
+          fi
+
+          # Run ESLint check specifically on files with Supabase imports
+          echo "Running ESLint on files with Supabase imports..."
+          FILES_WITH_SUPABASE=$(grep -l "from '@/utils/supabase/" --include="*.{ts,tsx}" . 2>/dev/null || true)
+
+          if [ -n "$FILES_WITH_SUPABASE" ]; then
+            echo "$FILES_WITH_SUPABASE" | xargs pnpm eslint
+          fi
+
+          echo "✅ All Supabase client imports follow project conventions!"

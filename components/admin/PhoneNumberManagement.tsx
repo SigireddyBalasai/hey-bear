@@ -25,6 +25,10 @@ import {
   unassignPhoneNumber,
 } from '../utils/twilioUtils';
 
+interface AssignPhoneNumberErrorResponse {
+  error: string;
+}
+
 type AssignedPhoneNumber = {
   id: string;
   number: string | null;
@@ -130,7 +134,7 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as AssignPhoneNumberErrorResponse;
         throw new Error(errorData.error ?? 'Failed to assign phone number');
       }
 
@@ -285,7 +289,9 @@ export function PhoneNumberManagement({ initialTab = 'assigned' }: PhoneNumberMa
                     id="areaCode"
                     placeholder="e.g. 415"
                     value={areaCode}
-                    onChange={e => { setAreaCode(e.target.value); }}
+                    onChange={e => {
+                      setAreaCode(e.target.value);
+                    }}
                     className="font-mono"
                   />
                 </div>

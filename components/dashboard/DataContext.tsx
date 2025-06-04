@@ -3,21 +3,17 @@
 import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
-// Define more specific types for Interaction and Stats
-interface Interaction {
-  id: string;
-  message: string;
-  // Add other relevant interaction properties here
-  timestamp?: string; // Example property
-  userId?: string; // Example property
-}
+import type { Database } from '@/lib/db.types';
+import { createClient } from '@/utils/supabase/client';
+
+// Use the database types for interactions
+type Interaction = Database['public']['Tables']['interactions']['Row'];
 
 interface StatsType {
   totalInteractions: number;
   activeContacts: number;
   interactionsPerContact: number;
-  averageResponseTime: string; // Or number if it's in seconds/ms
-  // Add other relevant stats properties here
+  averageResponseTime: string;
 }
 
 // Create a type for the DataContext using built-in types only
@@ -89,28 +85,112 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }); // Changed from any
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Placeholder implementations for new functions
+  // Filter interactions based on date range
   const filterInteractions = async (filters: { fromDate?: string; toDate?: string }) => {
     console.log('Filtering interactions with:', filters);
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    // TODO: Implement actual filtering logic:
-    // - Fetch data based on filters
-    // - Update allInteractions, stats, totalPages, totalItems
-    // For now, setting dummy data:
-    setAllInteractions([
-      { id: 'filtered1', message: `Filtered data from ${filters.fromDate} to ${filters.toDate}` },
-    ]);
-    setStats({
-      totalInteractions: 1,
-      activeContacts: 1,
-      interactionsPerContact: 1,
-      averageResponseTime: '5s',
-    });
-    setTotalPages(1);
-    setTotalItems(1);
-    setIsLoading(false);
+
+    try {
+      const supabase = createClient();
+      let query = supabase
+
+        .from('interactions')
+        .select('*')
+        .order('interaction_time', { ascending: false });
+
+      if (filters.fromDate) {
+        query = query.gte('interaction_time', filters.fromDate);
+      }
+      if (filters.toDate) {
+        query = query.lte('interaction_time', filters.toDate);
+      }
+
+      // Execute the query safely
+      const result = await query;
+
+      // Safely extract data with proper fallbacks
+      const interactions = result?.data || [];
+      const error = result?.error || null;
+
+      if (error) {
+        // Check for empty error object - a common case that causes cryptic errors
+        if (Object.keys(error).length === 0) {
+          console.warn('Received empty error object from database query');
+          // Continue with empty data rather than throwing
+        } else {
+          // Log the error but don't throw - handle it gracefully
+          console.error('Error filtering interactions:', error);
+        }
+
+        // Set empty data states instead of throwing errors
+        setAllInteractions([]);
+        setStats({
+          totalInteractions: 0,
+          activeContacts: 0,
+          interactionsPerContact: 0,
+          averageResponseTime: 'No/A',
+        });
+        setTotalPages(0);
+        setTotalItems(0);
+        setIsLoading(false);
+        return;
+      }
+
+      // Update state with filtered data - ensure proper typing
+      setAllInteractions((interactions || []) as Interaction[]);
+
+      // Calculate stats from filtered data
+      const totalInteractions = interactions?.length || 0;
+
+      // Safely extract chat data for uniqueContacts calculation
+      const safeChats =
+        interactions
+          ?.map(i => {
+            if (typeof i.chat === 'string') {
+              return i.chat;
+            }
+            return null;
+          })
+          .filter(Boolean) || [];
+      const uniqueContacts = new Set(safeChats).size;
+
+      // Safely calculate average response time
+      const avgResponseTime = interactions?.length
+        ? `${Math.round(
+            interactions.reduce((sum, interaction) => {
+              const duration = typeof interaction.duration === 'number' ? interaction.duration : 0;
+              return sum + duration;
+            }, 0) /
+              interactions.length /
+              1000
+          )}s`
+        : 'N/A';
+
+      setStats({
+        totalInteractions,
+        activeContacts: uniqueContacts,
+        interactionsPerContact:
+          uniqueContacts > 0 ? Math.round(totalInteractions / uniqueContacts) : 0,
+        averageResponseTime: avgResponseTime,
+      });
+
+      setTotalPages(Math.ceil(totalInteractions / pageSize));
+      setTotalItems(totalInteractions);
+    } catch (error) {
+      console.error('Failed to filter interactions:', error);
+      // Set empty state on error
+      setAllInteractions([]);
+      setStats({
+        totalInteractions: 0,
+        activeContacts: 0,
+        interactionsPerContact: 0,
+        averageResponseTime: 'N/A',
+      });
+      setTotalPages(0);
+      setTotalItems(0);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchInteractions = async (params: {
@@ -118,29 +198,167 @@ export function DataProvider({ children }: { children: ReactNode }) {
     pageSize?: number;
     searchTerm?: string;
     assistantId?: string | undefined;
-  }) => {
+  }): Promise<void> => {
     console.log('Fetching interactions with params:', params);
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    // TODO: Implement actual fetching logic:
-    // - Fetch data based on params
-    // - Update allInteractions, stats, totalPages, totalItems
-    // For now, setting dummy data:
-    const page = params.page ?? 1;
-    setAllInteractions([
-      { id: `item${(page - 1) * 2 + 1}`, message: `Fetched for page ${page}, item 1` },
-      { id: `item${(page - 1) * 2 + 2}`, message: `Fetched for page ${page}, item 2` },
-    ]);
-    setStats({
-      totalInteractions: 50,
-      activeContacts: 10,
-      interactionsPerContact: 5,
-      averageResponseTime: '10s',
-    });
-    setTotalPages(5); // Assuming 5 total pages for dummy data
-    setTotalItems(10); // Assuming 10 total items for dummy data (2 per page * 5 pages)
-    setIsLoading(false);
+
+    try {
+      const supabase = createClient();
+      const page = params.page ?? 1;
+      const limit = params.pageSize ?? pageSize;
+      const offset = (page - 1) * limit;
+
+      let query = supabase
+
+        .from('interactions')
+        .select('*', { count: 'exact' })
+        .order('interaction_time', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (params.searchTerm) {
+        query = query.or(
+          `request.ilike.%${params.searchTerm}%,response.ilike.%${params.searchTerm}%`
+        );
+      }
+      if (params.assistantId) {
+        query = query.eq('assistant_id', params.assistantId);
+      }
+
+      // Execute the query safely
+      const result = await query;
+
+      // Safely extract data with proper fallbacks
+      const interactions = result?.data || [];
+      const error = result?.error || null;
+      const count = result?.count || 0;
+
+      if (error) {
+        // Check for empty error object - a common case that causes cryptic errors
+        if (!error || Object.keys(error).length === 0) {
+          console.warn('Received empty error object from database query - treating as no error');
+          // Continue with processing the data normally since empty error often means no actual error
+        } else if (
+          error.message &&
+          error.message.includes('The schema must be one of the following')
+        ) {
+          // Handle schema access error specifically
+          console.error('Schema access error:', error.message);
+          console.info(
+            'This error occurs when Supabase needs schema permissions. Run the migrations to fix this.'
+          );
+          // Try to fall back to public schema
+          try {
+            const fallbackQuery = await supabase
+
+              .from('interactions')
+              .select('*', { count: 'exact' })
+              .order('created_at', { ascending: false })
+              .range(offset, offset + limit - 1);
+
+            if (!fallbackQuery.error && fallbackQuery.data) {
+              // Process the fallback data instead of returning
+              setAllInteractions(fallbackQuery.data as Interaction[]);
+              const count = fallbackQuery.count || 0;
+
+              setTotalPages(Math.ceil(count / limit));
+              setTotalItems(count);
+              setIsLoading(false);
+              return; // Return void as required by the function signature
+            }
+          } catch (fallbackError) {
+            console.warn('Fallback to public schema failed:', fallbackError);
+          }
+          
+          // Set empty data states for schema errors
+          setAllInteractions([]);
+          setStats({
+            totalInteractions: 0,
+            activeContacts: 0,
+            interactionsPerContact: 0,
+            averageResponseTime: 'N/A',
+          });
+          setTotalPages(0);
+          setTotalItems(0);
+          setIsLoading(false);
+          return;
+        } else {
+          // Log the error with better formatting
+          console.error('Error fetching interactions:', {
+            message: error.message || 'Unknown error',
+            code: error.code || 'No code',
+            details: error.details || 'No details',
+            hint: error.hint || 'No hint'
+          });
+          
+          // Set empty data states for real errors
+          setAllInteractions([]);
+          setStats({
+            totalInteractions: 0,
+            activeContacts: 0,
+            interactionsPerContact: 0,
+            averageResponseTime: 'N/A',
+          });
+          setTotalPages(0);
+          setTotalItems(0);
+          setIsLoading(false);
+          return;
+        }      }
+
+      // Update state with real data - ensure proper typing
+      setAllInteractions((interactions || []) as Interaction[]);
+
+      // Calculate stats from real data
+      const totalInteractions = count || 0;
+
+      // Safely extract chat data for uniqueContacts calculation
+      const safeChats =
+        interactions
+          ?.map(i => {
+            if (typeof i.chat === 'string') {
+              return i.chat;
+            }
+            return null;
+          })
+          .filter(Boolean) || [];
+      const uniqueContacts = new Set(safeChats).size;
+
+      // Safely calculate average response time
+      const avgResponseTime = interactions?.length
+        ? `${Math.round(
+            interactions.reduce((sum, interaction) => {
+              const duration = typeof interaction.duration === 'number' ? interaction.duration : 0;
+              return sum + duration;
+            }, 0) /
+              interactions.length /
+              1000
+          )}s`
+        : 'N/A';
+
+      setStats({
+        totalInteractions,
+        activeContacts: uniqueContacts,
+        interactionsPerContact:
+          uniqueContacts > 0 ? Math.round(totalInteractions / uniqueContacts) : 0,
+        averageResponseTime: avgResponseTime,
+      });
+
+      setTotalPages(Math.ceil(totalInteractions / limit));
+      setTotalItems(totalInteractions);
+    } catch (error) {
+      console.error('Failed to fetch interactions:', error);
+      // Set empty state on error
+      setAllInteractions([]);
+      setStats({
+        totalInteractions: 0,
+        activeContacts: 0,
+        interactionsPerContact: 0,
+        averageResponseTime: 'N/A',
+      });
+      setTotalPages(0);
+      setTotalItems(0);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Context value

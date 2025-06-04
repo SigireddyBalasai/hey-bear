@@ -1,5 +1,18 @@
 import { createClient } from '@/utils/supabase/server';
 
+interface ChatAPIResponse {
+  response?: string;
+  tokens?: number;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+  };
+  cost?: number;
+  timing?: {
+    responseDuration?: number;
+  };
+}
+
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] Twilio voice transcription webhook received`);
@@ -49,7 +62,7 @@ export async function POST(req: Request) {
 
       // Get assistant details
       const { data: assistant, error } = await supabase
-        .schema('assistants') // Added schema
+        // Added schema
         .from('assistants')
         .select(
           `
@@ -99,7 +112,7 @@ export async function POST(req: Request) {
       console.log(`Fetching assistant with ID: ${assistantId}`);
 
       const { data: assistant, error } = await supabase
-        .schema('assistants') // Added schema
+        // Added schema
         .from('assistants')
         .select(
           `
@@ -168,9 +181,9 @@ export async function POST(req: Request) {
         }
 
         // Try to parse the response as JSON with error handling
-        let responseData;
+        let responseData: ChatAPIResponse;
         try {
-          responseData = await chatResponse.json();
+          responseData = (await chatResponse.json()) as ChatAPIResponse;
           console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
         } catch (parseError) {
           console.error('Failed to parse chat API response as JSON:', parseError);
@@ -190,7 +203,7 @@ export async function POST(req: Request) {
           // Record the interaction in the database
           console.log('Saving voice interaction to database');
           const { error: insertError } = await supabase
-            .schema('analytics') // Added schema
+            // Added schema
             .from('interactions')
             .insert({
               user_id: assistant.user_id,

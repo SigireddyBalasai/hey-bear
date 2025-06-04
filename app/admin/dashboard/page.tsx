@@ -83,7 +83,7 @@ export default function AdminDashboardPage() {
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data');
       }
-      const data = await response.json();
+      const data = (await response.json()) as DashboardData;
       setDashboardData(data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -113,7 +113,7 @@ export default function AdminDashboardPage() {
 
         // Fetch user record to check admin status
         const { data: userData, error: userDataError } = await supabase
-          .schema('users')
+
           .from('users')
           .select('is_admin')
           .eq('auth_user_id', user.id)
@@ -228,7 +228,13 @@ export default function AdminDashboardPage() {
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
           <p className="mb-6">You don't have permission to access this page.</p>
-          <Button onClick={() => { router.push('/'); }}>Return to Home</Button>
+          <Button
+            onClick={() => {
+              router.push('/');
+            }}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
@@ -471,7 +477,9 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card
               className="cursor-pointer p-6 shadow-sm transition-all hover:shadow-md"
-              onClick={() => { router.push('/admin/users'); }}
+              onClick={() => {
+                router.push('/admin/users');
+              }}
             >
               <h3 className="mb-2 flex items-center font-medium">
                 <Users className="mr-2 h-5 w-5" /> Manage Users
@@ -483,7 +491,9 @@ export default function AdminDashboardPage() {
 
             <Card
               className="cursor-pointer p-6 shadow-sm transition-all hover:shadow-md"
-              onClick={() => { router.push('/admin/monitoring'); }}
+              onClick={() => {
+                router.push('/admin/monitoring');
+              }}
             >
               <h3 className="mb-2 flex items-center font-medium">
                 <Activity className="mr-2 h-5 w-5" /> System Monitoring
@@ -495,7 +505,9 @@ export default function AdminDashboardPage() {
 
             <Card
               className="cursor-pointer p-6 shadow-sm transition-all hover:shadow-md"
-              onClick={() => { router.push('/admin/usage'); }}
+              onClick={() => {
+                router.push('/admin/usage');
+              }}
             >
               <h3 className="mb-2 flex items-center font-medium">
                 <DollarSign className="mr-2 h-5 w-5" /> Usage Analytics

@@ -95,7 +95,9 @@ export function UnassignedNumbersWidget() {
           variant="outline"
           size="sm"
           className="w-full"
-          onClick={() => { router.push('/admin/phone-management'); }}
+          onClick={() => {
+            router.push('/admin/phone-management');
+          }}
         >
           {numbers.length > 0 ? 'Assign Numbers' : 'Purchase Numbers'}
         </Button>

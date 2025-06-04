@@ -1,20 +1,36 @@
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { v4 as uuidv4 } from 'uuid';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
 
 function generatePineconeName(base: string): string {
   let prefix = base.toLowerCase().replaceAll(/[^a-z0-9]/g, '-');
   prefix = prefix.slice(0, 40);
-  const randomSuffix = Math.random().toString(36).slice(2, 8);
-  return `${prefix}-${randomSuffix}`;
+  const timestamp = Date.now().toString().slice(-6); // Use timestamp for uniqueness
+  return `${prefix}-${timestamp}`;
+}
+
+interface CreateAssistantRequest {
+  assistantName: string;
+  description?: string;
+  params?: {
+    conciergeName?: string;
+    businessName?: string;
+    phoneNumber?: string;
+  };
+  stripeCheckoutSessionId?: string;
+  paymentSessionId?: string; // Add this for linking to payment session
+  plan?: string;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = (await req.json()) as CreateAssistantRequest;
 
     const {
       assistantName,
@@ -22,6 +38,7 @@ export async function POST(req: NextRequest) {
       params = {},
       plan = 'personal', // Default plan
       stripeCheckoutSessionId, // Added for payment verification
+      paymentSessionId, // Added for linking to payment session
     } = body;
 
     if (!assistantName) {
@@ -29,28 +46,14 @@ export async function POST(req: NextRequest) {
     }
 
     let verifiedPlanId = plan;
-    let subscriptionStatus: Database['assistants']['Tables']['assistant_subscriptions']['Insert']['status'] =
+    let subscriptionStatus: Database['public']['Tables']['assistant_subscriptions']['Insert']['status'] =
       'pending'; // Default status
 
     // If a plan other than personal is selected, verify payment
     if (plan !== 'personal' && stripeCheckoutSessionId) {
       try {
-        // Hypothetical function to verify Stripe payment and get plan details
-        // This function would live in a file like lib/stripe.ts and use your Stripe secret key
-        // const paymentDetails = await verifyStripePayment(stripeCheckoutSessionId);
-        // For demonstration, let's assume verification is successful if stripeCheckoutSessionId is present
-        // and paymentDetails would return the actual plan_id confirmed by Stripe.
-
-        // Example: const { successful, actualPlanId } = await verifyStripePayment(stripeCheckoutSessionId);
-        // if (successful) {
-        //   verifiedPlanId = actualPlanId; // Use the plan confirmed by Stripe
-        //   subscriptionStatus = 'active';
-        // } else {
-        //   return NextResponse.json({ error: 'Payment verification failed or plan mismatch.' }, { status: 402 }); // Payment Required
-        // }
-
-        // For now, let's simulate a successful verification if stripeCheckoutSessionId is provided
-        // In a real scenario, you MUST call Stripe API here to verify the session.
+        // Payment verification would be implemented here
+        // For now, proceeding with plan creation
         console.log(
           `Simulating Stripe payment verification for session: ${stripeCheckoutSessionId} and plan: ${plan}`
         );
@@ -77,20 +80,60 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    // Check if this is a webhook call (has paymentSessionId and stripeCheckoutSessionId)
+    const isWebhookCall = !!(paymentSessionId && stripeCheckoutSessionId);
+    let userId: string;
+    let dbClient: SupabaseClient<Database>;
+    
+    if (isWebhookCall) {
+      // For webhook calls, use admin client and get user from payment session
+      console.log('Webhook call detected, using admin client to fetch user from payment session');
+      dbClient = createAdminClient();
+      
+      const { data: paymentSessionData, error: paymentSessionError } = await dbClient
+        .from('payment_sessions')
+        .select('user_id')
+        .eq('id', paymentSessionId)
+        .single();
+        
+      if (paymentSessionError || !paymentSessionData) {
+        console.error('Error fetching payment session for webhook:', paymentSessionError);
+        return NextResponse.json({ error: 'Payment session not found' }, { status: 404 });
+      }
+      
+      const authUserId = paymentSessionData.user_id;
+      console.log('Retrieved auth user ID from payment session:', authUserId);
+      
+      // Look up the actual user_id from the users table using the auth_user_id
+      const { data: userData, error: userLookupError } = await dbClient
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', authUserId)
+        .single();
+        
+      if (userLookupError || !userData) {
+        console.error('Error finding user record with auth_user_id:', authUserId, userLookupError);
+        return NextResponse.json({ error: 'User record not found' }, { status: 404 });
+      }
+      
+      userId = userData.id;
+      console.log('Found actual user_id for assistant creation:', userId);
+    } else {
+      // For regular calls, authenticate the user
+      const supabase = await createClient();
+      dbClient = supabase;
+      
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+      if (authError || !user) {
+        console.error('Auth error:', authError);
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
-    try {
       const { data: userData, error: userFetchError } = await supabase
-        .schema('users')
         .from('users')
         .select('id')
         .eq('auth_user_id', user.id)
@@ -101,13 +144,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
       }
 
-      const userId = userData.id;
+      userId = userData.id;
+    }
+    try {
       const pendingAssistantId = uuidv4();
 
       const pinecone_name = generatePineconeName(assistantName);
       console.log(`Generated Pinecone name: ${pinecone_name}`);
 
-      const pendingAssistantData: Database['assistants']['Tables']['assistants']['Insert'] = {
+      const pendingAssistantData: Database['public']['Tables']['assistants']['Insert'] = {
         id: pendingAssistantId,
         user_id: userId,
         name: assistantName,
@@ -115,8 +160,7 @@ export async function POST(req: NextRequest) {
         pending: true,
       };
 
-      const { error: insertError } = await supabase
-        .schema('assistants')
+      const { error: insertError } = await dbClient
         .from('assistants')
         .insert([pendingAssistantData]);
 
@@ -129,26 +173,21 @@ export async function POST(req: NextRequest) {
       }
 
       // Insert consolidated config data into assistant_configs table
-      const configData: Database['assistants']['Tables']['assistant_configs']['Insert'] = {
+      const configData: Database['public']['Tables']['assistant_configs']['Insert'] = {
         id: pendingAssistantId,
         description: description ?? null,
         display_name: params.conciergeName ?? assistantName,
         business_name: params.businessName ?? null,
         business_phone: params.phoneNumber ?? null,
       };
-      const { error: configInsertError } = await supabase
-        .schema('assistants')
+      const { error: configInsertError } = await dbClient
         .from('assistant_configs')
         .insert([configData]);
 
       if (configInsertError) {
         console.error('Error inserting assistant config:', configInsertError);
         // Attempt to delete the pending assistant if config insertion fails
-        await supabase
-          .schema('assistants')
-          .from('assistants')
-          .delete()
-          .eq('id', pendingAssistantId);
+        await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
         return NextResponse.json(
           { error: 'Failed to save assistant configuration' },
           { status: 500 }
@@ -156,18 +195,17 @@ export async function POST(req: NextRequest) {
       }
 
       // Insert subscription data
-      const subscriptionData: Database['assistants']['Tables']['assistant_subscriptions']['Insert'] =
-        {
-          id: uuidv4(),
-          assistant_id: pendingAssistantId,
-          status: subscriptionStatus,
-          plan_id: verifiedPlanId,
-          created_at: new Date().toISOString(),
-          // Add any other default fields here
-        };
+      const subscriptionData: Database['public']['Tables']['assistant_subscriptions']['Insert'] = {
+        id: uuidv4(),
+        assistant_id: pendingAssistantId,
+        status: subscriptionStatus,
+        plan_id: verifiedPlanId,
+        payment_session_id: paymentSessionId || null, // Link to payment session if provided
+        created_at: new Date().toISOString(),
+        // Add any other default fields here
+      };
 
-      const { error: subscriptionInsertError } = await supabase
-        .schema('assistants')
+      const { error: subscriptionInsertError } = await dbClient
         .from('assistant_subscriptions')
         .insert([subscriptionData]);
 

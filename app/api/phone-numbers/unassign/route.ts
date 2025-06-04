@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 
 import { createClient } from '@/utils/supabase/server';
 
+interface UnassignPhoneRequest {
+  assistantId: string;
+  phoneNumber: string;
+}
+
 export async function POST(request: Request) {
   const startTime = new Date();
   console.log(`[${startTime.toISOString()}] Phone Number Unassignment - START`);
@@ -22,7 +27,8 @@ export async function POST(request: Request) {
     );
 
     // Parse the request body
-    const { assistantId, phoneNumber } = await request.json();
+    const requestBody = (await request.json()) as UnassignPhoneRequest;
+    const { assistantId, phoneNumber } = requestBody;
     console.log(`[${new Date().toISOString()}] Phone Number Unassignment - Request body:`, {
       assistantId,
       phoneNumber,
@@ -41,7 +47,7 @@ export async function POST(request: Request) {
 
     // Check if the user is authorized to modify this assistant
     const { data: _assistantData, error: assistantError } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('user_id, assigned_phone_number')
       .eq('id', assistantId)
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
 
     // Check if assistant has this phone number assigned
     const { data: _assistantPhoneData, error: phoneCheckError } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .select('id, assigned_phone_number')
       .eq('id', assistantId)
@@ -121,7 +127,7 @@ export async function POST(request: Request) {
 
     // 3. Update assistant to remove phone number
     const { error: updateAssistantError } = await supabase
-      .schema('assistants')
+
       .from('assistants')
       .update({ assigned_phone_number: null })
       .eq('id', assistantId);
@@ -263,12 +269,13 @@ async function updateTwilioWebhook(
     const updatedNumber = await client
       .incomingPhoneNumbers(incomingPhoneNumberSid)
       .update(updateParams)
-      .catch(error => {
+      .catch((error: unknown) => {
         console.error(
           `[TWILIO UNASSIGN][${new Date().toISOString()}] Error clearing webhook URLs:`,
           error
         );
-        throw new Error(`Failed to clear webhook URLs: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to clear webhook URLs: ${errorMessage}`);
       });
 
     console.log(

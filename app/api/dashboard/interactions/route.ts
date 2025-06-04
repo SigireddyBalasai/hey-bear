@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     // Start building the query
     let query = supabase
-      .schema('analytics')
+
       .from('interactions')
       .select('*')
       .order('interaction_time', { ascending: false });
@@ -42,10 +42,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get the total count with the same filters applied
-    let countQuery = supabase
-      .schema('analytics')
-      .from('interactions')
-      .select('id', { count: 'exact', head: true });
+    let countQuery = supabase.from('interactions').select('id', { count: 'exact', head: true });
 
     if (assistantId) {
       countQuery = countQuery.eq('assistant_id', assistantId);
@@ -117,8 +114,14 @@ export async function GET(req: NextRequest) {
       currentPage: page,
       totalCount: count,
     });
-  } catch (error) {
-    console.error('Error fetching interactions:', error);
+  } catch (error: unknown) {
+    const errorObj = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Error fetching interactions:', {
+      message: errorObj.message,
+      name: errorObj.name,
+      stack: errorObj.stack || 'No stack trace',
+      error: error
+    });
     return NextResponse.json({ error: 'Failed to fetch interactions' }, { status: 500 });
   }
 }

@@ -6,10 +6,10 @@ import { createClient } from '@/utils/supabase/server';
 // import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Define related row types based on the database schema
-export type AssistantRow = Tables<{ schema: 'assistants' }, 'assistants'>;
-export type AssistantSubscriptionRow = Tables<{ schema: 'assistants' }, 'assistant_subscriptions'>;
-export type AssistantUsageLimitsRow = Tables<{ schema: 'assistants' }, 'assistant_usage_limits'>;
-export type AssistantActivityRow = Tables<{ schema: 'assistants' }, 'assistant_activity'>;
+export type AssistantRow = Tables<'assistants'>;
+export type AssistantSubscriptionRow = Tables<'assistant_subscriptions'>;
+export type AssistantUsageLimitsRow = Tables<'assistant_usage_limits'>;
+export type AssistantActivityRow = Tables<'assistant_activity'>;
 
 /**
  * Normalized structure for assistant data, combining information from multiple tables/views.
@@ -26,9 +26,9 @@ export interface NormalizedAssistantData {
   last_interaction_at: string | null; // Timestamp of the last interaction
 }
 
-export type AssistantConfigUpdateData = TablesUpdate<{ schema: 'assistants' }, 'assistant_configs'>;
-export type AssistantConfigRow = Tables<{ schema: 'assistants' }, 'assistant_configs'>;
-export type AssistantDetailViewRow = Tables<{ schema: 'assistants' }, 'assistant_detail_view'>;
+export type AssistantConfigUpdateData = TablesUpdate<'assistant_configs'>;
+export type AssistantConfigRow = Tables<'assistant_configs'>;
+export type AssistantDetailViewRow = Tables<'assistant_detail_view'>;
 
 /**
  * Updates data in the 'assistant_configs' table for a given assistant ID.
@@ -48,7 +48,6 @@ export async function updateAssistantConfig(
   // The following .from() call expects 'assistant_configs' to be in the client's default schema (likely "public").
   // This will error if the client cannot access the "assistants" schema directly.
   const { data: updatedData, error } = await supabase
-    .schema('assistants')
     .from('assistant_configs')
     .update(data)
     .eq('id', assistantId)
@@ -78,7 +77,7 @@ export async function getAssistantDetail(
 
   // The following .from() call expects 'assistant_detail_view' to be in the client's default schema.
   const { data: assistantData, error } = await supabase
-    .schema('assistants')
+
     .from('assistant_detail_view')
     .select('*')
     .eq('id', assistantId)
@@ -114,7 +113,7 @@ export async function updateAssistantData(
   const supabase = await createClient();
 
   const { data: updatedData, error } = await supabase
-    .schema('assistants')
+
     .from('assistants')
     .update(data)
     .eq('id', assistantId)

@@ -1,14 +1,14 @@
 import type { Database } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/client';
 
-export type AdminNotification = Database['users']['Tables']['notifications']['Row'];
+export type AdminNotification = Database['public']['Tables']['notifications']['Row'];
 
 export async function getAdminNotifications(userId: string) {
   const supabase = createClient();
 
   try {
     const { data, error } = await supabase
-      .schema('users')
+
       .from('notifications')
       .select('*')
       .eq('user_id', userId)
@@ -29,7 +29,7 @@ export async function markNotificationAsRead(notificationId: string) {
 
   try {
     const { error } = await supabase
-      .schema('users')
+
       .from('notifications')
       .update({ read: true })
       .eq('id', notificationId);
@@ -49,15 +49,12 @@ export async function createNotification(
   const supabase = createClient();
 
   try {
-    const { error } = await supabase
-      .schema('users')
-      .from('notifications')
-      .insert([
-        {
-          ...notification,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+    const { error } = await supabase.from('notifications').insert([
+      {
+        ...notification,
+        created_at: new Date().toISOString(),
+      },
+    ]);
 
     if (error) throw error;
 

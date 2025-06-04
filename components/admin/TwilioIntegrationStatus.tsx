@@ -11,6 +11,103 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/utils/supabase/client';
 
+// API Response interfaces
+interface TwilioConnectionResponse {
+  success?: boolean;
+  error?: string;
+}
+
+// Helper functions to extract nested ternaries
+const getStatusBackgroundColor = (status: 'loading' | 'success' | 'warning' | 'error'): string => {
+  switch (status) {
+    case 'success': {
+      return 'bg-green-100';
+    }
+    case 'warning': {
+      return 'bg-amber-100';
+    }
+    case 'error': {
+      return 'bg-red-100';
+    }
+    default: {
+      return 'bg-gray-100';
+    }
+  }
+};
+
+const getStatusIconColor = (status: 'loading' | 'success' | 'warning' | 'error'): string => {
+  switch (status) {
+    case 'success': {
+      return 'text-green-600';
+    }
+    case 'warning': {
+      return 'text-amber-600';
+    }
+    case 'error': {
+      return 'text-red-600';
+    }
+    default: {
+      return 'text-gray-600';
+    }
+  }
+};
+
+const getStatusBadgeVariant = (
+  status: 'loading' | 'success' | 'warning' | 'error'
+): 'default' | 'destructive' | 'outline' | 'secondary' => {
+  switch (status) {
+    case 'success': {
+      return 'secondary';
+    }
+    case 'warning': {
+      return 'outline';
+    }
+    case 'error': {
+      return 'destructive';
+    }
+    default: {
+      return 'default';
+    }
+  }
+};
+
+const getStatusBadgeClass = (status: 'loading' | 'success' | 'warning' | 'error'): string => {
+  switch (status) {
+    case 'success': {
+      return 'bg-green-100 text-green-800';
+    }
+    case 'warning': {
+      return 'bg-yellow-100 text-yellow-800';
+    }
+    case 'error': {
+      return '';
+    }
+    default: {
+      return '';
+    }
+  }
+};
+
+const getStatusLabel = (status: 'loading' | 'success' | 'warning' | 'error'): string => {
+  switch (status) {
+    case 'loading': {
+      return 'Checking...';
+    }
+    case 'success': {
+      return 'Connected';
+    }
+    case 'warning': {
+      return 'Setup Required';
+    }
+    case 'error': {
+      return 'Connection Error';
+    }
+    default: {
+      return '';
+    }
+  }
+};
+
 export function TwilioIntegrationStatus() {
   const [status, setStatus] = useState<'loading' | 'success' | 'warning' | 'error'>('loading');
   const [numbers, setNumbers] = useState({ total: 0, assigned: 0 });
@@ -35,7 +132,7 @@ export function TwilioIntegrationStatus() {
 
       // Check Twilio API connection
       const response = await fetch('/api/twilio/test-connection');
-      const connectionData = await response.json();
+      const connectionData = (await response.json()) as TwilioConnectionResponse;
 
       // Determine status based on API connection and numbers
       if (!connectionData.success) {
@@ -54,7 +151,7 @@ export function TwilioIntegrationStatus() {
   }, [supabase]);
 
   useEffect(() => {
-    checkTwilioStatus();
+    void checkTwilioStatus();
   }, [checkTwilioStatus]);
 
   return (
@@ -62,60 +159,18 @@ export function TwilioIntegrationStatus() {
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div
-              className={`rounded-full p-3 ${
-                status === 'success'
-                  ? 'bg-green-100'
-                  : status === 'warning'
-                    ? 'bg-amber-100'
-                    : status === 'error'
-                      ? 'bg-red-100'
-                      : 'bg-gray-100'
-              }`}
-            >
-              <Phone
-                className={`h-6 w-6 ${
-                  status === 'success'
-                    ? 'text-green-600'
-                    : status === 'warning'
-                      ? 'text-amber-600'
-                      : status === 'error'
-                        ? 'text-red-600'
-                        : 'text-gray-600'
-                }`}
-              />
+            <div className={`rounded-full p-3 ${getStatusBackgroundColor(status)}`}>
+              <Phone className={`h-6 w-6 ${getStatusIconColor(status)}`} />
             </div>
 
             <div>
               <h3 className="text-lg font-medium">Twilio Integration</h3>
               <div className="mt-1 flex items-center gap-2">
                 <Badge
-                  variant={
-                    status === 'success'
-                      ? 'secondary'
-                      : status === 'warning'
-                        ? 'outline'
-                        : status === 'error'
-                          ? 'destructive'
-                          : 'default'
-                  }
-                  className={
-                    status === 'success'
-                      ? 'bg-green-100 text-green-800'
-                      : status === 'warning'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : status === 'error'
-                          ? ''
-                          : ''
-                  }
+                  variant={getStatusBadgeVariant(status)}
+                  className={getStatusBadgeClass(status)}
                 >
-                  {status === 'loading'
-                    ? 'Checking...'
-                    : status === 'success'
-                      ? 'Connected'
-                      : status === 'warning'
-                        ? 'Setup Required'
-                        : 'Connection Error'}
+                  {getStatusLabel(status)}
                 </Badge>
 
                 {status === 'success' && (
@@ -135,7 +190,9 @@ export function TwilioIntegrationStatus() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { router.push('/admin/phone-management'); }}
+              onClick={() => {
+                router.push('/admin/phone-management');
+              }}
             >
               <Settings className="h-4 w-4" />
             </Button>

@@ -67,7 +67,7 @@ export function AdminSidebar() {
         try {
           const supabase = await createClient();
           const { count, error } = await supabase
-            .schema('users')
+
             .from('users')
             .select('*', { count: 'exact', head: true });
 
