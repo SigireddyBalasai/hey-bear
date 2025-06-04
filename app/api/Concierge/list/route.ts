@@ -1,50 +1,52 @@
 import { NextResponse } from 'next/server';
-
-import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
+// Pinecone related imports like getPineconeClient are removed.
 
 export async function GET() {
   try {
     const supabase = await createClient();
 
-    const { data, error: authError } = await supabase.auth.getUser();
-    if (authError) {
+    // 1. Authenticate User
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Auth error in /api/Concierge/list:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = data.user;
+    // 2. Fetch Application User ID from public.users table
+    const { data: userData, error: userFetchError } = await supabase
+      .from('users')
+      .select('id') // Select the application-specific user ID
+      .eq('auth_user_id', user.id) // Match against the authenticated user's ID
+      .single();
 
-    try {
-      const pinecone = getPineconeClient();
-
-      // Handle potential errors from Pinecone
-      const assistantsResponse = await pinecone.listAssistants().catch(error => {
-        console.error('Pinecone error listing assistants:', error);
-        return { assistants: [] }; // Return empty array on error
-      });
-
-      // Ensure we have an assistants array, even if empty
-      const allAssistants = Array.isArray(assistantsResponse.assistants)
-        ? assistantsResponse.assistants
-        : [];
-
-      // Filter assistants by user (assuming Pinecone supports metadata or naming convention)
-      const userAssistants = allAssistants.filter(
-        a =>
-          a.metadata &&
-          typeof a.metadata === 'object' &&
-          'owner' in a.metadata &&
-          a.metadata.owner === user.id
-      );
-
-      return NextResponse.json({ assistants: userAssistants });
-    } catch (error) {
-      console.error('Error listing assistants:', error);
-      // Return empty list instead of error
-      return NextResponse.json({ assistants: [] });
+    if (userFetchError || !userData) {
+      console.error('Error fetching user data for auth user ID:', user.id, userFetchError);
+      return NextResponse.json({ error: 'Failed to fetch user data or user record not found' }, { status: 500 });
     }
+
+    // 3. Query `assistant_detail_view`
+    // Use userData.id (the application user ID) to query the view
+    const { data: assistants, error: assistantsError } = await supabase
+      .from('assistant_detail_view')
+      .select('*')
+      .eq('user_id', userData.id); // Filter by the application user ID
+
+    if (assistantsError) {
+      console.error('Error fetching assistants from assistant_detail_view for user ID:', userData.id, assistantsError);
+      return NextResponse.json({ error: 'Failed to retrieve assistants' }, { status: 500 });
+    }
+
+    // 4. Return Assistants
+    // If successful, return the assistants data. assistants will be an array.
+    // If no assistants are found, it will be an empty array, which is handled correctly.
+    return NextResponse.json({ assistants: assistants ?? [] });
+
   } catch (error) {
-    console.error('Unexpected error in assistant list:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
+    // General catch block for any other unexpected errors
+    console.error('Unexpected error in GET /api/Concierge/list:', error);
+    // Check if error is an instance of Error to access message property safely
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ error: 'An unexpected error occurred', details: errorMessage }, { status: 500 });
   }
 }

@@ -5,6 +5,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { Database } from '@/lib/db.types';
+// Import specific insert types
+type AssistantActivityInsert = Database['public']['Tables']['assistant_activity']['Insert'];
+type AssistantUsageLimitsInsert = Database['public']['Tables']['assistant_usage_limits']['Insert'];
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
@@ -162,9 +165,16 @@ export async function POST(req: NextRequest) {
 
     // The database query for plan UUID is removed as we now use the local config.
 
-    try {
-      const pendingAssistantId = uuidv4();
+    // Ensure planDetails is not null (already checked before, but good for safety here)
+    if (!planDetails) {
+      // This case should ideally be caught earlier, but as a safeguard:
+      console.error('Plan details are unexpectedly null before database operations.');
+      return NextResponse.json({ error: 'Internal server error: Plan details missing.' }, { status: 500 });
+    }
 
+    const pendingAssistantId = uuidv4(); // Define pendingAssistantId outside the try block for wider scope in catch
+
+    try {
       const pinecone_name = generatePineconeName(assistantName);
       console.log(`Generated Pinecone name: ${pinecone_name}`);
 
@@ -232,13 +242,82 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to save subscription data.' }, { status: 500 });
       }
 
+      // Insert into assistant_activity
+      const nowISO = new Date().toISOString();
+      const activityData: AssistantActivityInsert = {
+        assistant_id: pendingAssistantId,
+        total_documents: 0,
+        total_interactions: 0,
+        total_messages: 0,
+        total_tokens: 0,
+        total_webpages: 0,
+        last_activity_at: nowISO,
+        last_message_at: null,
+        last_used_at: null,
+        created_at: nowISO,
+        updated_at: nowISO,
+      };
+
+      const { error: activityInsertError } = await dbClient
+        .from('assistant_activity')
+        .insert([activityData]);
+
+      if (activityInsertError) {
+        console.error('Error inserting into assistant_activity:', activityInsertError);
+        // Rollback previous inserts
+        await dbClient.from('assistant_subscriptions').delete().eq('assistant_id', pendingAssistantId);
+        await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
+        await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+        return NextResponse.json({ error: 'Failed to save assistant activity data.' }, { status: 500 });
+      }
+
+      // Insert into assistant_usage_limits
+      const limitsData: AssistantUsageLimitsInsert = {
+        assistant_id: pendingAssistantId,
+        document_limit: planDetails.limits.maxDocuments,
+        message_limit: planDetails.limits.maxMessages,
+        token_limit: planDetails.limits.maxTokens,
+        webpage_limit: planDetails.limits.maxWebpages,
+        created_at: nowISO,
+        updated_at: nowISO,
+      };
+
+      const { error: limitsInsertError } = await dbClient
+        .from('assistant_usage_limits')
+        .insert([limitsData]);
+
+      if (limitsInsertError) {
+        console.error('Error inserting into assistant_usage_limits:', limitsInsertError);
+        // Rollback previous inserts
+        await dbClient.from('assistant_activity').delete().eq('assistant_id', pendingAssistantId);
+        await dbClient.from('assistant_subscriptions').delete().eq('assistant_id', pendingAssistantId);
+        await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
+        await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+        return NextResponse.json({ error: 'Failed to save assistant usage limits.' }, { status: 500 });
+      }
+
       return NextResponse.json({
-        message: `Assistant ${assistantName} created as pending`,
+        message: `Assistant ${assistantName} created successfully with activity and limits initialized`,
         assistantId: pendingAssistantId,
         pendingAssistantId: pendingAssistantId,
       });
     } catch (apiError: unknown) {
-      console.error('API error during assistant creation:', apiError);
+      console.error('API error during assistant creation steps:', apiError);
+      // General rollback for any error during the assistant creation process
+      // Ensure pendingAssistantId is valid before attempting cleanup
+      if (pendingAssistantId) {
+        console.log(`Attempting cleanup for assistant ID: ${pendingAssistantId} due to error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`);
+        try {
+          await dbClient.from('assistant_activity').delete().eq('assistant_id', pendingAssistantId);
+          await dbClient.from('assistant_usage_limits').delete().eq('assistant_id', pendingAssistantId);
+          await dbClient.from('assistant_subscriptions').delete().eq('assistant_id', pendingAssistantId);
+          await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
+          await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+          console.log(`Cleanup successful for assistant ID: ${pendingAssistantId}`);
+        } catch (cleanupError) {
+          console.error(`Error during cleanup for assistant ID: ${pendingAssistantId}:`, cleanupError);
+        }
+      }
       return NextResponse.json(
         {
           error: 'Failed to create assistant',
@@ -248,7 +327,9 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error: unknown) {
-    console.error('Unexpected error in POST /api/Concierge/create:', error);
+    // This is the outermost catch block. Errors here are likely before pendingAssistantId is defined
+    // or are issues with the request/response objects themselves.
+    console.error('Unexpected error in POST /api/Concierge/create (outermost catch):', error);
     return NextResponse.json(
       {
         error: 'Internal server error',
