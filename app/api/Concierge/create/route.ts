@@ -87,37 +87,25 @@ export async function POST(req: NextRequest) {
     
     if (isWebhookCall) {
       // For webhook calls, use admin client and get user from payment session
-      console.log('Webhook call detected, using admin client to fetch user from payment session');
+      console.log('Webhook call detected, using admin client to fetch user_id from payment_sessions table.');
       dbClient = createAdminClient();
       
       const { data: paymentSessionData, error: paymentSessionError } = await dbClient
         .from('payment_sessions')
-        .select('user_id')
+        .select('user_id') // This user_id references public.users.id
         .eq('id', paymentSessionId)
         .single();
         
-      if (paymentSessionError || !paymentSessionData) {
-        console.error('Error fetching payment session for webhook:', paymentSessionError);
-        return NextResponse.json({ error: 'Payment session not found' }, { status: 404 });
+      if (paymentSessionError || !paymentSessionData || !paymentSessionData.user_id) {
+        console.error('Error fetching user_id from payment_sessions for webhook:', paymentSessionError, 'or user_id is null.');
+        return NextResponse.json({ error: 'Valid payment session with user_id not found' }, { status: 404 });
       }
       
-      const authUserId = paymentSessionData.user_id;
-      console.log('Retrieved auth user ID from payment session:', authUserId);
+      userId = paymentSessionData.user_id; // This is the correct application user ID (public.users.id)
+      console.log('Retrieved application user_id from payment_sessions:', userId);
       
-      // Look up the actual user_id from the users table using the auth_user_id
-      const { data: userData, error: userLookupError } = await dbClient
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', authUserId)
-        .single();
-        
-      if (userLookupError || !userData) {
-        console.error('Error finding user record with auth_user_id:', authUserId, userLookupError);
-        return NextResponse.json({ error: 'User record not found' }, { status: 404 });
-      }
-      
-      userId = userData.id;
-      console.log('Found actual user_id for assistant creation:', userId);
+      // The previous lookup for userData using auth_user_id is removed as it was incorrect.
+      // We now directly use the user_id from payment_sessions.
     } else {
       // For regular calls, authenticate the user
       const supabase = await createClient();
