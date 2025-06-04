@@ -326,77 +326,6 @@ COMMENT ON FUNCTION "public"."complete_file_processing"("p_file_id" "uuid", "p_v
 
 
 
-CREATE OR REPLACE FUNCTION "public"."create_unpaid_assistant"("p_user_id" "uuid", "p_name" "text", "p_description" "text" DEFAULT NULL::"text", "p_personality" "text" DEFAULT 'Business Casual'::"text", "p_business_name" "text" DEFAULT NULL::"text", "p_concierge_name" "text" DEFAULT NULL::"text", "p_share_phone_number" boolean DEFAULT false, "p_business_phone" "text" DEFAULT NULL::"text") RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-    v_assistant_id UUID;
-    v_config_id UUID;
-    v_result JSONB;
-BEGIN
-    -- Insert the main assistant record
-    INSERT INTO "assistants"."assistants" (
-        "user_id",
-        "name",
-        "pending"
-    ) VALUES (
-        p_user_id,
-        p_name,
-        TRUE  -- Set pending to true as this is unpaid
-    ) RETURNING "id" INTO v_assistant_id;
-
-    -- Insert configuration
-    INSERT INTO "assistants"."assistant_configs" (
-        "id",
-        "description",
-        "concierge_personality",
-        "business_name",
-        "concierge_name",
-        "share_phone_number",
-        "business_phone",
-        "system_prompt",
-        "pinecone_name"
-    ) VALUES (
-        v_assistant_id,
-        p_description,
-        p_personality,
-        p_business_name,
-        COALESCE(p_concierge_name, p_name),
-        p_share_phone_number,
-        p_business_phone,
-        'You are a helpful No-Show assistant designed to provide information based on the documents provided.',
-        'pinecone-' || v_assistant_id
-    ) RETURNING "id" INTO v_config_id;
-
-    -- Create usage limits with defaults
-    INSERT INTO "assistants"."assistant_usage_limits" (
-        "assistant_id"
-    ) VALUES (
-        v_assistant_id
-    );
-
-    -- Initialize activity record
-    INSERT INTO "assistants"."assistant_activity" (
-        "assistant_id"
-    ) VALUES (
-        v_assistant_id
-    );
-
-    -- Return the created data
-    SELECT jsonb_build_object(
-        'assistant_id', v_assistant_id,
-        'config_id', v_config_id
-    ) INTO v_result;
-
-    RETURN v_result;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."create_unpaid_assistant"("p_user_id" "uuid", "p_name" "text", "p_description" "text", "p_personality" "text", "p_business_name" "text", "p_concierge_name" "text", "p_share_phone_number" boolean, "p_business_phone" "text") OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."ensure_partition_exists"("year_month" "text") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -505,17 +434,9 @@ CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-  INSERT INTO public.users (auth_user_id, is_admin, last_active)
-  VALUES (NEW.id, false, NEW.created_at);
+  INSERT INTO public.users (auth_user_id, created_at, updated_at)
+  VALUES (NEW.id, NOW(), NOW());
   RETURN NEW;
-EXCEPTION
-  WHEN unique_violation THEN
-    -- User record already exists, do nothing
-    RETURN NEW;
-  WHEN OTHERS THEN
-    -- Log the error but don't fail the auth process
-    RAISE WARNING 'Failed to create user record for auth_user_id %: %', NEW.id, SQLERRM;
-    RETURN NEW;
 END;
 $$;
 
@@ -886,6 +807,19 @@ COMMENT ON FUNCTION "public"."search_file_metadata"("p_assistant_id" "uuid", "p_
 
 
 
+CREATE OR REPLACE FUNCTION "public"."update_payment_sessions_updated_at"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_payment_sessions_updated_at"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."update_twilio_webhooks"("p_phone_id" "uuid", "p_voice_url" "text" DEFAULT NULL::"text", "p_sms_url" "text" DEFAULT NULL::"text", "p_sms_fallback_url" "text" DEFAULT NULL::"text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -1071,7 +1005,9 @@ CREATE TABLE IF NOT EXISTS "public"."assistant_configs" (
     "system_prompt" "text",
     "pinecone_name" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "concierge_name" "text",
+    "share_phone_number" boolean DEFAULT false
 );
 
 
@@ -1118,6 +1054,14 @@ COMMENT ON COLUMN "public"."assistant_configs"."updated_at" IS 'Timestamp when t
 
 
 
+COMMENT ON COLUMN "public"."assistant_configs"."concierge_name" IS 'Display name for the concierge assistant, used in conversations and interactions.';
+
+
+
+COMMENT ON COLUMN "public"."assistant_configs"."share_phone_number" IS 'Boolean flag indicating whether the assistant should share its phone number with users.';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."assistant_subscriptions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "assistant_id" "uuid" NOT NULL,
@@ -1128,7 +1072,8 @@ CREATE TABLE IF NOT EXISTS "public"."assistant_subscriptions" (
     "current_period_end" timestamp with time zone,
     "cancel_at_period_end" boolean DEFAULT false,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "payment_session_id" "uuid"
 );
 
 
@@ -1413,6 +1358,28 @@ CREATE TABLE IF NOT EXISTS "public"."notifications" (
 
 
 ALTER TABLE "public"."notifications" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."payment_sessions" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "session_id" "text" NOT NULL,
+    "user_id" "uuid",
+    "assistant_config_data" "jsonb" NOT NULL,
+    "stripe_checkout_session_id" "text",
+    "stripe_customer_id" "text",
+    "plan_id" "text",
+    "amount_total" integer,
+    "currency" "text" DEFAULT 'usd'::"text",
+    "customer_email" "text",
+    "status" "text" DEFAULT 'pending'::"text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "expires_at" timestamp with time zone,
+    CONSTRAINT "payment_sessions_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'completed'::"text", 'expired'::"text", 'cancelled'::"text"])))
+);
+
+
+ALTER TABLE "public"."payment_sessions" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."phone_numbers" (
@@ -1763,6 +1730,16 @@ ALTER TABLE ONLY "public"."notifications"
 
 
 
+ALTER TABLE ONLY "public"."payment_sessions"
+    ADD CONSTRAINT "payment_sessions_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."payment_sessions"
+    ADD CONSTRAINT "payment_sessions_session_id_key" UNIQUE ("session_id");
+
+
+
 ALTER TABLE ONLY "public"."phone_numbers"
     ADD CONSTRAINT "phone_numbers_phone_number_key" UNIQUE ("phone_number");
 
@@ -1896,7 +1873,31 @@ CREATE INDEX "idx_assistant_subscriptions_assistant_id" ON "public"."assistant_s
 
 
 
+CREATE INDEX "idx_assistant_subscriptions_payment_session" ON "public"."assistant_subscriptions" USING "btree" ("payment_session_id");
+
+
+
 CREATE INDEX "idx_assistant_usage_limits_assistant_id" ON "public"."assistant_usage_limits" USING "btree" ("assistant_id");
+
+
+
+CREATE INDEX "idx_payment_sessions_created_at" ON "public"."payment_sessions" USING "btree" ("created_at");
+
+
+
+CREATE INDEX "idx_payment_sessions_expires_at" ON "public"."payment_sessions" USING "btree" ("expires_at");
+
+
+
+CREATE INDEX "idx_payment_sessions_session_id" ON "public"."payment_sessions" USING "btree" ("session_id");
+
+
+
+CREATE INDEX "idx_payment_sessions_status" ON "public"."payment_sessions" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_payment_sessions_user_id" ON "public"."payment_sessions" USING "btree" ("user_id");
 
 
 
@@ -1992,6 +1993,10 @@ CREATE OR REPLACE TRIGGER "update_notifications_updated_at" BEFORE UPDATE ON "pu
 
 
 
+CREATE OR REPLACE TRIGGER "update_payment_sessions_updated_at" BEFORE UPDATE ON "public"."payment_sessions" FOR EACH ROW EXECUTE FUNCTION "public"."update_payment_sessions_updated_at"();
+
+
+
 ALTER TABLE ONLY "public"."interactions"
     ADD CONSTRAINT "analytics_interactions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id");
 
@@ -2009,6 +2014,11 @@ ALTER TABLE ONLY "public"."assistant_configs"
 
 ALTER TABLE ONLY "public"."assistant_subscriptions"
     ADD CONSTRAINT "assistant_subscriptions_assistant_id_fkey" FOREIGN KEY ("assistant_id") REFERENCES "public"."assistants"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."assistant_subscriptions"
+    ADD CONSTRAINT "assistant_subscriptions_payment_session_id_fkey" FOREIGN KEY ("payment_session_id") REFERENCES "public"."payment_sessions"("id") ON DELETE SET NULL;
 
 
 
@@ -2037,8 +2047,65 @@ ALTER TABLE ONLY "public"."notifications"
 
 
 
+ALTER TABLE ONLY "public"."payment_sessions"
+    ADD CONSTRAINT "payment_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."phone_numbers"
     ADD CONSTRAINT "phone_numbers_assistant_id_fkey" FOREIGN KEY ("assistant_id") REFERENCES "public"."assistants"("id") ON DELETE SET NULL;
+
+
+
+CREATE POLICY "Admins can view all interactions" ON "public"."interactions" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "auth"."users"
+  WHERE (("users"."id" = "auth"."uid"()) AND (("users"."raw_user_meta_data" ->> 'is_admin'::"text") = 'true'::"text")))));
+
+
+
+CREATE POLICY "Service role can access all interactions" ON "public"."interactions" USING (true);
+
+
+
+CREATE POLICY "Service role can manage all payment sessions" ON "public"."payment_sessions" USING (true);
+
+
+
+CREATE POLICY "Users can insert their own interactions" ON "public"."interactions" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can insert their own payment sessions" ON "public"."payment_sessions" FOR INSERT WITH CHECK (("user_id" IN ( SELECT "users"."id"
+   FROM "public"."users"
+  WHERE ("users"."auth_user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can insert their own profile" ON "public"."users" FOR INSERT WITH CHECK (("auth"."uid"() = "auth_user_id"));
+
+
+
+CREATE POLICY "Users can update their own payment sessions" ON "public"."payment_sessions" FOR UPDATE USING (("user_id" IN ( SELECT "users"."id"
+   FROM "public"."users"
+  WHERE ("users"."auth_user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can update their own profile" ON "public"."users" FOR UPDATE USING (("auth"."uid"() = "auth_user_id"));
+
+
+
+CREATE POLICY "Users can view their own interactions" ON "public"."interactions" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can view their own payment sessions" ON "public"."payment_sessions" FOR SELECT USING (("user_id" IN ( SELECT "users"."id"
+   FROM "public"."users"
+  WHERE ("users"."auth_user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can view their own profile" ON "public"."users" FOR SELECT USING (("auth"."uid"() = "auth_user_id"));
 
 
 
@@ -2070,6 +2137,9 @@ ALTER TABLE "public"."interactions_shadow" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."notifications" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."payment_sessions" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."phone_numbers" ENABLE ROW LEVEL SECURITY;
@@ -2325,6 +2395,12 @@ GRANT ALL ON FUNCTION "public"."add_file_chunk"("p_file_id" "uuid", "p_chunk_ind
 
 
 
+GRANT ALL ON FUNCTION "public"."apply_partition_policies"() TO "anon";
+GRANT ALL ON FUNCTION "public"."apply_partition_policies"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."apply_partition_policies"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."cleanup_old_audit_logs"() TO "anon";
 GRANT ALL ON FUNCTION "public"."cleanup_old_audit_logs"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_old_audit_logs"() TO "service_role";
@@ -2337,15 +2413,27 @@ GRANT ALL ON FUNCTION "public"."complete_file_processing"("p_file_id" "uuid", "p
 
 
 
-GRANT ALL ON FUNCTION "public"."create_unpaid_assistant"("p_user_id" "uuid", "p_name" "text", "p_description" "text", "p_personality" "text", "p_business_name" "text", "p_concierge_name" "text", "p_share_phone_number" boolean, "p_business_phone" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."create_unpaid_assistant"("p_user_id" "uuid", "p_name" "text", "p_description" "text", "p_personality" "text", "p_business_name" "text", "p_concierge_name" "text", "p_share_phone_number" boolean, "p_business_phone" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."create_unpaid_assistant"("p_user_id" "uuid", "p_name" "text", "p_description" "text", "p_personality" "text", "p_business_name" "text", "p_concierge_name" "text", "p_share_phone_number" boolean, "p_business_phone" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."ensure_partition_exists"("year_month" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."ensure_partition_exists"("year_month" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."ensure_partition_exists"("year_month" "text") TO "service_role";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."insert_interaction"("p_assistant_id" "uuid", "p_user_id" "uuid", "p_request" "text", "p_response" "text", "p_interaction_time" timestamp with time zone, "p_chat" "text", "p_is_error" boolean, "p_token_usage" integer, "p_input_tokens" integer, "p_output_tokens" integer, "p_duration" integer, "p_cost_estimate" numeric) TO "anon";
+GRANT ALL ON FUNCTION "public"."insert_interaction"("p_assistant_id" "uuid", "p_user_id" "uuid", "p_request" "text", "p_response" "text", "p_interaction_time" timestamp with time zone, "p_chat" "text", "p_is_error" boolean, "p_token_usage" integer, "p_input_tokens" integer, "p_output_tokens" integer, "p_duration" integer, "p_cost_estimate" numeric) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."insert_interaction"("p_assistant_id" "uuid", "p_user_id" "uuid", "p_request" "text", "p_response" "text", "p_interaction_time" timestamp with time zone, "p_chat" "text", "p_is_error" boolean, "p_token_usage" integer, "p_input_tokens" integer, "p_output_tokens" integer, "p_duration" integer, "p_cost_estimate" numeric) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."insert_interaction_metrics"("p_interaction_id" "uuid", "p_input_tokens" integer, "p_output_tokens" integer, "p_cost_estimate" numeric, "p_response_time_ms" integer, "p_ai_model" "text", "p_client_info" "jsonb", "p_sentiment_score" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."insert_interaction_metrics"("p_interaction_id" "uuid", "p_input_tokens" integer, "p_output_tokens" integer, "p_cost_estimate" numeric, "p_response_time_ms" integer, "p_ai_model" "text", "p_client_info" "jsonb", "p_sentiment_score" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."insert_interaction_metrics"("p_interaction_id" "uuid", "p_input_tokens" integer, "p_output_tokens" integer, "p_cost_estimate" numeric, "p_response_time_ms" integer, "p_ai_model" "text", "p_client_info" "jsonb", "p_sentiment_score" integer) TO "service_role";
 
 
 
@@ -2373,9 +2461,27 @@ GRANT ALL ON FUNCTION "public"."provision_twilio_number"("p_phone_number" "text"
 
 
 
+GRANT ALL ON FUNCTION "public"."refresh_materialized_views"() TO "anon";
+GRANT ALL ON FUNCTION "public"."refresh_materialized_views"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."refresh_materialized_views"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."route_interaction_to_partition"() TO "anon";
+GRANT ALL ON FUNCTION "public"."route_interaction_to_partition"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."route_interaction_to_partition"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."search_file_metadata"("p_assistant_id" "uuid", "p_query" "text", "p_limit" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."search_file_metadata"("p_assistant_id" "uuid", "p_query" "text", "p_limit" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."search_file_metadata"("p_assistant_id" "uuid", "p_query" "text", "p_limit" integer) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_payment_sessions_updated_at"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_payment_sessions_updated_at"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_payment_sessions_updated_at"() TO "service_role";
 
 
 
@@ -2469,24 +2575,33 @@ GRANT ALL ON TABLE "public"."audit_logs" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."interaction_metrics" TO "authenticated";
-GRANT SELECT ON TABLE "public"."interaction_metrics" TO "anon";
+GRANT ALL ON TABLE "public"."interaction_metrics" TO "anon";
+GRANT ALL ON TABLE "public"."interaction_metrics" TO "authenticated";
 GRANT ALL ON TABLE "public"."interaction_metrics" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."interactions" TO "authenticated";
-GRANT SELECT ON TABLE "public"."interactions" TO "anon";
+GRANT ALL ON TABLE "public"."interactions" TO "anon";
+GRANT ALL ON TABLE "public"."interactions" TO "authenticated";
 GRANT ALL ON TABLE "public"."interactions" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."interactions_shadow" TO "anon";
+GRANT ALL ON TABLE "public"."interactions_shadow" TO "authenticated";
 GRANT ALL ON TABLE "public"."interactions_shadow" TO "service_role";
 
 
 
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE "public"."notifications" TO "authenticated";
+GRANT ALL ON TABLE "public"."notifications" TO "anon";
+GRANT ALL ON TABLE "public"."notifications" TO "authenticated";
 GRANT ALL ON TABLE "public"."notifications" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."payment_sessions" TO "anon";
+GRANT ALL ON TABLE "public"."payment_sessions" TO "authenticated";
+GRANT ALL ON TABLE "public"."payment_sessions" TO "service_role";
 
 
 
