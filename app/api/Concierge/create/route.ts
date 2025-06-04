@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { Database } from '@/lib/db.types';
+import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
 
@@ -144,32 +145,22 @@ export async function POST(req: NextRequest) {
       userId = userData.id;
     }
 
-    // Fetch the actual plan UUID from subscription_plans table
-    let actualPlanUUID: string | null = null;
-    if (verifiedPlanId) {
-      // Only query if verifiedPlanId is set
-      console.log(`Fetching plan UUID for plan name: ${verifiedPlanId}`);
-      const { data: planData, error: planFetchError } = await dbClient
-        .from('subscription_plans')
-        .select('id')
-        .eq('name', verifiedPlanId)
-        .single();
+    // Validate verifiedPlanId using local configuration
+    const planDetails = getSubscriptionPlanDetails(verifiedPlanId);
 
-      if (planFetchError || !planData) {
-        console.error(`Error fetching plan UUID for name "${verifiedPlanId}":`, planFetchError);
-        return NextResponse.json(
-          { error: `Invalid plan specified: ${verifiedPlanId}. Plan not found.` },
-          { status: 400 }
-        );
-      }
-      actualPlanUUID = planData.id;
-      console.log(`Found plan UUID: ${actualPlanUUID} for plan name: ${verifiedPlanId}`);
-    } else {
-      // This case should ideally not happen if 'plan' has a default and is validated.
-      // But if verifiedPlanId could be null/empty, handle it.
-      console.error('verifiedPlanId is null or empty, cannot determine plan UUID.');
-      return NextResponse.json({ error: 'Plan ID could not be determined.' }, { status: 400 });
+    if (!planDetails) {
+      console.error(`Invalid plan specified by client: ${verifiedPlanId}. Plan not found in local configuration.`);
+      return NextResponse.json(
+        { error: `Invalid plan specified: ${verifiedPlanId}. Plan not found in configuration.` },
+        { status: 400 }
+      );
     }
+
+    // Use the ID from the local configuration (e.g., "personal", "business")
+    const actualPlanIdForDb = planDetails.id;
+    console.log(`Using plan ID from local config: ${actualPlanIdForDb} for plan: ${verifiedPlanId}`);
+
+    // The database query for plan UUID is removed as we now use the local config.
 
     try {
       const pendingAssistantId = uuidv4();
@@ -224,7 +215,7 @@ export async function POST(req: NextRequest) {
         id: uuidv4(),
         assistant_id: pendingAssistantId,
         status: subscriptionStatus,
-        plan_id: actualPlanUUID, // Use the fetched UUID
+        plan_id: actualPlanIdForDb, // Use the ID from lib/subscription-plans.ts
         payment_session_id: paymentSessionId || null,
         created_at: new Date().toISOString(),
       };
