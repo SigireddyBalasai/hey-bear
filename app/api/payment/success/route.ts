@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import type Stripe from 'stripe';
 
 import { createClient } from '@/utils/supabase/server-admin';
-import { getPlanByStripeProductId } from '@/lib/subscription-plans';
+import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
 
 interface CreateAssistantResult {
   message: string;
@@ -374,38 +374,38 @@ async function processPaymentSuccess(
       assistantConfigData
     );
 
-    // 5a. Determine Plan Name using Stripe Product ID from paymentSession.plan_id
+    // 5a. Determine Plan Name using internal plan_id from paymentSession
     let planName;
-    const stripeProductId = paymentSession.plan_id; // Assuming plan_id from DB now stores Stripe Product ID
+    const internalPlanId = paymentSession.plan_id;
 
-    if (!stripeProductId) {
+    if (!internalPlanId || typeof internalPlanId !== 'string' || internalPlanId.trim() === '') {
       console.error(
-        `[PAYMENT SUCCESS] CRITICAL: Stripe Product ID (paymentSession.plan_id) missing from payment session (ID: ${paymentSession.id}).`
+        `[PAYMENT SUCCESS] CRITICAL: Plan ID missing or invalid in payment session (ID: ${paymentSession.id}). Received: ${internalPlanId}`
       );
       return NextResponse.json(
-        { error: 'Critical: Stripe Product ID missing from payment session.' },
+        { error: 'Critical: Plan ID missing or invalid in payment session.' },
         { status: 500 }
       );
     }
 
     console.log(
-      `[PAYMENT SUCCESS] Looking up plan for Stripe Product ID: ${stripeProductId}`
+      `[PAYMENT SUCCESS] Looking up plan details for internal plan ID: ${internalPlanId}`
     );
-    const planObject = getPlanByStripeProductId(stripeProductId);
+    const planDetails = getSubscriptionPlanDetails(internalPlanId);
 
-    if (!planObject) {
+    if (!planDetails) {
       console.error(
-        `[PAYMENT SUCCESS] CRITICAL: Failed to find plan details for Stripe Product ID: ${stripeProductId}. This ID may not be configured in lib/subscription-plans.ts.`
+        `[PAYMENT SUCCESS] CRITICAL: Unknown plan ID found in payment session: ${internalPlanId}. Plan not configured in lib/subscription-plans.ts.`
       );
       return NextResponse.json(
-        { error: 'Critical: Plan configuration error for the provided Stripe Product ID.' },
+        { error: 'Critical: Plan configuration error. Unknown plan ID from payment session.' },
         { status: 500 }
       );
     }
 
-    planName = planObject.id; // e.g., "personal", "business"
+    planName = planDetails.id; // e.g., "personal", "business"
     console.log(
-      `[PAYMENT SUCCESS] Successfully determined plan name: "${planName}" for Stripe Product ID: ${stripeProductId}`
+      `[PAYMENT SUCCESS] Successfully determined plan name: "${planName}" for internal plan ID: ${internalPlanId}`
     );
 
     try {
