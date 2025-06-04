@@ -5,6 +5,7 @@ export const SUBSCRIPTION_PLANS = {
     name: 'Personal',
     description: 'Perfect for individuals',
     price: 9.99,
+    stripeProductId: 'prod_SACbde4CkKIpX6', // Added Stripe Product ID
     features: [
       'Basic document processing',
       'Standard response times',
@@ -26,6 +27,7 @@ export const SUBSCRIPTION_PLANS = {
     name: 'Business',
     description: 'For small to medium-sized businesses',
     price: 29.99,
+    stripeProductId: 'prod_SACZFYC14Veixw', // Added Stripe Product ID
     features: [
       'Priority document processing',
       'Faster response times',
@@ -73,4 +75,17 @@ export const getSubscriptionPlanDetails = (planId: string) => {
 export const getPlanLimits = (planType: string) => {
   const plan = getSubscriptionPlanDetails(planType);
   return plan ? plan.limits : SUBSCRIPTION_PLANS.PERSONAL.limits; // Default to personal limits
+};
+
+// Helper function to get plan by Stripe Product ID
+export const getPlanByStripeProductId = (stripeId: string) => {
+  if (!stripeId) return null;
+
+  const plans = Object.values(SUBSCRIPTION_PLANS);
+  for (const plan of plans) {
+    if (plan.stripeProductId === stripeId) {
+      return plan;
+    }
+  }
+  return null; // Or undefined, as per original requirement
 };

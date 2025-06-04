@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 import type Stripe from 'stripe';
 
 import { createClient } from '@/utils/supabase/server-admin';
+import { getPlanByStripeProductId } from '@/lib/subscription-plans';
 
 interface CreateAssistantResult {
   message: string;
@@ -373,51 +374,38 @@ async function processPaymentSuccess(
       assistantConfigData
     );
 
-    // 5a. Fetch Plan Name
+    // 5a. Determine Plan Name using Stripe Product ID from paymentSession.plan_id
     let planName;
-    if (!paymentSession.plan_id) {
+    const stripeProductId = paymentSession.plan_id; // Assuming plan_id from DB now stores Stripe Product ID
+
+    if (!stripeProductId) {
       console.error(
-        `[PAYMENT SUCCESS] CRITICAL: plan_id not found in paymentSession (ID: ${paymentSession.id}).`
+        `[PAYMENT SUCCESS] CRITICAL: Stripe Product ID (paymentSession.plan_id) missing from payment session (ID: ${paymentSession.id}).`
       );
       return NextResponse.json(
-        { error: 'Critical: Plan ID missing from payment session.' },
+        { error: 'Critical: Stripe Product ID missing from payment session.' },
         { status: 500 }
       );
     }
 
     console.log(
-      `[PAYMENT SUCCESS] Fetching plan name for plan_id: ${paymentSession.plan_id}`
+      `[PAYMENT SUCCESS] Looking up plan for Stripe Product ID: ${stripeProductId}`
     );
-    const { data: planData, error: planError } = await supabase
-      .from('subscription_plans')
-      .select('name')
-      .eq('id', paymentSession.plan_id)
-      .single();
+    const planObject = getPlanByStripeProductId(stripeProductId);
 
-    if (planError) {
+    if (!planObject) {
       console.error(
-        `[PAYMENT SUCCESS] CRITICAL: Error fetching plan name for plan_id ${paymentSession.plan_id}:`,
-        planError
+        `[PAYMENT SUCCESS] CRITICAL: Failed to find plan details for Stripe Product ID: ${stripeProductId}. This ID may not be configured in lib/subscription-plans.ts.`
       );
       return NextResponse.json(
-        { error: 'Critical: Plan details query failed for the provided plan ID.' },
+        { error: 'Critical: Plan configuration error for the provided Stripe Product ID.' },
         { status: 500 }
       );
     }
 
-    if (!planData) {
-      console.error(
-        `[PAYMENT SUCCESS] CRITICAL: Plan details not found for plan_id ${paymentSession.plan_id}.`
-      );
-      return NextResponse.json(
-        { error: 'Critical: Plan details not found for the provided plan ID.' },
-        { status: 500 }
-      );
-    }
-
-    planName = planData.name;
+    planName = planObject.id; // e.g., "personal", "business"
     console.log(
-      `[PAYMENT SUCCESS] Successfully fetched plan name: "${planName}" for plan_id: ${paymentSession.plan_id}`
+      `[PAYMENT SUCCESS] Successfully determined plan name: "${planName}" for Stripe Product ID: ${stripeProductId}`
     );
 
     try {
