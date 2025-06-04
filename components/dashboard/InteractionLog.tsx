@@ -42,6 +42,8 @@ import { useData } from './DataContext';
 
 // @ts-nocheck - Temporarily disable type checking while the table schema issues are resolved
 
+// @ts-nocheck - Temporarily disable type checking while the table schema issues are resolved
+
 // Type definition for the chat data object
 interface ChatData {
   from?: string;

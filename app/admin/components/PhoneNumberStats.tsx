@@ -81,6 +81,8 @@ import { TwilioMessageDetails } from './TwilioMessageDetails';
 
 // filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
 
+// filepath: /home/balasai/hey-bear/app/admin/components/PhoneNumberStats.tsx
+
 // Register Chart.js components
 ChartJS.register(
   CategoryScale,

@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       .select('id')
       .eq('auth_user_id', user.id)
       .single();
-      
+
     if (userFetchError || !userData) {
       console.error('Error fetching user record:', userFetchError);
       return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
@@ -130,7 +130,9 @@ export async function POST(req: NextRequest) {
     const retryDelay = 500; // ms
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`Attempt ${attempt}/${maxRetries} to fetch user record from 'public.users' for auth_user_id: ${user.id}`);
+      console.log(
+        `Attempt ${attempt}/${maxRetries} to fetch user record from 'public.users' for auth_user_id: ${user.id}`
+      );
       const { data: currentData, error: currentError } = await supabase
         .from('users')
         .select('id')
@@ -140,22 +142,36 @@ export async function POST(req: NextRequest) {
       if (currentData && !currentError) {
         userData = currentData;
         userFetchError = null;
-        console.log(`Successfully fetched user record on attempt ${attempt}. User ID: ${userData.id}`);
+        console.log(
+          `Successfully fetched user record on attempt ${attempt}. User ID: ${userData.id}`
+        );
         break; // Exit loop on success
       } else {
         userData = null;
         userFetchError = currentError;
-        console.warn(`Failed to fetch user record on attempt ${attempt}. Error: ${currentError?.message || 'No data returned'}`);
+        console.warn(
+          `Failed to fetch user record on attempt ${attempt}. Error: ${currentError?.message || 'No data returned'}`
+        );
         if (attempt < maxRetries) {
           console.log(`Waiting ${retryDelay}ms before next attempt...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
       }
     }
-      
-    if (!userData) { // This means all retries failed
-      console.error(`Failed to fetch user record from 'public.users' after ${maxRetries} attempts for auth_user_id: ${user.id}. Last error:`, userFetchError);
-      return NextResponse.json({ error: 'Failed to fetch user record from public.users after multiple attempts. Please try again shortly.' }, { status: 500 });
+
+    if (!userData) {
+      // This means all retries failed
+      console.error(
+        `Failed to fetch user record from 'public.users' after ${maxRetries} attempts for auth_user_id: ${user.id}. Last error:`,
+        userFetchError
+      );
+      return NextResponse.json(
+        {
+          error:
+            'Failed to fetch user record from public.users after multiple attempts. Please try again shortly.',
+        },
+        { status: 500 }
+      );
     }
     // At this point, userData is guaranteed to be non-null and contain { id: string }
 
@@ -215,7 +231,10 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('Error creating payment session (insert using user-context client):', insertError);
+      console.error(
+        'Error creating payment session (insert using user-context client):',
+        insertError
+      );
       return NextResponse.json({ error: 'Failed to create payment session' }, { status: 500 });
     }
 
