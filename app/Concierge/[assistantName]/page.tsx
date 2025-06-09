@@ -39,7 +39,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { cn } from '@/lib/utils';
 import { handleError, showSuccess } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';

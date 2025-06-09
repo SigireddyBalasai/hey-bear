@@ -6,8 +6,8 @@ import { MessageSquare, Phone, Zap } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLoadingState } from '@/hooks/useLoadingState';
-import type { Assistant, PlanUsageProps } from '@/lib/types/usage';
-import { createUsageMetric, defaultUsageMetric } from '@/lib/types/usage';
+import type { Assistant, PlanUsageProps } from '@/types/usage.types';
+import { createUsageMetric, defaultUsageMetric } from '@/types/usage.types';
 import { countChatsByDirection } from '@/utils/chat-utils';
 import { withErrorHandling } from '@/utils/error-handling';
 import { capitalizeFirstLetter, getPlanLimits } from '@/utils/plan-utils';

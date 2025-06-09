@@ -2,7 +2,7 @@ import React from 'react';
 
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { UsageMetric } from '@/lib/types/usage';
+import type { UsageMetric } from '@/types/usage.types';
 
 interface UsageProgressProps {
   title: string;

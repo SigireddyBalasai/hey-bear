@@ -76,7 +76,7 @@ The project uses multiple Supabase schemas:
 - `assistants` - AI assistant configurations
 - `users` - User management and authentication
 
-When working with database queries, use the generated types from `/lib/db.types.ts` for type safety.
+When working with database queries, use the generated types from `/types/db.types.ts` for type safety.
 
 ## Environment Variables
 
@@ -145,7 +145,7 @@ The project enforces strict rules for Supabase client usage:
    ```typescript
    import type { SupabaseClient } from '@supabase/supabase-js';
 
-   import type { Database } from '@/lib/db.types';
+   import type { Database } from '@/types/db.types';
 
    // In functions:
    function example(supabase: SupabaseClient<Database>) {
