@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+import { getPineconeClient } from '@/lib/pinecone';
 // Import Database type
 
 import type { Database } from '@/types/db.types';
-import { getPineconeClient } from '@/lib/pinecone';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 

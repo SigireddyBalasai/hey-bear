@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { Database } from '@/types/db.types';
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
+import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@/utils/supabase/server-admin';

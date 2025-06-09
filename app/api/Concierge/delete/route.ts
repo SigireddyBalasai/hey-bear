@@ -3,11 +3,11 @@ import type { NextRequest } from 'next/server';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { getPineconeClient } from '@/lib/pinecone';
+import { getStripeInstance } from '@/lib/stripe';
 // Ensure SupabaseClient is imported
 
 import type { Database } from '@/types/db.types';
-import { getPineconeClient } from '@/lib/pinecone';
-import { getStripeInstance } from '@/lib/stripe';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 

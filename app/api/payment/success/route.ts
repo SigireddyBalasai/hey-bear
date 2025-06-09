@@ -4,8 +4,8 @@ import type { NextRequest } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
 
-import type { Database } from '@/types/db.types';
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
+import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server-admin';
 
 interface CreateAssistantResult {

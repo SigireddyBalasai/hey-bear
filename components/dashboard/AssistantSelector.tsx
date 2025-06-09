@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Assistant } from '@/lib/types/usage';
+import type { Assistant } from '@/types/usage.types';
 
 interface AssistantSelectorProps {
   assistants: Assistant[];

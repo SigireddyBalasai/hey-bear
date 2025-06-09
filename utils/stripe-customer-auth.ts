@@ -8,8 +8,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
 
-import type { Database } from '@/types/db.types';
 import { getStripeInstance } from '@/lib/stripe';
+import type { Database } from '@/types/db.types';
 
 export interface StripeCustomerResult {
   success: boolean;

@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import type {Database} from '@/types/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
+import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server';
 
 interface ChatRequest {

@@ -14,8 +14,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
-import type { Database } from '@/types/db.types';
 import { cn } from '@/lib/utils';
+import type { Database } from '@/types/db.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
