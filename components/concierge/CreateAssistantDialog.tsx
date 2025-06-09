@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 import { ChevronLeft } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -24,9 +23,9 @@ import {
 import { StripePricingTable } from '@/components/ui/stripe-pricing-table';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useLoadingState } from '@/hooks/useLoadingState';
+import { handleError, showInfo, showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-import { PricingTablePopup } from './PricingTablePopup';
 
 interface CreateAssistantDialogProps {
   open: boolean;
@@ -56,32 +55,35 @@ export function CreateAssistantDialog({
   isCreating: _isCreating,
   userId: _userIdProp,
 }: CreateAssistantDialogProps) {
-  const [showPricingPopup, setShowPricingPopup] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<'details' | 'payment'>('details');
   const [_userId, _setUserId] = useState<string>('');
-  const [isSavingSession, setIsSavingSession] = useState(false);
+  const { isLoading: isSavingSession, setIsLoading: setIsSavingSession } = useLoadingState(false);
 
   // Get user ID when dialog opens
   useEffect(() => {
-    async function getUserId() {
-      if (!open) return;
+    const getUserId = async () => {
+      await withErrorHandling(
+        async () => {
+          if (!open) return;
 
-      try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+          const supabase = createClient();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
 
-        if (user) {
-          _setUserId(user.id);
+          if (user) {
+            _setUserId(user.id);
+          }
+        },
+        {
+          toastTitle: 'Authentication Error',
+          fallbackMessage: 'Failed to get user information',
         }
-      } catch (error) {
-        console.error('Error getting user:', error);
-      }
-    }
+      );
+    };
 
-    getUserId();
+    void getUserId();
   }, [open]);
 
   const personalityOptions = [
@@ -96,19 +98,27 @@ export function CreateAssistantDialog({
 
   const _validateForm = () => {
     if (!formData.name.trim()) {
-      toast.error('Please enter an assistant display name');
+      handleError('Please enter an assistant display name', {
+        fallbackMessage: 'Please enter an assistant display name',
+      });
       return false;
     }
     if (!formData.conciergeName.trim()) {
-      toast.error('Please enter an assistant name');
+      handleError('Please enter an assistant name', {
+        fallbackMessage: 'Please enter an assistant name',
+      });
       return false;
     }
     if (!formData.personality) {
-      toast.error('Please select a personality');
+      handleError('Please select a personality', {
+        fallbackMessage: 'Please select a personality',
+      });
       return false;
     }
     if (!formData.businessName.trim()) {
-      toast.error('Please enter your name or business name');
+      handleError('Please enter your name or business name', {
+        fallbackMessage: 'Please enter your name or business name',
+      });
       return false;
     }
     return true;
@@ -121,74 +131,77 @@ export function CreateAssistantDialog({
 
     setIsSavingSession(true);
 
-    try {
-      console.log('🚀 Starting session save process...');
-      console.log('📝 Form data to save:', formData);
+    const saveSession = async () => {
+      await withErrorHandling(
+        async () => {
+          console.log('🚀 Starting session save process...');
+          console.log('📝 Form data to save:', formData);
 
-      // Transform form data to match API interface
-      const assistantData = {
-        name: formData.name,
-        description: formData.description,
-        concierge_name: formData.conciergeName,
-        personality: formData.personality,
-        business_name: formData.businessName,
-        business_phone: formData.phoneNumber,
-        share_phone_number: formData.sharePhoneNumber,
-        display_name: formData.name,
-        plan_id: formData.selectedPlan || 'personal', // Default to personal plan
-      };
+          // Transform form data to match API interface
+          const assistantData = {
+            name: formData.name,
+            description: formData.description,
+            concierge_name: formData.conciergeName,
+            personality: formData.personality,
+            business_name: formData.businessName,
+            business_phone: formData.phoneNumber,
+            share_phone_number: formData.sharePhoneNumber,
+            display_name: formData.name,
+            plan_id: formData.selectedPlan || 'personal', // Default to personal plan
+          };
 
-      console.log('🔄 Transformed assistant data:', assistantData);
+          console.log('🔄 Transformed assistant data:', assistantData);
 
-      // Save assistant data to session
-      const url = '/api/Concierge/session';
-      console.log('🌐 Making POST request to:', url);
+          // Save assistant data to session
+          const url = '/api/Concierge/session';
+          console.log('🌐 Making POST request to:', url);
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(assistantData),
+          });
+
+          console.log('📊 Response status:', response.status);
+          console.log('📊 Response ok:', response.ok);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to save assistant data: ${errorText}`);
+          }
+
+          const result = (await response.json()) as { session_id: string; checkoutUrl?: string };
+          const { session_id: newSessionId } = result;
+
+          console.log('✅ Session created successfully:', newSessionId);
+
+          // Set session ID and move to payment step
+          setSessionId(newSessionId);
+          setCurrentStep('payment');
+
+          console.log('🎯 Moving to payment step with session:', newSessionId);
         },
-        body: JSON.stringify(assistantData),
-      });
+        {
+          toastTitle: 'Save Error',
+          fallbackMessage: 'Failed to save assistant data',
+        }
+      );
+    };
 
-      console.log('📊 Response status:', response.status);
-      console.log('📊 Response ok:', response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Response error text:', errorText);
-        throw new Error('Failed to save assistant data');
-      }
-
-      const result = (await response.json()) as { session_id: string; checkoutUrl?: string };
-      const { session_id: newSessionId } = result;
-
-      console.log('✅ Session created successfully:', newSessionId);
-
-      // Set session ID and move to payment step
-      setSessionId(newSessionId);
-      setCurrentStep('payment');
-
-      console.log('🎯 Moving to payment step with session:', newSessionId);
-    } catch (error: unknown) {
-      console.error('Error saving session:', error);
-      toast.error('Failed to save assistant data', {
-        description: 'Please try again.',
-      });
+    try {
+      await saveSession();
     } finally {
       setIsSavingSession(false);
     }
   };
 
   const handlePaymentSuccess = () => {
-    setShowPricingPopup(false);
     setSessionId(null);
     setCurrentStep('details');
     setOpen(false);
-    toast.success('Payment successful!', {
-      description: 'Your assistant has been activated and is ready to use.',
-    });
+    showSuccess('Payment successful!', 'Your assistant has been activated and is ready to use.');
     // Reset form data after successful payment
     handleInputChange('name', '');
     handleInputChange('description', '');
@@ -202,9 +215,7 @@ export function CreateAssistantDialog({
 
   const handlePaymentCancel = () => {
     // Keep the session and stay on payment step in case user wants to try again
-    toast.info('Payment cancelled', {
-      description: 'You can continue with payment or go back to edit details.',
-    });
+    showInfo('Payment cancelled', 'You can continue with payment or go back to edit details.');
   };
 
   return (
@@ -394,19 +405,27 @@ export function CreateAssistantDialog({
                   onClick={() => {
                     // Validate basic form first
                     if (!formData.name.trim()) {
-                      toast.error('Please enter an assistant display name');
+                      handleError(new Error('Please enter an assistant display name'), {
+                        toastTitle: 'Validation Error',
+                      });
                       return;
                     }
                     if (!formData.conciergeName.trim()) {
-                      toast.error('Please enter an assistant name');
+                      handleError(new Error('Please enter an assistant name'), {
+                        toastTitle: 'Validation Error',
+                      });
                       return;
                     }
                     if (!formData.personality) {
-                      toast.error('Please select a personality');
+                      handleError(new Error('Please select a personality'), {
+                        toastTitle: 'Validation Error',
+                      });
                       return;
                     }
                     if (!formData.businessName.trim()) {
-                      toast.error('Please enter your name or business name');
+                      handleError(new Error('Please enter your name or business name'), {
+                        toastTitle: 'Validation Error',
+                      });
                       return;
                     }
                     // Save session and proceed to payment
@@ -462,17 +481,6 @@ export function CreateAssistantDialog({
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Pricing Table Popup - Keep this for alternative flow if needed */}
-      {sessionId && (
-        <PricingTablePopup
-          open={showPricingPopup}
-          onOpenChange={setShowPricingPopup}
-          sessionId={sessionId}
-          onPaymentSuccess={handlePaymentSuccess}
-          onPaymentCancel={handlePaymentCancel}
-        />
-      )}
     </>
   );
 }

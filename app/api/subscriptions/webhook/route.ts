@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 
 // Re-added Supabase client
 
-import type { TablesInsert } from '@/lib/db.types';
+import type { Database } from '@/lib/db.types';
 import { createClient } from '@/utils/supabase/server';
 
 // Types for DB operations
+type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];
 
 // Define the expected structure for the incoming interaction data
 interface InteractionWebhookPayload {
@@ -33,32 +34,33 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!payload.assistant_id) {
+      return NextResponse.json(
+        { message: 'Missing required field: assistant_id' },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createClient();
 
-    const interactionData: TablesInsert<'interactions'> = {
+    const interactionData: InteractionsInsert = {
       request: payload.request_data,
       response: payload.response_data,
-      assistant_id: payload.assistant_id ?? null,
+      assistant_id: payload.assistant_id,
       user_id: payload.user_id ?? null,
       chat: payload.chat_id ?? null,
       // Supabase will use default for created_at, updated_at, id unless specified
       // interaction_time could be set here if relevant: new Date().toISOString(),
     };
 
-    // Note: Accessing the 'analytics' schema depends on the Supabase client's configuration from '@/utils/supabase/server'.
-    // If the client is scoped only to 'public', this will fail.
-    // It's assumed the client can access or is configured for the 'analytics' schema.
     const { data, error } = await supabase
-
-      .from('interactions') // This refers to 'interactions' in the 'analytics' schema as per TablesInsert type
+      .from('interactions')
       .insert(interactionData)
       .select()
       .single();
 
     if (error) {
       console.error('Error inserting interaction into Supabase:', error);
-      // Check for schema-related errors if this fails, e.g. if 'interactions' table is not found
-      // due to client being scoped to the wrong schema (e.g. 'public' instead of 'analytics')
       return NextResponse.json(
         { message: `Error saving interaction: ${error.message}` },
         { status: 500 }

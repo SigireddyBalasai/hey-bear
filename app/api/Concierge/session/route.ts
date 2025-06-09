@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { Database } from '@/lib/db.types';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 interface RequestBody {
@@ -19,30 +20,9 @@ interface RequestBody {
   customer_email?: string;
 }
 
-export async function GET(req: NextRequest) {
+export const GET = requireAuth(async (context, req: NextRequest) => {
   try {
     const supabase = await createClient();
-
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get the user record from users table to get the correct user_id
-    const { data: userData, error: userFetchError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userFetchError || !userData) {
-      console.error('Error fetching user record:', userFetchError);
-      return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
-    }
 
     // Get session ID from query params
     const { searchParams } = new URL(req.url);
@@ -57,7 +37,7 @@ export async function GET(req: NextRequest) {
       .from('payment_sessions')
       .select('*')
       .eq('session_id', sessionId)
-      .eq('user_id', userData.id) // Use application user ID instead of auth user ID
+      .eq('user_id', context.user.id) // Use auth user ID directly
       .single();
 
     if (fetchError || !paymentSession) {
@@ -72,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     // For now, we'll create a simple customer ID based on user ID
     // In a production environment, you'd want to create/retrieve actual Stripe customers
-    const customerId = `customer_${user.id.replace(/-/g, '')}`;
+    const customerId = `customer_${context.user.id.replace(/-/g, '')}`;
 
     return NextResponse.json({
       sessionId: paymentSession.session_id,
@@ -85,7 +65,7 @@ export async function GET(req: NextRequest) {
     console.error('Unexpected error in session retrieval:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
 // IMPORTANT DATABASE SCHEMA NOTE:
 // The successful operation of this POST handler, especially the insertion into 'payment_sessions',
@@ -111,69 +91,9 @@ export async function GET(req: NextRequest) {
 // If these conditions are not met (e.g., if the 'payment_sessions.user_id' still references 'auth.users.id'
 // or RLS policies are outdated), this endpoint may return a 500 error with the message
 // "Failed to create payment session" due to RLS check failures.
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (context, req: NextRequest) => {
   try {
     const supabase = await createClient();
-
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    let userData: { id: string } | null = null;
-    let userFetchError: Error | null = null;
-    const maxRetries = 3;
-    const retryDelay = 500; // ms
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(
-        `Attempt ${attempt}/${maxRetries} to fetch user record from 'public.users' for auth_user_id: ${user.id}`
-      );
-      const { data: currentData, error: currentError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (currentData && !currentError) {
-        userData = currentData;
-        userFetchError = null;
-        console.log(
-          `Successfully fetched user record on attempt ${attempt}. User ID: ${userData.id}`
-        );
-        break; // Exit loop on success
-      } else {
-        userData = null;
-        userFetchError = currentError;
-        console.warn(
-          `Failed to fetch user record on attempt ${attempt}. Error: ${currentError?.message || 'No data returned'}`
-        );
-        if (attempt < maxRetries) {
-          console.log(`Waiting ${retryDelay}ms before next attempt...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-      }
-    }
-
-    if (!userData) {
-      // This means all retries failed
-      console.error(
-        `Failed to fetch user record from 'public.users' after ${maxRetries} attempts for auth_user_id: ${user.id}. Last error:`,
-        userFetchError
-      );
-      return NextResponse.json(
-        {
-          error:
-            'Failed to fetch user record from public.users after multiple attempts. Please try again shortly.',
-        },
-        { status: 500 }
-      );
-    }
-    // At this point, userData is guaranteed to be non-null and contain { id: string }
 
     // Parse request body
     const body = (await req.json()) as RequestBody;
@@ -216,10 +136,10 @@ export async function POST(req: NextRequest) {
     // Create payment session record using the application user ID, not auth user ID
     const paymentSessionData: Database['public']['Tables']['payment_sessions']['Insert'] = {
       session_id: sessionId,
-      user_id: userData.id, // userData is guaranteed to be non-null at this point
+      user_id: context.user.id,
       assistant_config_data: assistantConfigData,
       plan_id,
-      customer_email: customer_email || user.email,
+      customer_email: customer_email || context.user.email,
       status: 'pending',
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
     };
@@ -248,4 +168,4 @@ export async function POST(req: NextRequest) {
     console.error('Unexpected error in session creation:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 interface PaymentSessionData {
@@ -23,30 +24,10 @@ interface PaymentSessionData {
 }
 
 // Store payment session data
-export async function POST(request: NextRequest) {
+export const POST = requireAuth(async (context, request: NextRequest) => {
   try {
     const supabase = await createClient();
-
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Get the application user ID from the users table
-    const { data: appUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userError || !appUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const { user } = context;
 
     const sessionData = (await request.json()) as PaymentSessionData;
 
@@ -63,7 +44,7 @@ export async function POST(request: NextRequest) {
       .from('payment_sessions')
       .insert({
         session_id: sessionData.sessionId,
-        user_id: appUser.id,
+        user_id: user.id,
         stripe_customer_id: sessionData.stripeCustomerId,
         assistant_config_data: {
           display_name: sessionData.displayName,
@@ -93,33 +74,13 @@ export async function POST(request: NextRequest) {
     console.error('Error in payment session storage:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
 // Retrieve payment session data
-export async function GET(request: NextRequest) {
+export const GET = requireAuth(async (context, request: NextRequest) => {
   try {
     const supabase = await createClient();
-
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Get the application user ID from the users table
-    const { data: appUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userError || !appUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const { user } = context;
 
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
@@ -133,7 +94,7 @@ export async function GET(request: NextRequest) {
       .from('payment_sessions')
       .select('*')
       .eq('session_id', sessionId)
-      .eq('user_id', appUser.id)
+      .eq('user_id', user.id)
       .single();
 
     if (error || !data) {
@@ -149,4 +110,4 @@ export async function GET(request: NextRequest) {
     console.error('Error in payment session retrieval:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

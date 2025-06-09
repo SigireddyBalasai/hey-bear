@@ -1,0 +1,44 @@
+{
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/*.tests.{js,jsx,ts,tsx}",
+    "**/*.test.{js,jsx,ts,tsx}",
+    "**/*.spec.{js,jsx,ts,tsx}",
+    "**/tests/**",
+    "**/__tests__/**",
+    "**/*.d.ts",
+    "**/public/**",
+    "**/.next/**",
+    "**/dist/**",
+    "**/build/**"
+  ],
+  "ignoreUnimported": [
+    "**/app/**/page.{js,jsx,ts,tsx}",
+    "**/app/**/layout.{js,jsx,ts,tsx}",
+    "**/app/**/loading.{js,jsx,ts,tsx}",
+    "**/app/**/error.{js,jsx,ts,tsx}",
+    "**/app/**/not-found.{js,jsx,ts,tsx}",
+    "**/app/**/route.{js,jsx,ts,tsx}",
+    "**/middleware.{js,jsx,ts,tsx}",
+    "next.config.js",
+    "next.config.mjs",
+    "tailwind.config.js",
+    "tailwind.config.ts"
+  ],
+  "ignoreUnused": [
+    "next",
+    "react",
+    "react-dom",
+    "@types/node",
+    "@types/react",
+    "@types/react-dom",
+    "typescript",
+    "tailwindcss",
+    "autoprefixer",
+    "postcss",
+    "eslint",
+    "eslint-config-next"
+  ],
+  "ignoreUnresolved": [],
+  "respectGitignore": true
+}

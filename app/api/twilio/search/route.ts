@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import type { LocalInstance } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
 
-import { createClient } from '@/utils/supabase/server';
+import { requireAdmin } from '@/utils/auth-utils';
 
 interface SearchPhoneNumberRequest {
   areaCode: string;
@@ -11,31 +11,8 @@ interface SearchPhoneNumberRequest {
   smsEnabled?: boolean;
 }
 
-export async function POST(req: Request) {
+export const POST = requireAdmin(async (context, req) => {
   try {
-    // Check authentication and admin permissions
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     // Get search parameters
     const {
       areaCode,
@@ -124,4 +101,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
+});

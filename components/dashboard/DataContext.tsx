@@ -1,13 +1,36 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { useLoadingState } from '@/hooks/useLoadingState';
 import type { Database } from '@/lib/db.types';
+import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 // Use the database types for interactions
 type Interaction = Database['public']['Tables']['interactions']['Row'];
+
+// Interface for raw interaction data from API responses
+// This interface exactly matches the database schema for the interactions table
+interface RawInteractionData {
+  id: string;
+  request: string;
+  response: string;
+  assistant_id: string | null;
+  chat: string | null;
+  cost_estimate: number | null;
+  created_at: string | null;
+  duration: number | null;
+  input_tokens: number | null;
+  interaction_time: string | null;
+  is_error: boolean | null;
+  monthly_period: string | null;
+  output_tokens: number | null;
+  token_usage: number | null;
+  updated_at: string | null;
+  user_id: string | null;
+}
 
 interface StatsType {
   totalInteractions: number;
@@ -15,6 +38,99 @@ interface StatsType {
   interactionsPerContact: number;
   averageResponseTime: string;
 }
+
+// Enhanced filter interface
+interface FilterOptions {
+  fromDate?: string;
+  toDate?: string;
+  assistantId?: string | null;
+  searchTerm?: string;
+}
+
+// Enhanced fetch params interface
+interface FetchParams {
+  page?: number;
+  pageSize?: number;
+  searchTerm?: string;
+  assistantId?: string | null | undefined;
+}
+
+// Cache entry interface for better typing
+interface CacheEntry {
+  data: Interaction[];
+  timestamp: number;
+}
+
+// Cache map type for better type safety
+type InteractionCache = Map<string, CacheEntry>;
+
+// Data validation utilities with proper typing
+const isValidString = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0;
+
+const isValidOptionalString = (value: unknown): value is string | null =>
+  value === null || typeof value === 'string';
+
+const isValidOptionalNumber = (value: unknown): value is number | null =>
+  value === null || typeof value === 'number';
+
+const isValidOptionalBoolean = (value: unknown): value is boolean | null =>
+  value === null || typeof value === 'boolean';
+
+const validateRawInteractionData = (data: unknown): data is RawInteractionData => {
+  if (!data || typeof data !== 'object') return false;
+
+  const obj = data as Record<string, unknown>;
+
+  return (
+    isValidString(obj.id) &&
+    isValidString(obj.request) &&
+    isValidString(obj.response) &&
+    isValidOptionalString(obj.assistant_id) &&
+    isValidOptionalString(obj.chat) &&
+    isValidOptionalNumber(obj.cost_estimate) &&
+    isValidOptionalString(obj.created_at) &&
+    isValidOptionalNumber(obj.duration) &&
+    isValidOptionalNumber(obj.input_tokens) &&
+    isValidOptionalString(obj.interaction_time) &&
+    isValidOptionalBoolean(obj.is_error) &&
+    isValidOptionalString(obj.monthly_period) &&
+    isValidOptionalNumber(obj.output_tokens) &&
+    isValidOptionalNumber(obj.token_usage) &&
+    isValidOptionalString(obj.updated_at) &&
+    isValidOptionalString(obj.user_id)
+  );
+};
+
+const transformToInteraction = (rawData: RawInteractionData): Interaction => {
+  return rawData as Interaction;
+};
+
+const validateInteractions = (data: unknown): Interaction[] => {
+  if (!Array.isArray(data)) return [];
+
+  return data.filter(validateRawInteractionData).map(transformToInteraction);
+};
+
+// Error recovery utilities
+const createEmptyStats = (): StatsType => ({
+  totalInteractions: 0,
+  activeContacts: 0,
+  interactionsPerContact: 0,
+  averageResponseTime: 'N/A',
+});
+
+const setEmptyDataState = (
+  setAllInteractions: (data: Interaction[]) => void,
+  setStats: (stats: StatsType) => void,
+  setTotalPages: (pages: number) => void,
+  setTotalItems: (items: number) => void
+) => {
+  setAllInteractions([]);
+  setStats(createEmptyStats());
+  setTotalPages(0);
+  setTotalItems(0);
+};
 
 // Create a type for the DataContext using built-in types only
 type DataContextType = {
@@ -33,38 +149,43 @@ type DataContextType = {
   assistantId: string | null;
   setAssistantId: (id: string | null) => void;
 
-  // Added properties
-  allInteractions: Interaction[]; // Changed from any[]
-  stats: StatsType; // Changed from any
+  // Enhanced properties with better typing
+  allInteractions: Interaction[];
+  stats: StatsType;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  filterInteractions: (filters: { fromDate?: string; toDate?: string }) => Promise<void>; // Made async
-  fetchInteractions: (params: {
-    page?: number;
-    pageSize?: number;
-    searchTerm?: string;
-    assistantId?: string | undefined;
-  }) => Promise<void>;
+  filterInteractions: (filters: FilterOptions) => Promise<void>;
+  fetchInteractions: (params: FetchParams) => Promise<void>;
+  // Add cache management
+  clearCache: () => void;
+  refreshData: () => Promise<void>;
+  debouncedSearch: (searchTerm: string, delay?: number) => void;
 };
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export function DataProvider({ children }: { children: ReactNode }) {
-  // Calculate default dates (last 30 days)
-  const today = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(today.getDate() - 30);
+// Memoized DataProvider to prevent unnecessary re-renders when parent components update
+export const DataProvider = React.memo(function DataProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  // Memoized date calculations to prevent unnecessary recalculations
+  const defaultDateRange = useMemo(() => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    };
 
-  // Default date range (last 30 days)
-  const defaultDateRange = `${formatDate(thirtyDaysAgo)} - ${formatDate(today)}`;
+    return `${formatDate(thirtyDaysAgo)} - ${formatDate(today)}`;
+  }, []);
 
   // State variables
   const [dateRange, setDateRange] = useState<string>(defaultDateRange);
@@ -75,321 +196,318 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [totalItems, setTotalItems] = useState<number>(0);
   const [assistantId, setAssistantId] = useState<string | null>(null);
 
-  // Added states
-  const [allInteractions, setAllInteractions] = useState<Interaction[]>([]); // Changed from any[]
+  // Enhanced states with better performance
+  const [allInteractions, setAllInteractions] = useState<Interaction[]>([]);
   const [stats, setStats] = useState<StatsType>({
     totalInteractions: 0,
     activeContacts: 0,
     interactionsPerContact: 0,
     averageResponseTime: 'N/A',
-  }); // Changed from any
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  });
+  const { isLoading, setIsLoading } = useLoadingState(false);
 
-  // Filter interactions based on date range
-  const filterInteractions = async (filters: { fromDate?: string; toDate?: string }) => {
-    console.log('Filtering interactions with:', filters);
-    setIsLoading(true);
+  // Cache management with enhanced TTL and size limits - properly typed
+  const cacheRef = useRef<InteractionCache>(new Map());
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  const MAX_CACHE_SIZE = 20; // Maximum number of cache entries
 
-    try {
-      const supabase = createClient();
-      let query = supabase
+  // Memoized cache key generator
+  const generateCacheKey = useCallback(
+    (params: FetchParams & FilterOptions) => {
+      return JSON.stringify({
+        page: params.page || 1,
+        pageSize: params.pageSize || pageSize,
+        searchTerm: params.searchTerm || '',
+        assistantId: params.assistantId || 'all',
+        fromDate: params.fromDate || '',
+        toDate: params.toDate || '',
+      });
+    },
+    [pageSize]
+  );
 
-        .from('interactions')
-        .select('*')
-        .order('interaction_time', { ascending: false });
+  // Enhanced cache utility functions with proper typing
+  const getCachedData = useCallback((key: string): Interaction[] | null => {
+    const cached: CacheEntry | undefined = cacheRef.current.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
+    // Remove expired entry
+    if (cached) {
+      cacheRef.current.delete(key);
+    }
+    return null;
+  }, []);
 
-      if (filters.fromDate) {
-        query = query.gte('interaction_time', filters.fromDate);
-      }
-      if (filters.toDate) {
-        query = query.lte('interaction_time', filters.toDate);
-      }
+  const setCachedData = useCallback((key: string, data: Interaction[]): void => {
+    // Cleanup old cache entries if we're at the limit
+    if (cacheRef.current.size >= MAX_CACHE_SIZE) {
+      // Remove oldest entries (LRU strategy)
+      const oldestKeys = Array.from(cacheRef.current.keys()).slice(
+        0,
+        Math.floor(MAX_CACHE_SIZE / 2)
+      );
+      oldestKeys.forEach(oldKey => cacheRef.current.delete(oldKey));
+    }
 
-      // Execute the query safely
-      const result = await query;
+    const cacheEntry: CacheEntry = { data, timestamp: Date.now() };
+    cacheRef.current.set(key, cacheEntry);
+  }, []);
 
-      // Safely extract data with proper fallbacks
-      const interactions = result?.data || [];
-      const error = result?.error || null;
+  const clearCache = useCallback((): void => {
+    cacheRef.current.clear();
+  }, []);
 
-      if (error) {
-        // Check for empty error object - a common case that causes cryptic errors
-        if (Object.keys(error).length === 0) {
-          console.warn('Received empty error object from database query');
-          // Continue with empty data rather than throwing
-        } else {
-          // Log the error but don't throw - handle it gracefully
-          console.error('Error filtering interactions:', error);
-        }
+  // Enhanced stats calculation with memoization
+  const calculateStats = useCallback((interactions: Interaction[]) => {
+    const totalInteractions = interactions?.length || 0;
 
-        // Set empty data states instead of throwing errors
-        setAllInteractions([]);
-        setStats({
-          totalInteractions: 0,
-          activeContacts: 0,
-          interactionsPerContact: 0,
-          averageResponseTime: 'No/A',
-        });
-        setTotalPages(0);
-        setTotalItems(0);
-        setIsLoading(false);
+    // Safely extract chat data for uniqueContacts calculation
+    const safeChats =
+      interactions
+        ?.map(i => {
+          if (typeof i.chat === 'string') {
+            return i.chat;
+          }
+          return null;
+        })
+        .filter(Boolean) || [];
+    const uniqueContacts = new Set(safeChats).size;
+
+    // Safely calculate average response time
+    const avgResponseTime = interactions?.length
+      ? `${Math.round(
+          interactions.reduce((sum, interaction) => {
+            const duration = typeof interaction.duration === 'number' ? interaction.duration : 0;
+            return sum + duration;
+          }, 0) /
+            interactions.length /
+            1000
+        )}s`
+      : 'N/A';
+
+    return {
+      totalInteractions,
+      activeContacts: uniqueContacts,
+      interactionsPerContact:
+        uniqueContacts > 0 ? Math.round(totalInteractions / uniqueContacts) : 0,
+      averageResponseTime: avgResponseTime,
+    };
+  }, []);
+
+  // Enhanced filter interactions with caching and better error handling
+  const filterInteractions = useCallback(
+    async (filters: FilterOptions) => {
+      const cacheKey = generateCacheKey({ ...filters, page: 1, pageSize });
+      const cachedData = getCachedData(cacheKey);
+
+      if (cachedData) {
+        setAllInteractions(cachedData);
+        setStats(calculateStats(cachedData));
+        setTotalPages(Math.ceil(cachedData.length / pageSize));
+        setTotalItems(cachedData.length);
         return;
       }
 
-      // Update state with filtered data - ensure proper typing
-      setAllInteractions((interactions || []) as Interaction[]);
+      await withErrorHandling(
+        async () => {
+          setIsLoading(true);
 
-      // Calculate stats from filtered data
-      const totalInteractions = interactions?.length || 0;
+          const supabase = createClient();
+          let query = supabase
+            .from('interactions')
+            .select('*')
+            .order('interaction_time', { ascending: false });
 
-      // Safely extract chat data for uniqueContacts calculation
-      const safeChats =
-        interactions
-          ?.map(i => {
-            if (typeof i.chat === 'string') {
-              return i.chat;
-            }
-            return null;
-          })
-          .filter(Boolean) || [];
-      const uniqueContacts = new Set(safeChats).size;
-
-      // Safely calculate average response time
-      const avgResponseTime = interactions?.length
-        ? `${Math.round(
-            interactions.reduce((sum, interaction) => {
-              const duration = typeof interaction.duration === 'number' ? interaction.duration : 0;
-              return sum + duration;
-            }, 0) /
-              interactions.length /
-              1000
-          )}s`
-        : 'N/A';
-
-      setStats({
-        totalInteractions,
-        activeContacts: uniqueContacts,
-        interactionsPerContact:
-          uniqueContacts > 0 ? Math.round(totalInteractions / uniqueContacts) : 0,
-        averageResponseTime: avgResponseTime,
-      });
-
-      setTotalPages(Math.ceil(totalInteractions / pageSize));
-      setTotalItems(totalInteractions);
-    } catch (error) {
-      console.error('Failed to filter interactions:', error);
-      // Set empty state on error
-      setAllInteractions([]);
-      setStats({
-        totalInteractions: 0,
-        activeContacts: 0,
-        interactionsPerContact: 0,
-        averageResponseTime: 'N/A',
-      });
-      setTotalPages(0);
-      setTotalItems(0);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchInteractions = async (params: {
-    page?: number;
-    pageSize?: number;
-    searchTerm?: string;
-    assistantId?: string | undefined;
-  }): Promise<void> => {
-    console.log('Fetching interactions with params:', params);
-    setIsLoading(true);
-
-    try {
-      const supabase = createClient();
-      const page = params.page ?? 1;
-      const limit = params.pageSize ?? pageSize;
-      const offset = (page - 1) * limit;
-
-      let query = supabase
-
-        .from('interactions')
-        .select('*', { count: 'exact' })
-        .order('interaction_time', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (params.searchTerm) {
-        query = query.or(
-          `request.ilike.%${params.searchTerm}%,response.ilike.%${params.searchTerm}%`
-        );
-      }
-      if (params.assistantId) {
-        query = query.eq('assistant_id', params.assistantId);
-      }
-
-      // Execute the query safely
-      const result = await query;
-
-      // Safely extract data with proper fallbacks
-      const interactions = result?.data || [];
-      const error = result?.error || null;
-      const count = result?.count || 0;
-
-      if (error) {
-        // Check for empty error object - a common case that causes cryptic errors
-        if (!error || Object.keys(error).length === 0) {
-          console.warn('Received empty error object from database query - treating as no error');
-          // Continue with processing the data normally since empty error often means no actual error
-        } else if (
-          error.message &&
-          error.message.includes('The schema must be one of the following')
-        ) {
-          // Handle schema access error specifically
-          console.error('Schema access error:', error.message);
-          console.info(
-            'This error occurs when Supabase needs schema permissions. Run the migrations to fix this.'
-          );
-          // Try to fall back to public schema
-          try {
-            const fallbackQuery = await supabase
-
-              .from('interactions')
-              .select('*', { count: 'exact' })
-              .order('created_at', { ascending: false })
-              .range(offset, offset + limit - 1);
-
-            if (!fallbackQuery.error && fallbackQuery.data) {
-              // Process the fallback data instead of returning
-              setAllInteractions(fallbackQuery.data as Interaction[]);
-              const count = fallbackQuery.count || 0;
-
-              setTotalPages(Math.ceil(count / limit));
-              setTotalItems(count);
-              setIsLoading(false);
-              return; // Return void as required by the function signature
-            }
-          } catch (fallbackError) {
-            console.warn('Fallback to public schema failed:', fallbackError);
+          if (filters.fromDate) {
+            query = query.gte('interaction_time', filters.fromDate);
+          }
+          if (filters.toDate) {
+            query = query.lte('interaction_time', filters.toDate);
+          }
+          if (filters.assistantId) {
+            query = query.eq('assistant_id', filters.assistantId);
           }
 
-          // Set empty data states for schema errors
-          setAllInteractions([]);
-          setStats({
-            totalInteractions: 0,
-            activeContacts: 0,
-            interactionsPerContact: 0,
-            averageResponseTime: 'N/A',
-          });
-          setTotalPages(0);
-          setTotalItems(0);
-          setIsLoading(false);
-          return;
-        } else {
-          // Log the error with better formatting
-          console.error('Error fetching interactions:', {
-            message: error.message || 'Unknown error',
-            code: error.code || 'No code',
-            details: error.details || 'No details',
-            hint: error.hint || 'No hint',
-          });
+          const { data: interactions, error } = await query;
 
-          // Set empty data states for real errors
-          setAllInteractions([]);
-          setStats({
-            totalInteractions: 0,
-            activeContacts: 0,
-            interactionsPerContact: 0,
-            averageResponseTime: 'N/A',
-          });
-          setTotalPages(0);
-          setTotalItems(0);
-          setIsLoading(false);
-          return;
+          if (error) {
+            throw error;
+          }
+
+          const safeInteractions = validateInteractions(interactions || []);
+          setCachedData(cacheKey, safeInteractions);
+          setAllInteractions(safeInteractions);
+          setStats(calculateStats(safeInteractions));
+          setTotalPages(Math.ceil(safeInteractions.length / pageSize));
+          setTotalItems(safeInteractions.length);
+        },
+        {
+          toastTitle: 'Failed to filter interactions',
+          fallbackMessage: 'Unable to filter interaction data',
         }
+      );
+
+      setIsLoading(false);
+    },
+    [pageSize, generateCacheKey, getCachedData, setCachedData, calculateStats]
+  );
+
+  // Enhanced fetch interactions with caching
+  const fetchInteractions = useCallback(
+    async (params: FetchParams): Promise<void> => {
+      const cacheKey = generateCacheKey({
+        ...params,
+        page: params.page || 1,
+        pageSize: params.pageSize || pageSize,
+      });
+      const cachedData = getCachedData(cacheKey);
+
+      if (cachedData) {
+        setAllInteractions(cachedData);
+        setStats(calculateStats(cachedData));
+        setTotalPages(Math.ceil(cachedData.length / (params.pageSize || pageSize)));
+        setTotalItems(cachedData.length);
+        return;
       }
 
-      // Update state with real data - ensure proper typing
-      setAllInteractions((interactions || []) as Interaction[]);
+      await withErrorHandling(
+        async () => {
+          setIsLoading(true);
 
-      // Calculate stats from real data
-      const totalInteractions = count || 0;
+          const supabase = createClient();
+          const page = params.page ?? 1;
+          const limit = params.pageSize ?? pageSize;
+          const offset = (page - 1) * limit;
 
-      // Safely extract chat data for uniqueContacts calculation
-      const safeChats =
-        interactions
-          ?.map(i => {
-            if (typeof i.chat === 'string') {
-              return i.chat;
-            }
-            return null;
-          })
-          .filter(Boolean) || [];
-      const uniqueContacts = new Set(safeChats).size;
+          let query = supabase
+            .from('interactions')
+            .select('*', { count: 'exact' })
+            .order('interaction_time', { ascending: false })
+            .range(offset, offset + limit - 1);
 
-      // Safely calculate average response time
-      const avgResponseTime = interactions?.length
-        ? `${Math.round(
-            interactions.reduce((sum, interaction) => {
-              const duration = typeof interaction.duration === 'number' ? interaction.duration : 0;
-              return sum + duration;
-            }, 0) /
-              interactions.length /
-              1000
-          )}s`
-        : 'N/A';
+          if (params.searchTerm) {
+            query = query.or(
+              `request.ilike.%${params.searchTerm}%,response.ilike.%${params.searchTerm}%`
+            );
+          }
+          if (params.assistantId) {
+            query = query.eq('assistant_id', params.assistantId);
+          }
 
-      setStats({
-        totalInteractions,
-        activeContacts: uniqueContacts,
-        interactionsPerContact:
-          uniqueContacts > 0 ? Math.round(totalInteractions / uniqueContacts) : 0,
-        averageResponseTime: avgResponseTime,
-      });
+          const { data: interactions, error, count } = await query;
 
-      setTotalPages(Math.ceil(totalInteractions / limit));
-      setTotalItems(totalInteractions);
-    } catch (error) {
-      console.error('Failed to fetch interactions:', error);
-      // Set empty state on error
-      setAllInteractions([]);
-      setStats({
-        totalInteractions: 0,
-        activeContacts: 0,
-        interactionsPerContact: 0,
-        averageResponseTime: 'N/A',
-      });
-      setTotalPages(0);
-      setTotalItems(0);
-    } finally {
+          if (error) {
+            throw error;
+          }
+
+          const safeInteractions = validateInteractions(interactions || []);
+          setCachedData(cacheKey, safeInteractions);
+          setAllInteractions(safeInteractions);
+          setStats(calculateStats(safeInteractions));
+          setTotalPages(Math.ceil((count || 0) / limit));
+          setTotalItems(count || 0);
+        },
+        {
+          toastTitle: 'Failed to fetch interactions',
+          fallbackMessage: 'Unable to load interaction data',
+        }
+      );
+
+      // Handle error state manually since we can't use onError callback
+      if (!allInteractions.length) {
+        setEmptyDataState(setAllInteractions, setStats, setTotalPages, setTotalItems);
+      }
+
       setIsLoading(false);
-    }
-  };
+    },
+    [
+      pageSize,
+      generateCacheKey,
+      getCachedData,
+      setCachedData,
+      calculateStats,
+      allInteractions.length,
+    ]
+  );
 
-  // Context value
-  const contextValue: DataContextType = {
-    dateRange,
-    setDateRange,
-    searchTerm,
-    setSearchTerm,
-    currentPage,
-    setCurrentPage,
-    pageSize,
-    setPageSize,
-    totalPages,
-    setTotalPages,
-    totalItems,
-    setTotalItems,
-    assistantId,
-    setAssistantId,
+  // Refresh data function
+  const refreshData = useCallback(async () => {
+    clearCache();
+    await fetchInteractions({
+      page: currentPage,
+      pageSize,
+      searchTerm,
+      assistantId: assistantId || undefined,
+    });
+  }, [clearCache, fetchInteractions, currentPage, pageSize, searchTerm, assistantId]);
 
-    // Added values
-    allInteractions,
-    stats,
-    isLoading,
-    setIsLoading,
-    filterInteractions,
-    fetchInteractions,
-  };
+  // Debounced search functionality
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debouncedSearch = useCallback(
+    (searchTerm: string, delay: number = 300) => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      searchTimeoutRef.current = setTimeout(() => {
+        fetchInteractions({ page: 1, pageSize, searchTerm, assistantId: assistantId || undefined });
+      }, delay);
+    },
+    [fetchInteractions, pageSize, assistantId]
+  );
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue: DataContextType = useMemo(
+    () => ({
+      dateRange,
+      setDateRange,
+      searchTerm,
+      setSearchTerm,
+      currentPage,
+      setCurrentPage,
+      pageSize,
+      setPageSize,
+      totalPages,
+      setTotalPages,
+      totalItems,
+      setTotalItems,
+      assistantId,
+      setAssistantId,
+
+      // Enhanced values
+      allInteractions,
+      stats,
+      isLoading,
+      setIsLoading,
+      filterInteractions,
+      fetchInteractions,
+      clearCache,
+      refreshData,
+      debouncedSearch,
+    }),
+    [
+      dateRange,
+      searchTerm,
+      currentPage,
+      pageSize,
+      totalPages,
+      totalItems,
+      assistantId,
+      allInteractions,
+      stats,
+      isLoading,
+      filterInteractions,
+      fetchInteractions,
+      clearCache,
+      refreshData,
+      debouncedSearch,
+    ]
+  );
 
   return <DataContext.Provider value={contextValue}>{children}</DataContext.Provider>;
-}
+});
 
 export function useData() {
   const context = useContext(DataContext);

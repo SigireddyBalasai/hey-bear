@@ -1,3 +1,5 @@
+"use server";
+
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/lib/db.types';
@@ -7,7 +9,7 @@ import type { Database } from '@/lib/db.types';
  * This client bypasses Row Level Security (RLS) and should only be used
  * in secure server environments for admin operations, webhooks, etc.
  */
-export const createClient = () => {
+export const createClient = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

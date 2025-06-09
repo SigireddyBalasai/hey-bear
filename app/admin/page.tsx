@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 
-import { useRouter } from 'next/navigation';
-
-import type { User } from '@supabase/supabase-js';
 import {
   BarElement,
   CategoryScale,
@@ -20,7 +17,6 @@ import {
 } from 'chart.js';
 import type { TooltipItem } from 'chart.js';
 import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
@@ -29,6 +25,8 @@ import { Loading } from '@/components/concierge/Loading';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAdminAuth } from '@/hooks/useAuth';
+import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 ChartJS.register(
@@ -123,9 +121,7 @@ interface DashboardStats {
 }
 
 function Dashboard() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isAdmin, isLoading } = useAdminAuth();
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     users: {
@@ -143,216 +139,185 @@ function Dashboard() {
     userUsage: [], // Initialize new field
   });
 
-  const router = useRouter();
   const supabase = createClient();
 
   const loadDashboardData = useCallback(async () => {
-    try {
-      const endDate = new Date();
-      const startDate = new Date();
+    await withErrorHandling(
+      async () => {
+        const endDate = new Date();
+        const startDate = new Date();
 
-      // Calculate days to subtract based on selected time range
-      let daysToSubtract = 30; // default
-      if (selectedTimeRange === '7d') {
-        daysToSubtract = 7;
-      } else if (selectedTimeRange === '90d') {
-        daysToSubtract = 90;
-      }
-
-      startDate.setDate(endDate.getDate() - daysToSubtract);
-
-      // Get user stats - fetch only id and last_active, as full_name and email seem to be missing
-      const { data: allUsers, error: usersError } = await supabase
-
-        .from('users')
-        .select('id, last_active'); // Select only id and last_active
-
-      if (usersError) {
-        // Log the error with more context
-        let detailedErrorMessage = "Error fetching users from 'users.users' table.";
-        if ('message' in usersError) {
-          detailedErrorMessage += ` Message: ${usersError.message}`;
+        // Calculate days to subtract based on selected time range
+        let daysToSubtract = 30; // default
+        if (selectedTimeRange === '7d') {
+          daysToSubtract = 7;
+        } else if (selectedTimeRange === '90d') {
+          daysToSubtract = 90;
         }
-        if ('details' in usersError) {
-          detailedErrorMessage += ` Details: ${usersError.details}`;
+
+        startDate.setDate(endDate.getDate() - daysToSubtract);
+
+        // Get interaction metrics
+        const { data: interactions, error: interactionsError } = await supabase
+          .from('interactions')
+          .select('*')
+          .gte('interaction_time', startDate.toISOString())
+          .lte('interaction_time', endDate.toISOString());
+
+        if (interactionsError) throw interactionsError;
+
+        // Calculate time series data
+        const timeSeriesMap = new Map<string, TimeSeriesDataPoint>();
+
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          timeSeriesMap.set(dateStr, {
+            date: dateStr,
+            interactions: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            costs: 0,
+            errors: 0,
+          });
+          currentDate.setDate(currentDate.getDate() + 1);
         }
-        if ('hint' in usersError) {
-          detailedErrorMessage += ` Hint: ${usersError.hint}`;
-        }
-        console.error(detailedErrorMessage, usersError);
-        toast.error('Failed to load user data. Check console for details.');
-        throw usersError; // Re-throw the original error to stop execution
-      }
 
-      // Get interaction metrics
-      const { data: interactions, error: interactionsError } = await supabase
+        interactions.forEach(interaction => {
+          if (!interaction.interaction_time) return;
 
-        .from('interactions')
-        .select('*')
-        .gte('interaction_time', startDate.toISOString())
-        .lte('interaction_time', endDate.toISOString());
+          const date = new Date(interaction.interaction_time).toISOString().split('T')[0];
+          const data = timeSeriesMap.get(date);
+          if (!data) return;
 
-      if (interactionsError) throw interactionsError;
-
-      // Calculate time series data
-      const timeSeriesMap = new Map<string, TimeSeriesDataPoint>();
-
-      const currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        timeSeriesMap.set(dateStr, {
-          date: dateStr,
-          interactions: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          costs: 0,
-          errors: 0,
+          data.interactions++;
+          data.inputTokens += interaction.input_tokens ?? 0;
+          data.outputTokens += interaction.output_tokens ?? 0;
+          data.totalTokens += interaction.token_usage ?? 0;
+          data.costs += interaction.cost_estimate ?? 0;
+          if (interaction.is_error) data.errors++;
         });
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
 
-      interactions.forEach(interaction => {
-        if (!interaction.interaction_time) return;
+        const timeSeriesData = [...timeSeriesMap.values()];
 
-        const date = new Date(interaction.interaction_time).toISOString().split('T')[0];
-        const data = timeSeriesMap.get(date);
-        if (!data) return;
+        // Calculate user activity from interactions
+        const now = new Date();
+        const oneDayAgo = new Date(now);
+        oneDayAgo.setDate(now.getDate() - 1);
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 7);
 
-        data.interactions++;
-        data.inputTokens += interaction.input_tokens ?? 0;
-        data.outputTokens += interaction.output_tokens ?? 0;
-        data.totalTokens += interaction.token_usage ?? 0;
-        data.costs += interaction.cost_estimate ?? 0;
-        if (interaction.is_error) data.errors++;
-      });
+        // Get unique users who had interactions in different time periods
+        const usersActiveToday = new Set(
+          interactions
+            .filter(i => i.interaction_time && new Date(i.interaction_time) >= oneDayAgo)
+            .map(i => i.user_id)
+            .filter(Boolean)
+        );
+        const usersActiveThisWeek = new Set(
+          interactions
+            .filter(i => i.interaction_time && new Date(i.interaction_time) >= sevenDaysAgo)
+            .map(i => i.user_id)
+            .filter(Boolean)
+        );
 
-      const timeSeriesData = [...timeSeriesMap.values()];
+        const activeToday = usersActiveToday.size;
+        const activeThisWeek = usersActiveThisWeek.size;
 
-      // Calculate user activity
-      const now = new Date();
-      const oneDayAgo = new Date(now);
-      oneDayAgo.setDate(now.getDate() - 1);
-      const sevenDaysAgo = new Date(now);
-      sevenDaysAgo.setDate(now.getDate() - 7);
+        // Aggregate interaction stats per user
+        const userInteractionStats = new Map<
+          string,
+          { message_count: number; token_usage: number; cost_estimate: number }
+        >();
 
-      const activeToday = allUsers.filter(
-        u => u.last_active && new Date(u.last_active) >= oneDayAgo
-      ).length;
-      const activeThisWeek = allUsers.filter(
-        u => u.last_active && new Date(u.last_active) >= sevenDaysAgo
-      ).length;
+        interactions.forEach(interaction => {
+          if (!interaction.user_id) return;
 
-      // Aggregate interaction stats per user
-      const userInteractionStats = new Map<
-        string,
-        { message_count: number; token_usage: number; cost_estimate: number }
-      >();
-
-      interactions.forEach(interaction => {
-        if (!interaction.user_id) return; // Restored check for null/undefined user_id
-
-        const stats = userInteractionStats.get(interaction.user_id) ?? {
-          message_count: 0,
-          token_usage: 0,
-          cost_estimate: 0,
-        };
-
-        stats.message_count++;
-        stats.token_usage += interaction.token_usage ?? 0;
-        stats.cost_estimate += interaction.cost_estimate ?? 0;
-
-        userInteractionStats.set(interaction.user_id, stats);
-      });
-
-      // Prepare UserUsageStats array
-      const userUsage: UserUsageStats[] = allUsers
-        .map(user => {
-          const aggregatedStats = userInteractionStats.get(user.id) ?? {
+          const stats = userInteractionStats.get(interaction.user_id) ?? {
             message_count: 0,
             token_usage: 0,
             cost_estimate: 0,
           };
-          return {
-            id: user.id,
-            user_id: user.id,
-            users: {
-              full_name: null, // Set to null as full_name is not selected (and reported missing by DB)
-              email: null, // Set to null as email is not selected (and reported missing by DB)
-              created_at: null, // Set to null as created_at is not selected (and reported missing by DB)
-              last_active: user.last_active, // Use last_active (if it exists and is selected)
-            },
-            date: user.last_active,
-            message_count: aggregatedStats.message_count,
-            token_usage: aggregatedStats.token_usage,
-            cost_estimate: aggregatedStats.cost_estimate,
-          };
-        })
-        .sort((a, b) => b.message_count - a.message_count); // Example: sort by message_count desc for "Top Users"
 
-      // Update dashboard stats
-      setDashboardStats({
-        users: {
-          total: allUsers.length,
-          activeToday,
-          activeThisWeek,
-        },
-        interactions: {
-          total: interactions.length,
-          totalTokens: interactions.reduce((sum, i) => sum + (i.token_usage ?? 0), 0),
-          costEstimate: interactions.reduce((sum, i) => sum + (i.cost_estimate ?? 0), 0),
-          errorRate:
-            interactions.length > 0
-              ? interactions.filter(i => i.is_error).length / interactions.length
-              : 0,
-        },
-        timeSeriesData,
-        userUsage, // Add the populated userUsage data
-      });
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    }
+          stats.message_count++;
+          stats.token_usage += interaction.token_usage ?? 0;
+          stats.cost_estimate += interaction.cost_estimate ?? 0;
+
+          userInteractionStats.set(interaction.user_id, stats);
+        });
+
+        // Get all unique users from interactions and create UserUsageStats array
+        const allUniqueUserIds = Array.from(
+          new Set(interactions.map(i => i.user_id).filter((id): id is string => Boolean(id)))
+        );
+
+        const userUsage: UserUsageStats[] = allUniqueUserIds
+          .map(userId => {
+            const aggregatedStats = userInteractionStats.get(userId) ?? {
+              message_count: 0,
+              token_usage: 0,
+              cost_estimate: 0,
+            };
+
+            // Find the most recent interaction for this user to get last activity
+            const userInteractions = interactions.filter(i => i.user_id === userId);
+            const lastInteraction = userInteractions.sort(
+              (a, b) =>
+                new Date(b.interaction_time || 0).getTime() -
+                new Date(a.interaction_time || 0).getTime()
+            )[0];
+
+            return {
+              id: userId,
+              user_id: userId,
+              users: {
+                full_name: null,
+                email: null,
+                created_at: null,
+                last_active: lastInteraction?.interaction_time || null,
+              },
+              date: lastInteraction?.interaction_time || null,
+              message_count: aggregatedStats.message_count,
+              token_usage: aggregatedStats.token_usage,
+              cost_estimate: aggregatedStats.cost_estimate,
+            };
+          })
+          .sort((a, b) => b.message_count - a.message_count);
+
+        // Update dashboard stats
+        setDashboardStats({
+          users: {
+            total: allUniqueUserIds.length,
+            activeToday,
+            activeThisWeek,
+          },
+          interactions: {
+            total: interactions.length,
+            totalTokens: interactions.reduce((sum, i) => sum + (i.token_usage ?? 0), 0),
+            costEstimate: interactions.reduce((sum, i) => sum + (i.cost_estimate ?? 0), 0),
+            errorRate:
+              interactions.length > 0
+                ? interactions.filter(i => i.is_error).length / interactions.length
+                : 0,
+          },
+          timeSeriesData,
+          userUsage,
+        });
+      },
+      {
+        toastTitle: 'Failed to load dashboard data',
+        fallbackMessage: 'Unable to fetch admin dashboard information',
+      }
+    );
   }, [selectedTimeRange, supabase]);
 
+  // Load dashboard data when admin auth is complete
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        const {
-          data: { user: currentUser },
-          error: authError,
-        } = await supabase.auth.getUser();
-        if (authError || !currentUser) {
-          router.push('/');
-          return;
-        }
-
-        setUser(currentUser);
-
-        const { data: adminCheck, error: adminError } = await supabase
-
-          .from('users')
-          .select('is_admin')
-          .eq('auth_user_id', currentUser.id)
-          .single();
-
-        if (adminError || !adminCheck.is_admin) {
-          router.push('/');
-          return;
-        }
-
-        setIsAdmin(true);
-        await loadDashboardData();
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-        toast.error('Error checking admin status');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void checkAdminStatus();
-  }, [router, supabase, loadDashboardData]);
+    if (!isLoading && isAdmin && user) {
+      void loadDashboardData();
+    }
+  }, [isLoading, isAdmin, user, loadDashboardData]);
 
   const generateChartData = (dataType: 'interactions' | 'tokens' | 'costs'): ChartData => {
     const { timeSeriesData } = dashboardStats;
@@ -430,7 +395,7 @@ function Dashboard() {
           <p className="mb-6">You don't have permission to access this page.</p>
           <Button
             onClick={() => {
-              router.push('/');
+              window.location.href = '/';
             }}
           >
             Return to Home
@@ -617,7 +582,7 @@ function Dashboard() {
               size="sm"
               className="gap-2"
               onClick={() => {
-                router.push('/admin/users');
+                window.location.href = '/admin/users';
               }}
             >
               View All Users

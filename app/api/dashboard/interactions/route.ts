@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 import type { TransformedInteraction } from '@/app/dashboard/types';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
-// Helper function to format response time
 function formatResponseTime(durationMs: number): string {
   return durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(2)}s`;
 }
 
-export async function GET(req: NextRequest) {
+export const GET = requireAuth(async (context, req: NextRequest) => {
   try {
     // Get query parameters
     const url = new URL(req.url);
@@ -24,12 +24,14 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = await createClient();
+    const { user } = context;
 
-    // Start building the query
+    // Start building the query - filter by user_id to ensure users only see their own interactions
     let query = supabase
 
       .from('interactions')
       .select('*')
+      .eq('user_id', user.id)
       .order('interaction_time', { ascending: false });
 
     // Apply filters if provided
@@ -42,7 +44,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Get the total count with the same filters applied
-    let countQuery = supabase.from('interactions').select('id', { count: 'exact', head: true });
+    let countQuery = supabase
+      .from('interactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id);
 
     if (assistantId) {
       countQuery = countQuery.eq('assistant_id', assistantId);
@@ -124,4 +129,4 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({ error: 'Failed to fetch interactions' }, { status: 500 });
   }
-}
+});

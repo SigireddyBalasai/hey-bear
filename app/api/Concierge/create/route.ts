@@ -5,12 +5,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { Database } from '@/lib/db.types';
+import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
+import { requireAuth } from '@/utils/auth-utils';
+import { createClient } from '@/utils/supabase/server';
+import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
+
 // Import specific insert types
 type AssistantActivityInsert = Database['public']['Tables']['assistant_activity']['Insert'];
 type AssistantUsageLimitsInsert = Database['public']['Tables']['assistant_usage_limits']['Insert'];
-import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
-import { createClient } from '@/utils/supabase/server';
-import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
 
 function generatePineconeName(base: string): string {
   let prefix = base.toLowerCase().replaceAll(/[^a-z0-9]/g, '-');
@@ -32,7 +34,7 @@ interface CreateAssistantRequest {
   plan?: string;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (context, req: NextRequest) => {
   try {
     const body = (await req.json()) as CreateAssistantRequest;
 
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
       console.log(
         'Webhook call detected, using admin client to fetch user_id from payment_sessions table.'
       );
-      dbClient = createAdminClient();
+      dbClient = await createAdminClient();
 
       const { data: paymentSessionData, error: paymentSessionError } = await dbClient
         .from('payment_sessions')
@@ -120,39 +122,19 @@ export async function POST(req: NextRequest) {
       // The previous lookup for userData using auth_user_id is removed as it was incorrect.
       // We now directly use the user_id from payment_sessions.
     } else {
-      // For regular calls, authenticate the user
-      const supabase = await createClient();
-      dbClient = supabase;
-
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        console.error('Auth error:', authError);
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-
-      const { data: userData, error: userFetchError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (userFetchError) {
-        console.error('Error fetching user record:', userFetchError);
-        return NextResponse.json({ error: 'Failed to fetch user record' }, { status: 500 });
-      }
-
-      userId = userData.id;
+      // For regular calls, use the authenticated user from context
+      // Create supabase client for database operations
+      dbClient = await createClient();
+      userId = context.user.id;
     }
 
     // Validate verifiedPlanId using local configuration
     const planDetails = getSubscriptionPlanDetails(verifiedPlanId);
 
     if (!planDetails) {
-      console.error(`Invalid plan specified by client: ${verifiedPlanId}. Plan not found in local configuration.`);
+      console.error(
+        `Invalid plan specified by client: ${verifiedPlanId}. Plan not found in local configuration.`
+      );
       return NextResponse.json(
         { error: `Invalid plan specified: ${verifiedPlanId}. Plan not found in configuration.` },
         { status: 400 }
@@ -161,7 +143,9 @@ export async function POST(req: NextRequest) {
 
     // Use the ID from the local configuration (e.g., "personal", "business")
     const actualPlanIdForDb = planDetails.id;
-    console.log(`Using plan ID from local config: ${actualPlanIdForDb} for plan: ${verifiedPlanId}`);
+    console.log(
+      `Using plan ID from local config: ${actualPlanIdForDb} for plan: ${verifiedPlanId}`
+    );
 
     // The database query for plan UUID is removed as we now use the local config.
 
@@ -169,7 +153,10 @@ export async function POST(req: NextRequest) {
     if (!planDetails) {
       // This case should ideally be caught earlier, but as a safeguard:
       console.error('Plan details are unexpectedly null before database operations.');
-      return NextResponse.json({ error: 'Internal server error: Plan details missing.' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Internal server error: Plan details missing.' },
+        { status: 500 }
+      );
     }
 
     const pendingAssistantId = uuidv4(); // Define pendingAssistantId outside the try block for wider scope in catch
@@ -265,10 +252,16 @@ export async function POST(req: NextRequest) {
       if (activityInsertError) {
         console.error('Error inserting into assistant_activity:', activityInsertError);
         // Rollback previous inserts
-        await dbClient.from('assistant_subscriptions').delete().eq('assistant_id', pendingAssistantId);
+        await dbClient
+          .from('assistant_subscriptions')
+          .delete()
+          .eq('assistant_id', pendingAssistantId);
         await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
         await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
-        return NextResponse.json({ error: 'Failed to save assistant activity data.' }, { status: 500 });
+        return NextResponse.json(
+          { error: 'Failed to save assistant activity data.' },
+          { status: 500 }
+        );
       }
 
       // Insert into assistant_usage_limits
@@ -290,10 +283,16 @@ export async function POST(req: NextRequest) {
         console.error('Error inserting into assistant_usage_limits:', limitsInsertError);
         // Rollback previous inserts
         await dbClient.from('assistant_activity').delete().eq('assistant_id', pendingAssistantId);
-        await dbClient.from('assistant_subscriptions').delete().eq('assistant_id', pendingAssistantId);
+        await dbClient
+          .from('assistant_subscriptions')
+          .delete()
+          .eq('assistant_id', pendingAssistantId);
         await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
         await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
-        return NextResponse.json({ error: 'Failed to save assistant usage limits.' }, { status: 500 });
+        return NextResponse.json(
+          { error: 'Failed to save assistant usage limits.' },
+          { status: 500 }
+        );
       }
 
       return NextResponse.json({
@@ -306,16 +305,27 @@ export async function POST(req: NextRequest) {
       // General rollback for any error during the assistant creation process
       // Ensure pendingAssistantId is valid before attempting cleanup
       if (pendingAssistantId) {
-        console.log(`Attempting cleanup for assistant ID: ${pendingAssistantId} due to error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`);
+        console.log(
+          `Attempting cleanup for assistant ID: ${pendingAssistantId} due to error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`
+        );
         try {
           await dbClient.from('assistant_activity').delete().eq('assistant_id', pendingAssistantId);
-          await dbClient.from('assistant_usage_limits').delete().eq('assistant_id', pendingAssistantId);
-          await dbClient.from('assistant_subscriptions').delete().eq('assistant_id', pendingAssistantId);
+          await dbClient
+            .from('assistant_usage_limits')
+            .delete()
+            .eq('assistant_id', pendingAssistantId);
+          await dbClient
+            .from('assistant_subscriptions')
+            .delete()
+            .eq('assistant_id', pendingAssistantId);
           await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
           await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
           console.log(`Cleanup successful for assistant ID: ${pendingAssistantId}`);
         } catch (cleanupError) {
-          console.error(`Error during cleanup for assistant ID: ${pendingAssistantId}:`, cleanupError);
+          console.error(
+            `Error during cleanup for assistant ID: ${pendingAssistantId}:`,
+            cleanupError
+          );
         }
       }
       return NextResponse.json(
@@ -338,4 +348,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

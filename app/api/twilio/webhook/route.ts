@@ -1,7 +1,5 @@
-import { logSMSMessage } from '@/utils/sms-monitoring';
 import { sanitizeForSms } from '@/utils/string-utils';
 import { createClient } from '@/utils/supabase/server';
-import { UsageType, isLimitReached, trackUsage } from '@/utils/usage-limits';
 
 interface ChatAPIResponse {
   response?: string;
@@ -36,24 +34,9 @@ export async function POST(req: Request) {
     const from = formData.get('From') as string;
     const to = formData.get('To') as string;
     const body = formData.get('Body') as string;
-    const messageSid = formData.get('MessageSid') as string | null; // Twilio provides a MessageSid for incoming messages
 
     // Log information about received SMS
     console.log(`Received SMS from ${from} to ${to}`);
-    if (body) {
-      console.log(`Message content: \\"${body.slice(0, 100)}${body.length > 100 ? '...' : ''}\\"`);
-      // logIncomingSms(from, to, body); // Original call
-      await logSMSMessage({
-        // Corrected call
-        messageId: messageSid ?? '', // Use Twilio's MessageSid
-        fromNumber: from,
-        toNumber: to,
-        message: body, // Assuming body is the raw message, sanitizeForSms will be addressed next
-        direction: 'incoming',
-        status: 'received', // Status for incoming message
-        timestamp: new Date().toISOString(),
-      });
-    }
 
     // Optional token verification - can be enabled in a production environment
     if (process.env.VERIFY_WEBHOOK_TOKEN === 'true' && token !== process.env.WEBHOOK_TOKEN) {
@@ -99,19 +82,7 @@ export async function POST(req: Request) {
 
     console.log(`Found No-Show: ${assistant.name} (ID: ${assistant.id})`);
 
-    // Check if message limit has been reached
-    const isLimitExceeded = await isLimitReached(assistantId, UsageType.MESSAGE_RECEIVED);
-    if (isLimitExceeded) {
-      console.log(`Message limit reached for No-Show ${assistant.name}`);
-      return generateSmsResponse(
-        "I'm sorry, this No-Show has reached its monthly message limit. " +
-          'Please upgrade your plan or wait until next month to continue the conversation.'
-      );
-    }
-
-    // Track the incoming message
-    await trackUsage(assistantId, UsageType.MESSAGE_RECEIVED);
-    console.log(`Tracked incoming message for No-Show ${assistant.name}`);
+    console.log(`Processing message for No-Show ${assistant.name}`);
 
     // Handle SMS message
     // logTwilio('Webhook', `Processing SMS message for No-Show ${assistantId}`); // Replaced
@@ -164,8 +135,6 @@ export async function POST(req: Request) {
       );
       // logTwilio('Webhook', `AI generated SMS response: ${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}`); // Replaced
 
-      // Track the outgoing message
-      await trackUsage(assistantId, UsageType.MESSAGE_SENT);
       console.log(`Tracked outgoing message for No-Show ${assistant.name}`);
 
       // Record the interaction

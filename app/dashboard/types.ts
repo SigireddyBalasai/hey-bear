@@ -1,3 +1,5 @@
+import type { Json } from '@/lib/db.types';
+
 export interface TransformedInteraction {
   id: string;
   date: string; // Formatted date
@@ -10,7 +12,7 @@ export interface TransformedInteraction {
   user_id?: string | null;
   duration?: number | null; // Raw duration in ms
   interaction_time?: string | null; // Raw interaction time string
-  chat?: string | null; // chat log if available
+  chat?: Json | null; // chat log if available
   assistant_name?: string | null; // Name of the assistant
   status: string; // Interaction status (e.g., 'Completed', 'Pending', 'Failed') - needs a source or default
 }

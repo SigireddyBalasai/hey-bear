@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
 
+import { signOutAction } from '@/app/actions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,29 +26,18 @@ interface HeaderProps {
       avatar_url?: string;
     };
   } | null;
-  handleSignOut: () => void;
 }
 
-export function Header({ user, handleSignOut }: HeaderProps) {
+export function Header({ user }: HeaderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (user) {
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-
-          .from('users')
-          .select('is_admin')
-          .eq('auth_user_id', user.id)
-          .single();
-
-        if (userDataError) {
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(userData.is_admin ?? false);
-        }
+        // Check admin status from auth user metadata instead of users table
+        const userMetadata = user.user_metadata as { is_admin?: boolean } | undefined;
+        setIsAdmin(Boolean(userMetadata?.is_admin));
       }
     };
 
@@ -99,9 +89,16 @@ export function Header({ user, handleSignOut }: HeaderProps) {
           )}
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log out</span>
+          <DropdownMenuItem asChild>
+            <form action={signOutAction} className="w-full">
+              <button
+                type="submit"
+                className="flex w-full cursor-pointer items-center px-2 py-1.5 text-sm text-red-600 hover:bg-accent hover:text-red-600 focus:text-red-600"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </button>
+            </form>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

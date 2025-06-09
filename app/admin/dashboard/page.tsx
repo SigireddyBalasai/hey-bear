@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Bar, Line } from 'react-chartjs-2';
 
-import { useRouter } from 'next/navigation';
-
-import type { User } from '@supabase/supabase-js';
 import {
   BarElement,
   CategoryScale,
@@ -18,19 +15,16 @@ import {
   Tooltip,
 } from 'chart.js';
 import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { TwilioIntegrationStatus } from '@/components/admin/TwilioIntegrationStatus';
-import { UnassignedNumbersWidget } from '@/components/admin/UnassignedNumbersWidget';
 import { Loading } from '@/components/concierge/Loading';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { createClient } from '@/utils/supabase/client';
+import { useAdminAuth } from '@/hooks/useAuth';
+import { withErrorHandling } from '@/utils/error-handling';
 
-// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -42,7 +36,6 @@ ChartJS.register(
   Legend
 );
 
-// Define UsageChartItem type
 type UsageChartItem = {
   date: string;
   count: number;
@@ -51,142 +44,88 @@ type UsageChartItem = {
 };
 
 interface DashboardData {
-  usageChart: Array<UsageChartItem>; // Use UsageChartItem here
+  usageChart: Array<UsageChartItem>;
   users?: {
-    // Made optional
     total: number;
     activeToday: number;
     activeThisWeek: number;
   };
   usage?: {
-    // Made optional
     totalMessages: number;
     totalCost: number;
   };
 }
 
 export default function AdminDashboardPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isAdmin, isLoading } = useAdminAuth();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
-
-  const router = useRouter();
-  const supabase = createClient();
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
 
-    try {
-      const response = await fetch('/api/admin/dashboard');
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
+    await withErrorHandling(
+      async () => {
+        const response = await fetch('/api/admin/dashboard');
+        if (!response.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+        const data = (await response.json()) as DashboardData;
+        setDashboardData(data);
+      },
+      {
+        toastTitle: 'Dashboard Error',
+        fallbackMessage: 'Failed to load dashboard data',
       }
-      const data = (await response.json()) as DashboardData;
-      setDashboardData(data);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    }
+    );
   }, [user]);
 
-  // Check if the current user is an admin
+  // Load dashboard data when admin auth is complete
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        setIsLoading(true);
+    if (!isLoading && isAdmin && user) {
+      void fetchDashboardData();
+    }
+  }, [isLoading, isAdmin, user, fetchDashboardData]);
 
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) {
-          console.error('Error fetching user:', userError);
-          setUser(null);
-          router.push('/sign-in');
-          return;
-        }
-
-        setUser(user);
-
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-
-          .from('users')
-          .select('is_admin')
-          .eq('auth_user_id', user.id)
-          .single();
-
-        if (userDataError || !userData.is_admin) {
-          toast('Access Denied', {
-            description: "You don't have permission to access the admin dashboard",
-          });
-          setIsAdmin(false);
-          router.push('/');
-          return;
-        }
-
-        setIsAdmin(true);
-
-        // Fetch dashboard data once we know user is admin
-        await fetchDashboardData();
-      } catch (error) {
-        console.error('Error in checking admin status:', error);
-        router.push('/');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void checkAdminStatus();
-  }, [router, fetchDashboardData, supabase]); // Added supabase to dependency array
-
-  // Fetch usage data for different timeframe
   const fetchTimeframeData = async (timeframe: string) => {
     setSelectedTimeRange(timeframe);
-    setIsLoading(true);
 
-    try {
-      const response = await fetch(`/api/admin/usage-stats?timeframe=${timeframe}`);
+    await withErrorHandling(
+      async () => {
+        const response = await fetch(`/api/admin/usage-stats?timeframe=${timeframe}`);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch usage data');
+        if (!response.ok) {
+          throw new Error('Failed to fetch usage data');
+        }
+
+        interface TimeSeriesResponse {
+          timeSeriesData: Array<{
+            date: string;
+            count: number;
+            tokens: number;
+            cost: number;
+          }>;
+        }
+
+        const data = (await response.json()) as TimeSeriesResponse;
+
+        setDashboardData((prev: DashboardData | null) => {
+          const newUsageChart = data.timeSeriesData;
+          const result: DashboardData = {
+            usageChart: newUsageChart,
+            users: prev?.users ?? undefined,
+            usage: prev?.usage ?? undefined,
+          };
+          return result;
+        });
+      },
+      {
+        toastTitle: 'Usage Data Error',
+        fallbackMessage: 'Failed to load usage data',
       }
-
-      // Update the usageChart data in dashboardData
-      // Define the shape of the API response
-      interface TimeSeriesResponse {
-        timeSeriesData: Array<{
-          date: string;
-          count: number;
-          tokens: number;
-          cost: number;
-        }>;
-      }
-
-      const data = (await response.json()) as TimeSeriesResponse;
-
-      setDashboardData((prev: DashboardData | null) => {
-        const newUsageChart = data.timeSeriesData;
-        // Explicitly construct the new state to align with DashboardData type
-        const result: DashboardData = {
-          usageChart: newUsageChart,
-          users: prev?.users ?? undefined,
-          usage: prev?.usage ?? undefined,
-        };
-        return result;
-      });
-    } catch (error) {
-      console.error('Error fetching timeframe data:', error);
-      toast.error('Failed to load usage data');
-    } finally {
-      setIsLoading(false);
-    }
+    );
   };
 
-  // Generate chart data based on dashboard data
   const generateChartData = () => {
     if (!dashboardData?.usageChart || dashboardData.usageChart.length === 0) {
       return {
@@ -197,20 +136,19 @@ export default function AdminDashboardPage() {
 
     return {
       labels: dashboardData.usageChart.map((item: UsageChartItem) => {
-        // Typed item
         const date = new Date(item.date);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       }),
       datasets: [
         {
           label: 'Message Count',
-          data: dashboardData.usageChart.map((item: UsageChartItem) => item.count), // Typed item
+          data: dashboardData.usageChart.map((item: UsageChartItem) => item.count),
           borderColor: 'rgb(53, 162, 235)',
           backgroundColor: 'rgba(53, 162, 235, 0.5)',
         },
         {
           label: 'Token Usage (hundreds)',
-          data: dashboardData.usageChart.map((item: UsageChartItem) => item.tokens / 100), // Typed item
+          data: dashboardData.usageChart.map((item: UsageChartItem) => item.tokens / 100),
           borderColor: 'rgb(255, 99, 132)',
           backgroundColor: 'rgba(255, 99, 132, 0.5)',
         },
@@ -230,7 +168,7 @@ export default function AdminDashboardPage() {
           <p className="mb-6">You don't have permission to access this page.</p>
           <Button
             onClick={() => {
-              router.push('/');
+              window.location.href = '/';
             }}
           >
             Return to Home
@@ -393,7 +331,6 @@ export default function AdminDashboardPage() {
                   <Bar
                     data={{
                       labels: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => {
-                        // Typed item
                         const date = new Date(item.date);
                         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       }),
@@ -402,7 +339,7 @@ export default function AdminDashboardPage() {
                           label: 'Token Usage',
                           data: (dashboardData?.usageChart ?? []).map(
                             (item: UsageChartItem) => item.tokens
-                          ), // Typed item
+                          ),
                           backgroundColor: 'rgba(53, 162, 235, 0.7)',
                           borderRadius: 4,
                         },
@@ -430,7 +367,6 @@ export default function AdminDashboardPage() {
                   <Bar
                     data={{
                       labels: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => {
-                        // Typed item
                         const date = new Date(item.date);
                         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       }),
@@ -439,7 +375,7 @@ export default function AdminDashboardPage() {
                           label: 'Estimated Cost ($)',
                           data: (dashboardData?.usageChart ?? []).map(
                             (item: UsageChartItem) => item.cost
-                          ), // Typed item
+                          ),
                           backgroundColor: 'rgba(255, 159, 64, 0.7)',
                           borderRadius: 4,
                         },
@@ -461,14 +397,6 @@ export default function AdminDashboardPage() {
           </Tabs>
         </div>
 
-        <div className="mb-8">
-          <h2 className="mb-4 text-xl font-bold">System Status</h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <TwilioIntegrationStatus />
-            <UnassignedNumbersWidget />
-          </div>
-        </div>
-
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-bold">Quick Actions</h2>
@@ -478,7 +406,7 @@ export default function AdminDashboardPage() {
             <Card
               className="cursor-pointer p-6 shadow-sm transition-all hover:shadow-md"
               onClick={() => {
-                router.push('/admin/users');
+                window.location.href = '/admin/users';
               }}
             >
               <h3 className="mb-2 flex items-center font-medium">
@@ -492,21 +420,7 @@ export default function AdminDashboardPage() {
             <Card
               className="cursor-pointer p-6 shadow-sm transition-all hover:shadow-md"
               onClick={() => {
-                router.push('/admin/monitoring');
-              }}
-            >
-              <h3 className="mb-2 flex items-center font-medium">
-                <Activity className="mr-2 h-5 w-5" /> System Monitoring
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Monitor system performance and real-time metrics
-              </p>
-            </Card>
-
-            <Card
-              className="cursor-pointer p-6 shadow-sm transition-all hover:shadow-md"
-              onClick={() => {
-                router.push('/admin/usage');
+                window.location.href = '/admin/usage';
               }}
             >
               <h3 className="mb-2 flex items-center font-medium">

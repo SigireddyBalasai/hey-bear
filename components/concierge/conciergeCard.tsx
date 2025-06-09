@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-
 import Link from 'next/link';
 
 import { format } from 'date-fns';
 import {
   ArrowRight,
+  BarChart3,
   Bot,
   CreditCard,
   Loader2,
@@ -15,7 +14,6 @@ import {
   Star,
   Trash,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,7 +27,10 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
+import { getDashboardUrl } from '@/utils/dashboard-urls';
+import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 // Define a clean interface for the assistant data
@@ -62,7 +63,8 @@ export function AssistantCard({
   onDelete,
   onUpgrade,
 }: AssistantCardProps) {
-  const [isActionInProgressState, setIsActionInProgressState] = useState(isActionInProgress);
+  const { isLoading: isActionInProgressState, setIsLoading: setIsActionInProgressState } =
+    useLoadingState(isActionInProgress);
 
   // Handle toggle star action
   const handleToggleStar = async (id: string, isStarred: boolean) => {
@@ -72,27 +74,30 @@ export function AssistantCard({
     }
 
     setIsActionInProgressState(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
 
-        .from('assistants')
-        .update({ is_starred: isStarred })
-        .eq('id', id);
+    await withErrorHandling(
+      async () => {
+        const supabase = createClient();
+        const { error } = await supabase
+          .from('assistants')
+          .update({ is_starred: isStarred })
+          .eq('id', id);
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        showSuccess(
+          `Assistant ${isStarred ? 'starred' : 'unstarred'}`,
+          `${assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`
+        );
+      },
+      {
+        toastTitle: 'Failed to update star status',
       }
+    );
 
-      toast(`Assistant ${isStarred ? 'starred' : 'unstarred'}`, {
-        description: `${assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`,
-      });
-    } catch (error) {
-      console.error('Error toggling star:', error);
-      toast.error('Failed to update star status');
-    } finally {
-      setIsActionInProgressState(false);
-    }
+    setIsActionInProgressState(false);
   };
 
   // Handle delete action
@@ -106,23 +111,24 @@ export function AssistantCard({
     if (!confirmed) return;
 
     setIsActionInProgressState(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from('assistants').delete().eq('id', id);
 
-      if (error) {
-        throw error;
+    await withErrorHandling(
+      async () => {
+        const supabase = createClient();
+        const { error } = await supabase.from('assistants').delete().eq('id', id);
+
+        if (error) {
+          throw error;
+        }
+
+        showSuccess('Assistant deleted', `${assistant.name} has been removed`);
+      },
+      {
+        toastTitle: 'Failed to delete assistant',
       }
+    );
 
-      toast('Assistant deleted', {
-        description: `${assistant.name} has been removed`,
-      });
-    } catch (error) {
-      console.error('Error deleting assistant:', error);
-      toast.error('Failed to delete assistant');
-    } finally {
-      setIsActionInProgressState(false);
-    }
+    setIsActionInProgressState(false);
   };
 
   // Handle upgrade action
@@ -133,18 +139,19 @@ export function AssistantCard({
     }
 
     setIsActionInProgressState(true);
-    try {
-      toast('Starting upgrade process', {
-        description: `Upgrading ${assistant.name}`,
-      });
-      // Navigate to upgrade page
-      globalThis.location.href = `/upgrade?assistant_id=${id}`;
-    } catch (error) {
-      console.error('Error during upgrade:', error);
-      toast.error('Failed to start upgrade process');
-    } finally {
-      setIsActionInProgressState(false);
-    }
+
+    await withErrorHandling(
+      async () => {
+        showSuccess('Starting upgrade process', `Upgrading ${assistant.name}`);
+        // Navigate to upgrade page
+        globalThis.location.href = `/upgrade?assistant_id=${id}`;
+      },
+      {
+        toastTitle: 'Failed to start upgrade process',
+      }
+    );
+
+    setIsActionInProgressState(false);
   };
 
   // Loading state
@@ -279,7 +286,7 @@ export function AssistantCard({
         )}
       </CardContent>
 
-      <CardFooter className="flex justify-between">
+      <CardFooter className="gap-2">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -303,10 +310,24 @@ export function AssistantCard({
           </Tooltip>
         </TooltipProvider>
 
-        <Link href={`/Concierge/${assistant.id}`} className="ml-2 w-full">
-          <Button variant="default" className="flex w-full items-center justify-center gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href={getDashboardUrl(assistant.name)} className="flex-1">
+                <Button variant="outline" className="w-full">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Analytics
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>View detailed analytics</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <Link href={`/Concierge/${assistant.id}`} className="flex-1">
+          <Button variant="default" className="w-full">
             Open Concierge
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </Link>
       </CardFooter>

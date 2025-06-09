@@ -2,9 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { useRouter } from 'next/navigation';
-
-import type { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   AlertCircle,
   CheckCircle,
@@ -20,7 +17,6 @@ import {
   UserPlus,
   XCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
@@ -61,7 +57,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useAdminAuth } from '@/hooks/useAuth';
+import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
+import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 // Helper function to get user initials
@@ -122,113 +121,69 @@ interface UserData {
 }
 
 export default function UsersPage() {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isAdmin, isLoading } = useAdminAuth();
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { isLoading: isRefreshing, setIsLoading: setIsRefreshing } = useLoadingState(false);
 
-  const router = useRouter();
   const supabase = createClient();
 
   // Fetch real user data
   const fetchRealUsers = useCallback(async () => {
-    try {
-      // Use unknown to bypass type restrictions since the DB types seem incomplete
-      const { data: usersData, error } = await (
-        supabase as unknown as {
-          from: (table: string) => {
-            select: (fields: string) => {
-              order: (
-                field: string,
-                options: { ascending: boolean }
-              ) => Promise<{ data: Record<string, unknown>[] | null; error: unknown }>;
-            };
-          };
+    const result = await withErrorHandling(
+      async () => {
+        // Fetch auth users directly from Supabase Auth
+        const { data: authUsers, error } = await supabase.auth.admin.listUsers();
+
+        if (error) {
+          throw error;
         }
-      )
-        .from('users')
-        .select(
-          `
-          id,
-          auth_user_id,
-          created_at,
-          updated_at,
-          is_admin,
-          last_active
-        `
-        )
-        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching users:', error);
-        return [];
+        // Transform auth users to match our UserData interface
+        const transformedUsers: UserData[] = authUsers.users.map(authUser => ({
+          id: authUser.id,
+          auth_user_id: authUser.id,
+          email: authUser.email,
+          full_name:
+            (authUser.user_metadata?.full_name as string) ||
+            (authUser.user_metadata?.name as string) ||
+            undefined,
+          is_admin: Boolean(authUser.user_metadata?.is_admin),
+          last_sign_in: authUser.last_sign_in_at,
+          created_at: authUser.created_at,
+          updated_at: authUser.updated_at,
+          status: 'active', // Default to active since these are auth users
+          subscription_plan: (authUser.user_metadata?.subscription_plan as string) || 'free',
+          last_active: authUser.last_sign_in_at,
+          total_interactions: (authUser.user_metadata?.total_interactions as number) || 0,
+          total_tokens: (authUser.user_metadata?.total_tokens as number) || 0,
+          cost_estimate: (authUser.user_metadata?.cost_estimate as number) || 0,
+        }));
+
+        return transformedUsers;
+      },
+      {
+        toastTitle: 'Failed to fetch users',
       }
-
-      return (usersData ?? []).map((userData: Record<string, unknown>) => ({
-        id: userData.id as string,
-        auth_user_id: userData.auth_user_id as string,
-        email: `user-${(userData.id as string).slice(0, 8)}@example.com`, // Would need to join with auth.users for real email
-        full_name: `User ${(userData.id as string).slice(0, 8)}`, // Would need to get from auth.users or profile table
-        status:
-          userData.last_active &&
-          new Date(userData.last_active as string) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-            ? ('active' as const)
-            : ('inactive' as const),
-        subscription_plan: 'personal',
-        created_at: userData.created_at as string,
-        last_active: userData.last_active as string | null,
-        is_admin: userData.is_admin as boolean,
-        total_interactions: 0, // Will be calculated from real analytics data
-        total_tokens: 0, // Will be calculated from real analytics data
-        cost_estimate: 0, // Will be calculated from real analytics data
-      }));
-    } catch (error) {
-      console.error('Error in fetchRealUsers:', error);
-      return [];
-    }
+    );
+    return result || [];
   }, [supabase]);
 
-  // Check if current user is an admin
+  // Load users when admin auth is complete
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        setIsLoading(true);
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) {
-          console.error('Error fetching user:', userError);
-          setUser(null);
-          router.push('/sign-in');
-          return;
-        }
-
-        setUser(user);
-        setIsAdmin(true); // For demo purposes
-
-        // Load real users
+    if (!isLoading && isAdmin && user) {
+      const loadUsers = async () => {
         const realUsers = await fetchRealUsers();
         setUsers(realUsers);
         setFilteredUsers(realUsers);
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-        router.push('/');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void checkAdminStatus();
-  }, [router, supabase.auth, fetchRealUsers]);
+      };
+      void loadUsers();
+    }
+  }, [isLoading, isAdmin, user, fetchRealUsers]);
 
   // Filter users based on search term and status
   useEffect(() => {
@@ -244,17 +199,18 @@ export default function UsersPage() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    try {
-      const realUsers = await fetchRealUsers();
-      setUsers(realUsers);
-      setFilteredUsers(realUsers);
-      toast.success('User list refreshed');
-    } catch (error) {
-      console.error('Error refreshing users:', error);
-      toast.error('Failed to refresh user list');
-    } finally {
-      setIsRefreshing(false);
-    }
+    await withErrorHandling(
+      async () => {
+        const realUsers = await fetchRealUsers();
+        setUsers(realUsers);
+        setFilteredUsers(realUsers);
+        showSuccess('User list refreshed');
+      },
+      {
+        toastTitle: 'Failed to refresh user list',
+      }
+    );
+    setIsRefreshing(false);
   };
 
   const handleDeleteUser = (userData: UserData) => {
@@ -265,28 +221,29 @@ export default function UsersPage() {
   const confirmDelete = () => {
     if (!userToDelete) return;
 
-    try {
-      // Remove user from local state
-      const updatedUsers = users.filter(u => u.id !== userToDelete.id);
-      setUsers(updatedUsers);
-      setFilteredUsers(
-        updatedUsers.filter(user => {
-          const matchesSearch =
-            user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-            user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-          const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-          return matchesSearch && matchesStatus;
-        })
-      );
+    withErrorHandling(
+      async () => {
+        // Remove user from local state
+        const updatedUsers = users.filter(u => u.id !== userToDelete.id);
+        setUsers(updatedUsers);
+        setFilteredUsers(
+          updatedUsers.filter(user => {
+            const matchesSearch =
+              user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+              user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+            return matchesSearch && matchesStatus;
+          })
+        );
 
-      toast.success('User deleted successfully');
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
-    } finally {
-      setShowDeleteDialog(false);
-      setUserToDelete(null);
-    }
+        showSuccess('User deleted successfully');
+      },
+      {
+        toastTitle: 'Failed to delete user',
+      }
+    );
+    setShowDeleteDialog(false);
+    setUserToDelete(null);
   };
 
   if (isLoading) {
@@ -301,7 +258,7 @@ export default function UsersPage() {
           <p className="mb-6">You don't have permission to access this page.</p>
           <Button
             onClick={() => {
-              router.push('/');
+              window.location.href = '/';
             }}
           >
             Return to Home
@@ -337,7 +294,7 @@ export default function UsersPage() {
               size="sm"
               className="gap-2"
               onClick={() => {
-                router.push('/admin/users/new');
+                window.location.href = '/admin/users/new';
               }}
             >
               <UserPlus className="h-4 w-4" />
@@ -433,7 +390,7 @@ export default function UsersPage() {
                         <DropdownMenuItem
                           className="gap-2"
                           onClick={() => {
-                            router.push(`/admin/user/${user.id}`);
+                            window.location.href = `/admin/user/${user.id}`;
                           }}
                         >
                           <User className="h-4 w-4" /> View Profile

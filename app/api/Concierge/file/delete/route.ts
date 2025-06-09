@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 
 import type { Database } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 // Define the type for the data expected from Supabase using db.types.ts
@@ -22,7 +23,7 @@ interface DeleteFileRequest {
   fileId: string;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (context, req: NextRequest) => {
   try {
     // Validate request body
     const body = (await req.json()) as DeleteFileRequest;
@@ -33,17 +34,6 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient();
-
-    // Check user authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Get pinecone_name if not provided
     let assistantPineconeName = pinecone_name;
@@ -118,4 +108,4 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
+});

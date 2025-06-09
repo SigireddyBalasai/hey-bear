@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Line, Pie } from 'react-chartjs-2';
 
-import { useRouter } from 'next/navigation';
-
-import type { User } from '@supabase/supabase-js';
 import {
   ArcElement,
   BarElement,
@@ -27,9 +24,7 @@ import {
   FileSpreadsheet,
   TrendingUp,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
-import type { UserStat } from '@/app/admin/types/dashboard';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { fetchUsageData } from '@/components/admin/utils/adminUtils';
@@ -59,9 +54,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { useAdminAuth } from '@/hooks/useAuth';
+import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-// Register Chart.js components
+interface UserStat {
+  userId: string;
+  interactions: number;
+  tokens: number;
+  costs: number;
+  lastActive: string | null;
+  email?: string;
+  fullName?: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -87,9 +95,7 @@ interface TimeSeriesDataPoint {
 }
 
 export default function UsageAnalyticsPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isAdmin, isLoading } = useAdminAuth();
   const [selectedTimeframe, setSelectedTimeframe] = useState('30d');
   const [selectedModel, setSelectedModel] = useState('all');
   const [selectedAssistant, setSelectedAssistant] = useState('all');
@@ -116,165 +122,121 @@ export default function UsageAnalyticsPage() {
     isIncrease: false,
   });
 
-  const router = useRouter();
   const supabase = createClient();
 
-  // Load usage data from the real database via adminUtils
   const loadUsageData = useCallback(
     async (
       timeframe: string,
       assistantId: string = selectedAssistant,
       plan: string = selectedPlan
     ) => {
-      setIsLoading(true);
+      await withErrorHandling(
+        async () => {
+          const { totalStats, timeSeriesData, userStats } = await fetchUsageData(
+            timeframe,
+            assistantId,
+            plan
+          );
 
-      try {
-        const { totalStats, timeSeriesData, userStats } = await fetchUsageData(
-          timeframe,
-          assistantId,
-          plan
-        );
+          setTotalStats(totalStats);
+          setTimeSeriesData(timeSeriesData);
 
-        setTotalStats(totalStats);
-        setTimeSeriesData(timeSeriesData);
+          // Calculate percentage for each user stat
+          const userStatsWithPercentage = userStats.map(user => ({
+            ...user,
+            email: user.email || '',
+            fullName: user.fullName || '',
+            percentage: totalStats.costs > 0 ? (user.costs / totalStats.costs) * 100 : 0,
+          }));
+          setUserStats(userStatsWithPercentage);
 
-        // Calculate percentage for each user stat
-        const userStatsWithPercentage = userStats.map(user => ({
-          ...user,
-          email: user.email || '',
-          fullName: user.fullName || '',
-          percentage: totalStats.costs > 0 ? (user.costs / totalStats.costs) * 100 : 0,
-        }));
-        setUserStats(userStatsWithPercentage);
+          if (timeSeriesData.length > 0) {
+            const midpoint = Math.floor(timeSeriesData.length / 2);
+            const currentPeriod = timeSeriesData.slice(midpoint);
+            const previousPeriod = timeSeriesData.slice(0, midpoint);
 
-        // Calculate cost trends
-        if (timeSeriesData.length > 0) {
-          const midpoint = Math.floor(timeSeriesData.length / 2);
-          const currentPeriod = timeSeriesData.slice(midpoint);
-          const previousPeriod = timeSeriesData.slice(0, midpoint);
+            const currentCost = currentPeriod.reduce((sum, day) => sum + day.costs, 0);
+            const previousCost = previousPeriod.reduce((sum, day) => sum + day.costs, 0);
+            const costChange =
+              previousCost > 0 ? ((currentCost - previousCost) / previousCost) * 100 : 0;
 
-          const currentCost = currentPeriod.reduce((sum, day) => sum + day.costs, 0);
-          const previousCost = previousPeriod.reduce((sum, day) => sum + day.costs, 0);
-          const costChange =
-            previousCost > 0 ? ((currentCost - previousCost) / previousCost) * 100 : 0;
+            setCostTrend({
+              current: currentCost,
+              previous: previousCost,
+              change: Math.abs(costChange),
+              isIncrease: costChange > 0,
+            });
+          }
 
-          setCostTrend({
-            current: currentCost,
-            previous: previousCost,
-            change: Math.abs(costChange),
-            isIncrease: costChange > 0,
-          });
+          const tokenDist = [
+            {
+              type: 'Input Tokens',
+              tokens: totalStats.inputTokens,
+              percentage: Math.round((totalStats.inputTokens / totalStats.tokens) * 100) || 0,
+            },
+            {
+              type: 'Output Tokens',
+              tokens: totalStats.outputTokens,
+              percentage: Math.round((totalStats.outputTokens / totalStats.tokens) * 100) || 0,
+            },
+          ];
+
+          setTokenDistribution(tokenDist);
+        },
+        {
+          toastTitle: 'Failed to fetch usage data',
+          fallbackMessage: 'Unable to load usage analytics data',
         }
-
-        // Create token distribution
-        const tokenDist = [
-          {
-            type: 'Input Tokens',
-            tokens: totalStats.inputTokens,
-            percentage: Math.round((totalStats.inputTokens / totalStats.tokens) * 100) || 0,
-          },
-          {
-            type: 'Output Tokens',
-            tokens: totalStats.outputTokens,
-            percentage: Math.round((totalStats.outputTokens / totalStats.tokens) * 100) || 0,
-          },
-        ];
-
-        setTokenDistribution(tokenDist);
-      } catch (error) {
-        console.error('Error fetching usage data:', error);
-        toast.error('Failed to fetch usage data');
-      } finally {
-        setIsLoading(false);
-      }
+      );
     },
     [selectedAssistant, selectedPlan]
   );
 
-  // Check if current user is an admin
+  // Load data when admin auth is complete
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        setIsLoading(true);
+    if (!isLoading && isAdmin && user) {
+      const fetchAssistants = async () => {
+        await withErrorHandling(
+          async () => {
+            const { data: assistantData } = await supabase
+              .from('assistants')
+              .select('id, name')
+              .eq('pending', false);
 
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+            setAssistants(assistantData ?? []);
+            await loadUsageData(selectedTimeframe);
+          },
+          {
+            toastTitle: 'Failed to fetch assistants data',
+            fallbackMessage: 'Unable to load assistants list',
+          }
+        );
+      };
 
-        if (userError || !user) {
-          console.error('Error fetching user:', userError);
-          setUser(null);
-          router.push('/sign-in');
-          return;
-        }
+      void fetchAssistants();
+    }
+  }, [isLoading, isAdmin, user, selectedTimeframe, loadUsageData, supabase]);
 
-        setUser(user);
-
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-
-          .from('users')
-          .select('is_admin')
-          .eq('auth_user_id', user.id)
-          .single();
-
-        if (userDataError || !userData.is_admin) {
-          setIsAdmin(false);
-          router.push('/');
-          return;
-        }
-
-        setIsAdmin(true);
-
-        // Fetch real assistants
-        const { data: assistantData } = await supabase
-
-          .from('assistants')
-          .select('id, name')
-          .eq('pending', false);
-
-        setAssistants(assistantData ?? []);
-
-        // Load initial usage data
-        await loadUsageData(selectedTimeframe);
-      } catch (error) {
-        console.error('Error in checking admin status:', error);
-        router.push('/');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void checkAdminStatus();
-  }, [loadUsageData, router, selectedTimeframe, supabase]);
-
-  // Handle timeframe change
   const handleTimeframeChange = (timeframe: string) => {
     setSelectedTimeframe(timeframe);
     void loadUsageData(timeframe);
   };
 
-  // Handle model filter change
   const handleModelChange = (model: string) => {
     setSelectedModel(model);
-    // Reload data with new model filter
     void loadUsageData(selectedTimeframe);
   };
 
-  // Handle assistant change
   const handleAssistantChange = (assistant: string) => {
     setSelectedAssistant(assistant);
     void loadUsageData(selectedTimeframe, assistant);
   };
 
-  // Add plan filter change handler
   const handlePlanChange = (plan: string) => {
     setSelectedPlan(plan);
     void loadUsageData(selectedTimeframe, selectedAssistant, plan);
   };
 
-  // Generate time series data for chart
   const generateTimeSeriesData = () => {
     return {
       labels: timeSeriesData.map(entry => {
@@ -294,7 +256,6 @@ export default function UsageAnalyticsPage() {
     };
   };
 
-  // Generate token usage data for chart
   const generateTokenUsageData = () => {
     return {
       labels: timeSeriesData.map(entry => {
@@ -314,17 +275,13 @@ export default function UsageAnalyticsPage() {
     };
   };
 
-  // Generate token distribution data for pie chart
   const generateTokenDistributionData = () => {
     return {
       labels: tokenDistribution.map(item => item.type),
       datasets: [
         {
           data: tokenDistribution.map(item => item.tokens),
-          backgroundColor: [
-            'rgba(59, 130, 246, 0.7)', // Input tokens - blue
-            'rgba(16, 185, 129, 0.7)', // Output tokens - green
-          ],
+          backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(16, 185, 129, 0.7)'],
           borderColor: ['rgba(59, 130, 246, 1)', 'rgba(16, 185, 129, 1)'],
           borderWidth: 1,
         },
@@ -344,7 +301,7 @@ export default function UsageAnalyticsPage() {
           <p className="mb-6">You don't have permission to access this page.</p>
           <Button
             onClick={() => {
-              router.push('/');
+              window.location.href = '/';
             }}
           >
             Return to Home
@@ -663,7 +620,7 @@ export default function UsageAnalyticsPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                router.push('/admin/user-usage');
+                window.location.href = '/admin/user-usage';
               }}
             >
               View All Users

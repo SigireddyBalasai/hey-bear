@@ -7,6 +7,7 @@ import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getPineconeClient } from '@/lib/pinecone';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 // Create a logger function for consistent log formatting
@@ -154,7 +155,7 @@ const fetchWithLogging = async (url: string, options: RequestInit) => {
   }
 };
 
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (context, req: NextRequest) => {
   if (!FIRECRAWL_API_KEY) {
     logger.error('FIRECRAWL_API_KEY is not set');
     return NextResponse.json(
@@ -174,26 +175,8 @@ export async function POST(req: NextRequest) {
   try {
     // Authenticate user
     logger.info('Authenticating user');
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
 
-    if (authError) {
-      logger.error('Authentication error', authError);
-      const errorMessage = authError instanceof Error ? authError.message : String(authError);
-      return NextResponse.json(
-        { error: 'Unauthorized: Authentication error', details: errorMessage },
-        { status: 401 }
-      );
-    }
-
-    if (!user) {
-      logger.error('No user found in authentication response');
-      return NextResponse.json({ error: 'Unauthorized: No user found' }, { status: 401 });
-    }
-
-    logger.info(`User authenticated successfully: ${user.id}`);
+    logger.info(`User authenticated successfully: ${context.user.id}`);
 
     // Validate request body
     let body: RequestBody;
@@ -512,7 +495,7 @@ export async function POST(req: NextRequest) {
           type: 'webpage',
           dateAdded: new Date().toISOString(),
           assistantId: assistantId,
-          userId: user.id,
+          userId: context.user.id,
           title: resultData.metadata?.title ?? '',
           description: resultData.metadata?.description ?? '',
         },
@@ -552,4 +535,4 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
+});

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
 
+import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 interface PurchasePhoneNumberRequest {
@@ -12,30 +13,9 @@ interface PurchasePhoneNumberRequest {
 // Use Twilio SDK type instead of custom interface
 type TwilioPhoneNumber = IncomingPhoneNumberInstance;
 
-export async function POST(req: Request) {
+export const POST = requireAdmin(async (context, req) => {
   try {
-    // Check authentication and admin permissions
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin, id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     // Get the phone number to purchase
     const { phoneNumber } = (await req.json()) as PurchasePhoneNumberRequest;
@@ -43,8 +23,6 @@ export async function POST(req: Request) {
     if (!phoneNumber) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
-
-    // Initialize Twilio client
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
 
@@ -91,21 +69,7 @@ export async function POST(req: Request) {
         );
       }
 
-      // Add to phone number poo
-
-      // Log the purchase as an interaction for auditing
-      await supabase.from('interactions').insert({
-        user_id: userData.id,
-        chat: 'system',
-        request: 'Purchase phone number',
-        response: JSON.stringify({
-          action: 'purchase_phone_number',
-          number: purchasedNumber.phoneNumber,
-          sid: purchasedNumber.sid,
-        }),
-        interaction_time: new Date().toISOString(),
-      });
-
+      // Phone number successfully added to database
       return NextResponse.json({
         success: true,
         message: 'Phone number purchased successfully',
@@ -138,4 +102,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
+});

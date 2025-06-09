@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import type { Database } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 // List of allowed file types
@@ -34,7 +35,7 @@ type TypedAssistantWithSpecificConfig = AssistantFromDb & {
   assistant_configs: Pick<AssistantConfigFromDb, 'pinecone_name'> | null; // Can be null if no config
 };
 
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (context, req: NextRequest) => {
   try {
     const formData = await req.formData();
     const assistantId = formData.get('assistantId') as string;
@@ -56,15 +57,6 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     let pinecone_name: string | null = providedPineconeName;
 
@@ -190,4 +182,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noErrorTruncation": true,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
+    "maxNodeModuleJsDepth": 0,
+    "preserveWatchOutput": true,
+    "pretty": true,
+    "listFiles": false,
+    "listEmittedFiles": false
+  },
+  "exclude": ["node_modules", ".next", "out", "dist"]
+}

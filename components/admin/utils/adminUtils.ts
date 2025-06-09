@@ -1,9 +1,13 @@
-import type { Database } from '@/lib/db.types';
-
-type UserWithUsage = Database['public']['Tables']['users']['Row'] & {
+type UserWithUsage = {
+  id: string;
+  auth_user_id: string;
   email?: string;
   full_name?: string;
   last_sign_in?: string;
+  created_at?: string;
+  updated_at?: string;
+  is_admin?: boolean;
+  stripe_customer_id?: string | null;
   plan?: {
     id: string;
     name: string;

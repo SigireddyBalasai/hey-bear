@@ -3,9 +3,7 @@ import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import type { LocalInstance } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
 
-import { isAdmin as checkIsAdmin } from '@/utils/admin';
-// Renamed import
-import { createClient } from '@/utils/supabase/server';
+import { requireAdmin } from '@/utils/auth-utils';
 
 // Interface for request body
 interface AreaCodeRequest {
@@ -30,27 +28,8 @@ interface AreaCodeInfo {
 }
 
 // Simplified API that returns flat area code data for the UI to sort and group
-export async function POST(request: Request) {
+export const POST = requireAdmin(async (context, request) => {
   try {
-    // Check authentication and admin permissions
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Use the checkIsAdmin utility function instead of direct database query
-    const isUserAdmin = await checkIsAdmin(user.id); // Adjusted call
-
-    if (!isUserAdmin) {
-      // Adjusted condition
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     // Parse request body with proper typing
     const requestBody = (await request.json()) as AreaCodeRequest;
     const { country = 'US' } = requestBody;
@@ -110,4 +89,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

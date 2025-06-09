@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-import { createClient } from '@/utils/supabase/server';
+import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
 
 // Define the settings object type
 type TwilioSettings = {
@@ -17,43 +18,8 @@ interface UpdateSettingsRequest {
 }
 
 // Get current settings
-export async function GET(_req: Request) {
+export const GET = requireAdmin(async (_context: AuthContext, _req: NextRequest) => {
   try {
-    // Check authentication and admin permissions
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.log('Auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    console.log('User authenticated:', user.id);
-
-    // Check admin status - directly query the users table
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError) {
-      console.log('User data error:', userDataError);
-      return NextResponse.json({ error: 'Error checking admin status' }, { status: 500 });
-    }
-
-    if (!userData.is_admin) {
-      console.log('Not an admin:', userData);
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
-    console.log('Admin access confirmed');
-
-    // For implementation, use environment variables
     const settings: TwilioSettings = {
       accountSid: process.env.TWILIO_ACCOUNT_SID ?? '',
       // Don't return the full auth token for security reasons
@@ -79,35 +45,11 @@ export async function GET(_req: Request) {
       { status: 500 }
     );
   }
-}
+});
 
 // Update settings
-export async function POST(req: Request) {
+export const POST = requireAdmin(async (context: AuthContext, req: NextRequest) => {
   try {
-    // Check authentication and admin permissions
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status - directly using auth_user_id
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      console.log('Admin check failed:', userDataError, userData);
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
     // Get settings from request body
     const { settings } = (await req.json()) as UpdateSettingsRequest;
 
@@ -148,4 +90,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
+});

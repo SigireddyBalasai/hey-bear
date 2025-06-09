@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 
 import { AlertCircle, ArchiveIcon, BarChart, Calendar, Database, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +25,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
+import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 
 type MaintenanceAction = 'vacuum' | 'refresh' | 'aggregate' | 'partition' | 'archive' | 'full';
 
@@ -67,8 +68,20 @@ const formatBytes = (bytes: number) => {
 // Removed custom interfaces - use Supabase types directly
 
 export default function DatabasePage() {
-  const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<MaintenanceAction | null>(null);
+  // Consolidated loading states using useMultipleLoadingStates
+  const { loadingStates, setLoadingState } = useMultipleLoadingStates([
+    'pageLoading',
+    'vacuum',
+    'refresh',
+    'aggregate',
+    'partition',
+    'archive',
+    'full',
+  ] as const);
+
+  // Extract individual loading states for easy access
+  const isLoading = loadingStates.pageLoading;
+
   const [tableSizes, setTableSizes] = useState<TableSizeData[]>([]);
   const [rowCounts, setRowCounts] = useState<TableRowCountData[]>([]);
   const [indexStats, setIndexStats] = useState<IndexStatData[]>([]);
@@ -82,70 +95,81 @@ export default function DatabasePage() {
   }, []);
 
   const fetchDatabaseStats = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/admin/database/stats');
-      if (!response.ok) {
-        throw new Error('Failed to fetch database stats');
-      }
+    setLoadingState('pageLoading', true);
 
-      const data = (await response.json()) as {
-        success: boolean;
-        tableSizes?: TableSizeData[];
-        rowCounts?: TableRowCountData[];
-        indexStats?: IndexStatData[];
-        message?: string;
-      };
+    await withErrorHandling(
+      async () => {
+        const response = await fetch('/api/admin/database/stats');
+        if (!response.ok) {
+          throw new Error('Failed to fetch database stats');
+        }
 
-      if (data.success) {
-        setTableSizes(data.tableSizes ?? []);
-        setRowCounts(data.rowCounts ?? []);
-        setIndexStats(data.indexStats ?? []);
-        setLastUpdated(new Date().toLocaleString());
-      } else {
-        toast.error(data.message ?? 'Failed to fetch database statistics');
+        const data = (await response.json()) as {
+          success: boolean;
+          tableSizes?: TableSizeData[];
+          rowCounts?: TableRowCountData[];
+          indexStats?: IndexStatData[];
+          message?: string;
+        };
+
+        if (data.success) {
+          setTableSizes(data.tableSizes ?? []);
+          setRowCounts(data.rowCounts ?? []);
+          setIndexStats(data.indexStats ?? []);
+          setLastUpdated(new Date().toLocaleString());
+        } else {
+          throw new Error(data.message ?? 'Failed to fetch database statistics');
+        }
+      },
+      {
+        toastTitle: 'Database Error',
+        fallbackMessage: 'Failed to fetch database statistics',
       }
-    } catch (error) {
-      console.error('Error fetching database stats:', error);
-      toast.error('Failed to fetch database statistics');
-    } finally {
-      setLoading(false);
-    }
+    );
+
+    setLoadingState('pageLoading', false);
   };
 
   const runMaintenance = async (action: MaintenanceAction) => {
-    setActionLoading(action);
-    try {
-      const response = await fetch('/api/admin/database/maintenance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action }),
-      });
+    setLoadingState(action, true);
 
-      if (!response.ok) {
-        throw new Error(`Failed to run ${action} maintenance`);
+    await withErrorHandling(
+      async () => {
+        const response = await fetch('/api/admin/database/maintenance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ action }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to run ${action} maintenance`);
+        }
+
+        const data = (await response.json()) as {
+          success: boolean;
+          message?: string;
+        };
+
+        if (data.success) {
+          showSuccess(
+            `${action} maintenance completed`,
+            data.message ?? `${action} maintenance completed successfully`
+          );
+          // Refresh stats after maintenance
+          void fetchDatabaseStats();
+        } else {
+          throw new Error(data.message ?? `Failed to run ${action} maintenance`);
+        }
+      },
+      {
+        toastTitle: 'Maintenance Error',
+        fallbackMessage: `Failed to run ${action} maintenance`,
       }
+    );
 
-      const data = (await response.json()) as {
-        success: boolean;
-        message?: string;
-      };
-
-      if (data.success) {
-        toast.success(data.message ?? `${action} maintenance completed successfully`);
-        // Refresh stats after maintenance
-        void fetchDatabaseStats();
-      } else {
-        toast.error(data.message ?? `Failed to run ${action} maintenance`);
-      }
-    } catch (error) {
-      console.error(`Error running ${action} maintenance:`, error);
-      toast.error(`Failed to run ${action} maintenance`);
-    } finally {
-      setActionLoading(null);
-    }
+    setLoadingState(action, false);
   };
 
   // Helper function to render bloat percentage badge
@@ -181,10 +205,10 @@ export default function DatabasePage() {
         <Button
           variant="outline"
           onClick={fetchDatabaseStats}
-          disabled={loading}
+          disabled={isLoading}
           className="flex gap-2"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh Data
         </Button>
       </div>
@@ -248,40 +272,40 @@ export default function DatabasePage() {
               variant="outline"
               className="flex justify-start gap-2"
               onClick={() => runMaintenance('vacuum')}
-              disabled={actionLoading !== null}
+              disabled={Object.values(loadingStates).some(loading => loading)}
             >
               <Database className="h-4 w-4" />
-              {actionLoading === 'vacuum' ? RUNNING_TEXT : 'Vacuum & Analyze'}
+              {loadingStates.vacuum ? RUNNING_TEXT : 'Vacuum & Analyze'}
             </Button>
 
             <Button
               variant="outline"
               className="flex justify-start gap-2"
               onClick={() => runMaintenance('refresh')}
-              disabled={actionLoading !== null}
+              disabled={Object.values(loadingStates).some(loading => loading)}
             >
               <RefreshCw className="h-4 w-4" />
-              {actionLoading === 'refresh' ? RUNNING_TEXT : 'Refresh Materialized Views'}
+              {loadingStates.refresh ? RUNNING_TEXT : 'Refresh Materialized Views'}
             </Button>
 
             <Button
               variant="outline"
               className="flex justify-start gap-2"
               onClick={() => runMaintenance('aggregate')}
-              disabled={actionLoading !== null}
+              disabled={Object.values(loadingStates).some(loading => loading)}
             >
               <BarChart className="h-4 w-4" />
-              {actionLoading === 'aggregate' ? RUNNING_TEXT : 'Aggregate Stats'}
+              {loadingStates.aggregate ? RUNNING_TEXT : 'Aggregate Stats'}
             </Button>
 
             <Button
               variant="outline"
               className="flex justify-start gap-2"
               onClick={() => runMaintenance('partition')}
-              disabled={actionLoading !== null}
+              disabled={Object.values(loadingStates).some(loading => loading)}
             >
               <Calendar className="h-4 w-4" />
-              {actionLoading === 'partition' ? RUNNING_TEXT : 'Create Next Partition'}
+              {loadingStates.partition ? RUNNING_TEXT : 'Create Next Partition'}
             </Button>
 
             <Button
@@ -294,10 +318,10 @@ export default function DatabasePage() {
                   void runMaintenance('archive');
                 }
               }}
-              disabled={actionLoading !== null}
+              disabled={Object.values(loadingStates).some(loading => loading)}
             >
               <ArchiveIcon className="h-4 w-4" />
-              {actionLoading === 'archive' ? RUNNING_TEXT : 'Archive Old Data'}
+              {loadingStates.archive ? RUNNING_TEXT : 'Archive Old Data'}
             </Button>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
@@ -337,7 +361,7 @@ export default function DatabasePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <div className="flex h-48 items-center justify-center">
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
@@ -408,7 +432,7 @@ export default function DatabasePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={3} className="h-24 text-center">
                     <RefreshCw className="mx-auto h-8 w-8 animate-spin" />
@@ -441,7 +465,7 @@ export default function DatabasePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
                     <RefreshCw className="mx-auto h-8 w-8 animate-spin" />
@@ -484,7 +508,7 @@ export default function DatabasePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
                     <RefreshCw className="mx-auto h-8 w-8 animate-spin" />

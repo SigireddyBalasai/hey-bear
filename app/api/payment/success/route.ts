@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 import type Stripe from 'stripe';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { createClient } from '@/utils/supabase/server-admin';
+import type { Database } from '@/lib/db.types';
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
+import { createClient } from '@/utils/supabase/server-admin';
 
 interface CreateAssistantResult {
   message: string;
@@ -15,8 +17,16 @@ interface CreateAssistantResult {
 interface WebhookPayload {
   id: string;
   object: string;
+  api_version: string;
+  created: number;
   data: {
     object: Stripe.Checkout.Session;
+  };
+  livemode: boolean;
+  pending_webhooks: number;
+  request: {
+    id: string;
+    idempotency_key: string;
   };
   type: string;
 }
@@ -30,32 +40,21 @@ interface AssistantConfigData {
 }
 
 // Type for payment session record from database
-// We'll use the inferred type from Supabase query
+type PaymentSession = Database['public']['Tables']['payment_sessions']['Row'];
+type PaymentSessionUpdate = Database['public']['Tables']['payment_sessions']['Update'];
 
 // Handle POST requests with webhook payload from Stripe
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  const { origin } = new URL(request.url);
-
-  console.log('[PAYMENT SUCCESS] POST Request started:', {
-    url: request.url,
-    origin,
-    timestamp: new Date().toISOString(),
-    userAgent: request.headers.get('user-agent'),
-    referer: request.headers.get('referer'),
-  });
-
-  let sessionId: string = 'unknown';
+  let sessionId = 'unknown';
+  
+  if (!request || !request.body || !request.headers || !request.json()) {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
 
   try {
     const body = (await request.json()) as WebhookPayload;
-
-    console.log('[PAYMENT SUCCESS] Webhook payload received:', {
-      eventId: body.id,
-      eventType: body.type,
-      hasData: !!body.data,
-      hasObject: !!body.data?.object,
-    });
+    console.log(body);
 
     // Extract session from webhook payload
     if (!body.data?.object || body.data.object.object !== 'checkout.session') {
@@ -80,6 +79,7 @@ export async function POST(request: NextRequest) {
       customerId: session.customer,
     });
 
+    const origin = request.headers.get('origin') || 'http://localhost:3000';
     return await processPaymentSuccess(session, origin, startTime);
   } catch (error) {
     console.error('[PAYMENT SUCCESS] Failed to parse webhook payload:', {
@@ -102,7 +102,7 @@ async function processPaymentSuccess(
 
   try {
     console.log('[PAYMENT SUCCESS] Creating Supabase client...');
-    const supabase = createClient();
+    const supabase: SupabaseClient<Database> = await createClient();
 
     // Verify the session is complete and paid
     if (session.payment_status !== 'paid') {
@@ -196,32 +196,15 @@ async function processPaymentSuccess(
       // The code below will try to find payment_session by stripe_checkout_session_id if internalPaymentSessionId is null.
     }
 
-    // 1. Fetch Application User ID (public.users.id)
-    console.log('[PAYMENT SUCCESS] Fetching application user ID for auth_user_id:', authUserId);
-    const { data: appUserData, error: userFetchError } = await supabase // supabase is admin client here
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', authUserId)
-      .single();
-
-    if (userFetchError || !appUserData?.id) {
-      console.error(
-        '[PAYMENT SUCCESS] CRITICAL: Failed to fetch application user ID from public.users for auth_user_id:',
-        authUserId,
-        userFetchError
-      );
-      return NextResponse.json(
-        { error: 'User record not found for assistant assignment.' },
-        { status: 500 }
-      );
-    }
-    const resolvedApplicationUserId = appUserData.id;
+    // Use the auth user ID directly instead of looking up in users table
+    console.log('[PAYMENT SUCCESS] Using auth user ID directly:', authUserId);
+    const resolvedApplicationUserId = authUserId;
     console.log('[PAYMENT SUCCESS] Resolved application_user_id:', resolvedApplicationUserId);
 
     // 2. Fetch Payment Session record
     // Prioritize internalPaymentSessionId if available, otherwise fallback to stripe_checkout_session_id
-    let paymentSession: any; // Define type more accurately if possible
-    let psFetchError: any;
+    let paymentSession: PaymentSession | null = null;
+    let psFetchError: Error | null = null;
 
     if (internalPaymentSessionId) {
       console.log(
@@ -270,12 +253,7 @@ async function processPaymentSuccess(
     );
 
     // 3. Prepare and Execute Update to payment_sessions
-    const updatePayload: {
-      updated_at: string;
-      status: string;
-      user_id?: string;
-      stripe_checkout_session_id?: string;
-    } = {
+    const updatePayload: PaymentSessionUpdate = {
       updated_at: new Date().toISOString(),
       status: 'completed', // Always aim to mark as completed if payment was successful
     };
@@ -363,7 +341,7 @@ async function processPaymentSuccess(
       );
     }
     console.log(
-      '[PAYMENT SUCCESS] Confirmed payment_session (ID: ${paymentSession.id}) is associated with user_id:',
+      `[PAYMENT SUCCESS] Confirmed payment_session (ID: ${paymentSession.id}) is associated with user_id:`,
       paymentSession.user_id
     );
 
@@ -375,7 +353,6 @@ async function processPaymentSuccess(
     );
 
     // 5a. Determine Plan Name using internal plan_id from paymentSession
-    let planName;
     const internalPlanId = paymentSession.plan_id;
 
     if (!internalPlanId || typeof internalPlanId !== 'string' || internalPlanId.trim() === '') {
@@ -403,7 +380,7 @@ async function processPaymentSuccess(
       );
     }
 
-    planName = planDetails.id; // e.g., "personal", "business"
+    const planName = planDetails.id; // e.g., "personal", "business"
     console.log(
       `[PAYMENT SUCCESS] Successfully determined plan name: "${planName}" for internal plan ID: ${internalPlanId}`
     );
@@ -525,7 +502,7 @@ async function processPaymentSuccess(
 }
 
 // Handle legacy flow when payment session is not found (for backward compatibility)
-async function handleLegacyMetadataFlow(
+async function _handleLegacyMetadataFlow(
   session: Stripe.Checkout.Session,
   origin: string,
   startTime: number

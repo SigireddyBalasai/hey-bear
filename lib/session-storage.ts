@@ -22,14 +22,12 @@ export interface SessionData {
   expiresAt: string;
 }
 
-// Create a special session to store assistant data and redirect to pricing table
 export async function createStripeSessionWithData(
   customerId: string,
   data: SessionData,
   successUrl: string,
   cancelUrl: string
 ): Promise<{ sessionId: string; session: Stripe.Checkout.Session }> {
-  // Flatten the assistant data for metadata (Stripe has a 500 char limit per metadata value)
   const metadata: Record<string, string> = {
     // User and session info
     userId: data.userId,

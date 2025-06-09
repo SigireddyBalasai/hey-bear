@@ -16,6 +16,11 @@
     "incremental": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
+    "noErrorTruncation": true,
+    "skipDefaultLibCheck": true,
+    "maxNodeModuleJsDepth": 0,
+    "preserveWatchOutput": true,
+    "pretty": true,
     "plugins": [
       {
         "name": "next"

@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 import Link from 'next/link';
 
 import { format } from 'date-fns';
@@ -15,14 +13,15 @@ import {
   Star,
   Trash,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
+import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 interface AssistantData {
@@ -52,7 +51,8 @@ export function AssistantList({
   onToggleStar,
   onDelete,
 }: AssistantListProps) {
-  const [isActionInProgressState, setIsActionInProgressState] = useState(isActionInProgress);
+  const { isLoading: isActionInProgressState, setIsLoading: setIsActionInProgressState } =
+    useLoadingState(isActionInProgress);
 
   // Handle toggle star action
   const handleToggleStar = async (id: string, isStarred: boolean) => {
@@ -62,27 +62,28 @@ export function AssistantList({
     }
 
     setIsActionInProgressState(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
+    await withErrorHandling(
+      async () => {
+        const supabase = createClient();
+        const { error } = await supabase
+          .from('assistants')
+          .update({ is_starred: isStarred })
+          .eq('id', id);
 
-        .from('assistants')
-        .update({ is_starred: isStarred })
-        .eq('id', id);
+        if (error) {
+          throw error;
+        }
 
-      if (error) {
-        throw error;
+        showSuccess(
+          `Assistant ${isStarred ? 'starred' : 'unstarred'}`,
+          `${assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`
+        );
+      },
+      {
+        toastTitle: 'Failed to update star status',
       }
-
-      toast(`Assistant ${isStarred ? 'starred' : 'unstarred'}`, {
-        description: `${assistant.name} has been ${isStarred ? 'starred' : 'unstarred'}`,
-      });
-    } catch (error) {
-      console.error('Error toggling star:', error);
-      toast.error('Failed to update star status');
-    } finally {
-      setIsActionInProgressState(false);
-    }
+    );
+    setIsActionInProgressState(false);
   };
 
   // Handle delete action
@@ -96,23 +97,22 @@ export function AssistantList({
     if (!confirmed) return;
 
     setIsActionInProgressState(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from('assistants').delete().eq('id', id);
+    await withErrorHandling(
+      async () => {
+        const supabase = createClient();
+        const { error } = await supabase.from('assistants').delete().eq('id', id);
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        showSuccess('Assistant deleted', `${assistant.name} has been removed`);
+      },
+      {
+        toastTitle: 'Failed to delete assistant',
       }
-
-      toast('Assistant deleted', {
-        description: `${assistant.name} has been removed`,
-      });
-    } catch (error) {
-      console.error('Error deleting assistant:', error);
-      toast.error('Failed to delete assistant');
-    } finally {
-      setIsActionInProgressState(false);
-    }
+    );
+    setIsActionInProgressState(false);
   };
 
   // Get initials from name (e.g. "John Doe" -> "JD")

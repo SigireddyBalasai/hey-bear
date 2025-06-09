@@ -1,76 +1,31 @@
 import { NextResponse } from 'next/server';
 
+import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 /**
- *       const plan = {
-        max_assistants: 5,
-        max_interactions: 1000,
-      };
-
-      const userMetadata = authUser?.user_metadata as { full_name?: string; name?: string } | undefined;
-
-      return {
-        ...user,
-        email: authUser?.email,
-        full_name: userMetadata?.full_name || userMetadata?.name,
-        last_sign_in: authUser?.last_sign_in_at,
-        plan,
-        userusage,
-      }; fetching all users with their usage data
+ * API route for fetching all users with their usage data
  */
-export async function GET() {
+export const GET = requireAdmin(async (_context: AuthContext, _req) => {
   try {
     const supabase = await createClient();
 
-    // Check authentication and admin permissions
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
-    // Get all users from users schema
-    const { data: usersData, error: usersError } = await supabase.from('users').select('*');
-
-    if (usersError) {
-      console.error('Error fetching users:', usersError);
-      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
-    }
-
-    if (!usersData || usersData.length === 0) {
-      return NextResponse.json([]);
-    }
-
-    // Get auth user data to get email and other details
+    // Get all auth users
     const { data: authUsersData, error: authUsersError } = await supabase.auth.admin.listUsers();
 
     if (authUsersError) {
       console.error('Error fetching auth users:', authUsersError);
+      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+    }
+
+    if (!authUsersData?.users || authUsersData.users.length === 0) {
+      return NextResponse.json([]);
     }
 
     // Get usage data for all users
-    const userIds = usersData
-      .map(user => user.auth_user_id)
-      .filter((id): id is string => id !== null);
+    const userIds = authUsersData.users.map(user => user.id);
 
     const { data: usageData, error: usageError } = await supabase
-
       .from('interactions')
       .select(
         `
@@ -89,7 +44,6 @@ export async function GET() {
 
     // Get assistant counts for each user
     const { data: assistantsData, error: assistantsError } = await supabase
-
       .from('assistants')
       .select('user_id')
       .in('user_id', userIds);
@@ -99,13 +53,11 @@ export async function GET() {
     }
 
     // Process and combine data
-    const extendedUsers = usersData.map(user => {
-      const authUser = authUsersData?.users?.find(au => au.id === user.auth_user_id);
-
+    const extendedUsers = authUsersData.users.map(authUser => {
       // Calculate usage stats for this user
-      const userUsageData = usageData?.filter(usage => usage.user_id === user.auth_user_id) || [];
+      const userUsageData = usageData?.filter(usage => usage.user_id === authUser.id) || [];
       const userAssistants =
-        assistantsData?.filter(assistant => assistant.user_id === user.auth_user_id) || [];
+        assistantsData?.filter(assistant => assistant.user_id === authUser.id) || [];
 
       const userusage = {
         interactions_used: userUsageData.length,
@@ -124,7 +76,7 @@ export async function GET() {
       };
 
       // Safely access user metadata with proper type checking
-      const userMetadata = authUser?.user_metadata as Record<string, unknown> | undefined;
+      const userMetadata = authUser.user_metadata as Record<string, unknown> | undefined;
       const fullName =
         typeof userMetadata?.full_name === 'string'
           ? userMetadata.full_name
@@ -133,10 +85,18 @@ export async function GET() {
             : undefined;
 
       return {
-        ...user,
-        email: authUser?.email,
+        id: authUser.id,
+        auth_user_id: authUser.id,
+        email: authUser.email,
         full_name: fullName,
-        last_sign_in: authUser?.last_sign_in_at,
+        last_sign_in: authUser.last_sign_in_at,
+        created_at: authUser.created_at,
+        updated_at: authUser.updated_at,
+        is_admin: Boolean(userMetadata?.is_admin),
+        stripe_customer_id:
+          typeof userMetadata?.stripe_customer_id === 'string'
+            ? userMetadata.stripe_customer_id
+            : null,
         plan,
         userusage,
       };
@@ -147,4 +107,4 @@ export async function GET() {
     console.error('Error in admin users API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

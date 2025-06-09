@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server';
 import type { Database } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 import { createClient } from '@/utils/supabase/server';
-import { UsageType, isLimitReached, trackUsage } from '@/utils/usage-limits';
 
 interface ChatRequest {
   assistantId: string;
@@ -25,18 +24,6 @@ export async function POST(req: NextRequest) {
 
     if (!validAssistantId || !validMessage) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const isLimitExceeded = await isLimitReached(validAssistantId, UsageType.MESSAGE_RECEIVED);
-    if (isLimitExceeded) {
-      return NextResponse.json(
-        {
-          error: 'Usage limit reached',
-          details: 'This assistant has reached its monthly message limit.',
-          limitReached: true,
-        },
-        { status: 429 }
-      );
     }
 
     const supabase = await createClient();
@@ -86,12 +73,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Assistant returned no response' }, { status: 500 });
     }
 
-    await trackUsage(validAssistantId, UsageType.MESSAGE_SENT);
-
     const tokenCount = response.usage?.totalTokens ?? 0;
     const costRate = 0.002 / 1000;
     const costEstimate = tokenCount * costRate;
-    const monthlyPeriod = `${String(requestTimestamp.getFullYear())}-${String(requestTimestamp.getMonth() + 1).padStart(2, '0')}`;
 
     const interactionData: InteractionsInsert = {
       request: JSON.stringify(messages),
@@ -106,7 +90,6 @@ export async function POST(req: NextRequest) {
       token_usage: tokenCount,
       input_tokens: response.usage?.promptTokens ?? null,
       output_tokens: response.usage?.completionTokens ?? null,
-      monthly_period: monthlyPeriod,
     };
 
     await supabase.from('interactions').insert([interactionData]);

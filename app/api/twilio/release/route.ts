@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 
 import twilio from 'twilio';
 
-import { isAdmin as checkIsAdmin } from '@/utils/admin';
-// Renamed import
+import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 interface ReleasePhoneNumberRequest {
@@ -16,26 +15,9 @@ interface ReleasePhoneNumberRequest {
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 
-export async function POST(request: Request) {
+export const POST = requireAdmin(async (context, request) => {
   try {
-    // Check authentication and admin permissions
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Use the checkIsAdmin utility function
-    const isUserAdmin = await checkIsAdmin(user.id); // Adjusted call
-
-    if (!isUserAdmin) {
-      // Adjusted condition
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     // Parse request body
     const body = (await request.json()) as ReleasePhoneNumberRequest;
@@ -95,4 +77,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

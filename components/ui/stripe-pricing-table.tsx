@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { RefreshCw } from 'lucide-react';
 
+import { useLoadingState } from '@/hooks/useLoadingState';
+import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 interface StripePricingTableProps {
@@ -24,7 +26,7 @@ export function StripePricingTable({
   className = '',
 }: StripePricingTableProps) {
   const [customerSessionSecret, setCustomerSessionSecret] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const { isLoading, setIsLoading } = useLoadingState(true);
   const [error, setError] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
 
@@ -49,73 +51,68 @@ export function StripePricingTable({
   useEffect(() => {
     async function loadCustomerSession() {
       if (!sessionId) {
-        setLoading(false);
+        setIsLoading(false);
         return;
       }
 
-      try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+      await withErrorHandling(
+        async () => {
+          const supabase = createClient();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
 
-        if (!user) {
-          setError('Authentication required');
-          setLoading(false);
-          return;
+          if (!user) {
+            setError('Authentication required');
+            return;
+          }
+
+          setUserId(user.id);
+
+          // Fetch session data to get customer ID
+          const sessionUrl = `/api/Concierge/session?sessionId=${sessionId}`;
+          const sessionResponse = await fetch(sessionUrl);
+
+          if (!sessionResponse.ok) {
+            const errorText = await sessionResponse.text();
+            console.error('[STRIPE PRICING TABLE] Session API error response:', errorText);
+            throw new Error('Failed to load session data');
+          }
+
+          const sessionData = (await sessionResponse.json()) as {
+            customerId: string;
+          };
+
+          // Get Stripe customer session
+          const customerResponse = await fetch('/api/stripe/customer-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              customerId: sessionData.customerId,
+            }),
+          });
+
+          if (!customerResponse.ok) {
+            throw new Error('Failed to create customer session');
+          }
+
+          const customerData = (await customerResponse.json()) as CustomerSessionResponse;
+          setCustomerSessionSecret(customerData.customer_session_client_secret);
+        },
+        {
+          toastTitle: 'Stripe Error',
+          fallbackMessage: 'Failed to load pricing options',
+          logError: false, // Already logged above
         }
+      );
 
-        setUserId(user.id);
-
-        console.log('[STRIPE PRICING TABLE] Fetching session data from API...');
-        console.log('[STRIPE PRICING TABLE] Session ID:', sessionId);
-        console.log('[STRIPE PRICING TABLE] User ID:', user.id);
-
-        // Fetch session data to get customer ID
-        const sessionUrl = `/api/Concierge/session?sessionId=${sessionId}`;
-        const sessionResponse = await fetch(sessionUrl);
-
-        if (!sessionResponse.ok) {
-          const errorText = await sessionResponse.text();
-          console.error('[STRIPE PRICING TABLE] Session API error response:', errorText);
-          throw new Error('Failed to load session data');
-        }
-
-        const sessionData = (await sessionResponse.json()) as {
-          customerId: string;
-        };
-
-        console.log('[STRIPE PRICING TABLE] Session data retrieved:', {
-          customerId: sessionData.customerId,
-        });
-
-        // Get Stripe customer session
-        const customerResponse = await fetch('/api/stripe/customer-session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            customerId: sessionData.customerId,
-          }),
-        });
-
-        if (!customerResponse.ok) {
-          throw new Error('Failed to create customer session');
-        }
-
-        const customerData = (await customerResponse.json()) as CustomerSessionResponse;
-        setCustomerSessionSecret(customerData.customer_session_client_secret);
-      } catch (err) {
-        console.error('Error loading customer session:', err);
-        setError('Failed to load pricing options');
-      } finally {
-        setLoading(false);
-      }
+      setIsLoading(false);
     }
 
     loadCustomerSession();
-  }, [sessionId]);
+  }, [sessionId, setIsLoading]);
 
   const handlePaymentComplete = useCallback(
     (paymentCompleted = false) => {
@@ -135,7 +132,6 @@ export function StripePricingTable({
 
       const data = event.data as { type?: string };
       if (data && data.type === 'stripe_checkout_session_completed') {
-        console.log('[STRIPE PRICING TABLE] Payment completed successfully');
         handlePaymentComplete(true);
       }
     };
@@ -144,7 +140,7 @@ export function StripePricingTable({
     return () => window.removeEventListener('message', handleMessage);
   }, [handlePaymentComplete]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={`text-center py-12 ${className}`}>
         <RefreshCw className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />

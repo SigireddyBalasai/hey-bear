@@ -1,34 +1,14 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 import twilio from 'twilio';
 
+import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
-export async function GET(_req: Request) {
+export const GET = requireAdmin(async (_context: AuthContext, _req: NextRequest) => {
   try {
-    // Check authentication and admin permissions
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status - Fix the issue by checking auth_user_id not user.id
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id) // Use auth_user_id instead of user.id
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      console.log('Admin check failed:', userDataError, userData);
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
 
     // Initialize Twilio client
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -119,4 +99,4 @@ export async function GET(_req: Request) {
       { status: 500 }
     );
   }
-}
+});

@@ -1,35 +1,14 @@
 import { NextResponse } from 'next/server';
 
+import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 /**
  * API route for fetching system metrics for real-time monitoring
  */
-export async function GET() {
+export const GET = requireAdmin(async (_context: AuthContext) => {
   try {
     const supabase = await createClient();
-
-    // Check authentication and admin permissions
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
 
     // Get current time and 24 hours ago
     const now = new Date();
@@ -38,7 +17,6 @@ export async function GET() {
 
     // Get all interactions from last 24 hours
     const { data: last24hData, error: last24hError } = await supabase
-
       .from('interactions')
       .select(
         `
@@ -60,7 +38,6 @@ export async function GET() {
 
     // Get active users (users who had interactions in the last hour)
     const { data: activeUsersData, error: activeUsersError } = await supabase
-
       .from('interactions')
       .select('user_id')
       .gte('interaction_time', oneHourAgo.toISOString())
@@ -122,7 +99,17 @@ export async function GET() {
       hourlyMetrics,
     });
   } catch (error) {
-    console.error('Error in admin metrics API:', error);
+    console.error('Error fetching metrics:', error);
+
+    if (error instanceof Error) {
+      if (error.message === 'Unauthorized') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (error.message === 'Forbidden - Admin access required') {
+        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      }
+    }
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
 import type { Database } from '@/lib/db.types';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server-admin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -109,61 +109,51 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   if (sessionId && userId) {
     console.log('Looking up assistant data from payment_sessions table with sessionId:', sessionId);
     try {
-      // First get the correct user_id from users table
-      const { data: userRecord, error: userLookupError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', userId)
+      // Use auth user ID directly for payment session lookup
+      const { data: paymentSession, error: paymentSessionError } = await supabase
+        .from('payment_sessions')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', userId)
         .single();
 
-      if (userLookupError || !userRecord) {
-        console.error('Error finding user record for payment session lookup:', userLookupError);
-      } else {
-        const { data: paymentSession, error: paymentSessionError } = await supabase
+      if (paymentSessionError) {
+        console.error('Error fetching payment session:', paymentSessionError);
+      } else if (paymentSession && paymentSession.assistant_config_data) {
+        console.log('Found payment session with assistant config data');
+        const configData = paymentSession.assistant_config_data as {
+          display_name?: string;
+          name?: string;
+          description?: string;
+          concierge_name?: string;
+          personality?: string;
+          business_name?: string;
+          business_phone?: string;
+          share_phone_number?: boolean;
+        };
+
+        assistantData = {
+          name: configData.display_name || configData.name || 'New Assistant',
+          description: configData.description,
+          concierge_name: configData.concierge_name,
+          personality: configData.personality,
+          business_name: configData.business_name,
+          business_phone: configData.business_phone,
+          share_phone_number: configData.share_phone_number || false,
+          display_name: configData.display_name,
+        };
+
+        console.log('Extracted assistant data from payment session:', {
+          name: assistantData.name,
+          businessName: assistantData.business_name,
+          conciergeName: assistantData.concierge_name,
+        });
+
+        // Update payment session status to completed
+        await supabase
           .from('payment_sessions')
-          .select('*')
-          .eq('session_id', sessionId)
-          .eq('user_id', userRecord.id)
-          .single();
-
-        if (paymentSessionError) {
-          console.error('Error fetching payment session:', paymentSessionError);
-        } else if (paymentSession && paymentSession.assistant_config_data) {
-          console.log('Found payment session with assistant config data');
-          const configData = paymentSession.assistant_config_data as {
-            display_name?: string;
-            name?: string;
-            description?: string;
-            concierge_name?: string;
-            personality?: string;
-            business_name?: string;
-            business_phone?: string;
-            share_phone_number?: boolean;
-          };
-
-          assistantData = {
-            name: configData.display_name || configData.name || 'New Assistant',
-            description: configData.description,
-            concierge_name: configData.concierge_name,
-            personality: configData.personality,
-            business_name: configData.business_name,
-            business_phone: configData.business_phone,
-            share_phone_number: configData.share_phone_number || false,
-            display_name: configData.display_name,
-          };
-
-          console.log('Extracted assistant data from payment session:', {
-            name: assistantData.name,
-            businessName: assistantData.business_name,
-            conciergeName: assistantData.concierge_name,
-          });
-
-          // Update payment session status to completed
-          await supabase
-            .from('payment_sessions')
-            .update({ status: 'completed' })
-            .eq('session_id', sessionId);
-        }
+          .update({ status: 'completed' })
+          .eq('session_id', sessionId);
       }
     } catch (error) {
       console.error('Error retrieving payment session data:', error);
@@ -256,22 +246,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     const finalAssistantName = assistantName || assistantData?.name || '';
 
     try {
-      // First, get the correct user_id from the users table using auth_user_id
-      console.log('Looking up user record with auth_user_id:', userId);
-      const { data: userData, error: userLookupError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', userId)
-        .single();
-
-      if (userLookupError || !userData) {
-        console.error('Error finding user record:', userLookupError);
-        console.error('User with auth_user_id not found:', userId);
-        return;
-      }
-
-      const actualUserId = userData.id;
-      console.log('Found user record - auth_user_id:', userId, 'actual user_id:', actualUserId);
+      // Use the auth user ID directly since assistants.user_id references auth.users.id
+      const actualUserId = userId;
+      console.log('Using auth user_id directly:', actualUserId);
 
       // Check if assistant already exists
       const { data: existingAssistant, error: assistantError } = await supabase
@@ -392,55 +369,31 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         console.log('No assistant ID available for subscription creation');
       }
 
-      // Ensure user record exists in users table (in case the trigger failed)
-      if (userId) {
-        const { data: _existingUser, error: userCheckError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', userId)
-          .single();
-
-        if (userCheckError && userCheckError.code === 'PGRST116') {
-          // User not found, try to create one
-          console.log('User not found in users table, attempting to create:', userId);
-
-          // Get user data from auth.users table
+      // Update auth user metadata with stripe customer ID
+      if (userId && customerId) {
+        try {
           const { data: authUser, error: authUserError } =
             await supabase.auth.admin.getUserById(userId);
 
           if (authUserError) {
             console.error('Error fetching auth user:', authUserError);
           } else if (authUser.user) {
-            const { error: createUserError } = await supabase.from('users').insert({
-              auth_user_id: userId,
-              email: authUser.user.email || '',
-              stripe_customer_id: customerId,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
+            const currentMetadata = authUser.user.user_metadata || {};
+            const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+              user_metadata: {
+                ...currentMetadata,
+                stripe_customer_id: customerId,
+              },
             });
 
-            if (createUserError) {
-              console.error('Error creating user record:', createUserError);
+            if (updateError) {
+              console.error('Error updating user metadata with stripe customer ID:', updateError);
             } else {
-              console.log('Successfully created user record for:', userId);
+              console.log('Successfully updated user metadata with stripe customer ID');
             }
           }
-        } else if (userCheckError) {
-          console.error('Error checking user existence:', userCheckError);
-        } else {
-          // User exists, update stripe customer ID
-          const { error: userUpdateError } = await supabase
-            .from('users')
-            .update({
-              stripe_customer_id: customerId,
-            })
-            .eq('auth_user_id', userId);
-
-          if (userUpdateError) {
-            console.error('Error updating user stripe customer ID:', userUpdateError);
-          } else {
-            console.log('Successfully updated user stripe customer ID');
-          }
+        } catch (error) {
+          console.error('Error handling user metadata update:', error);
         }
       }
     } catch (error) {

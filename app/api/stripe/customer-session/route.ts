@@ -1,30 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { createCustomerSession, getOrCreateStripeCustomer } from '@/utils/stripe-customer';
-import { createClient } from '@/utils/supabase/server';
+import { requireAuth } from '@/utils/auth-utils';
+import {
+  createCustomerSession,
+  getOrCreateStripeCustomerFromAuth,
+} from '@/utils/stripe-customer-auth';
+import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
 
-export async function POST(_req: NextRequest) {
+export const POST = requireAuth(async (context, _req: NextRequest) => {
   try {
-    // Check user authentication
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json(
-        {
-          error: 'Authentication failed',
-          details: authError.message,
-        },
-        { status: 401 }
-      );
-    }
-
-    if (!user?.email) {
+    if (!context.user?.email) {
       return NextResponse.json(
         {
           error: 'User not authenticated or email missing',
@@ -32,60 +18,34 @@ export async function POST(_req: NextRequest) {
         { status: 401 }
       );
     }
-    console.log('Authenticated user:', user.id, user.email);
-    // Get user record from users table
-    const { data: userData, error: userDataError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_user_id', user.id)
-      .single();
+    console.log('Authenticated user:', context.user.id, context.user.email);
 
-    console.log('User data fetched:', userData);
+    const adminSupabase = await createAdminClient();
+    const customerResult = await getOrCreateStripeCustomerFromAuth(adminSupabase, context.user);
 
-    if (userDataError || !userData) {
-      console.error('Error fetching user data:', userDataError);
-      return NextResponse.json(
-        {
-          error: 'Failed to fetch user record',
-          details: userDataError?.message || 'User record not found in database',
-        },
-        { status: userDataError ? 500 : 404 }
-      );
-    }
+    console.log('Customer result:', customerResult);
 
-    // Validate required user data
-    if (!userData.id || typeof userData.id !== 'string') {
-      return NextResponse.json(
-        {
-          error: 'Invalid user data',
-          details: 'User ID is missing or invalid',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Get or create Stripe customer
-    const customerResult = await getOrCreateStripeCustomer(
-      supabase,
-      userData.id as string,
-      user.id,
-      user.email,
-      (userData.full_name as string) || user.email
-    );
-
-    // Validate customer ID before creating session
-    if (!customerResult.customerId) {
+    if (!customerResult.success || !customerResult.customerId) {
       return NextResponse.json(
         {
           error: 'Failed to get customer ID',
-          details: 'Unable to create or retrieve Stripe customer',
+          details: customerResult.error || 'Unable to create or retrieve Stripe customer',
         },
         { status: 500 }
       );
     }
 
-    // Create customer session for pricing table
     const sessionResult = await createCustomerSession(customerResult.customerId);
+
+    if (!sessionResult.success || !sessionResult.clientSecret) {
+      return NextResponse.json(
+        {
+          error: 'Failed to create customer session',
+          details: sessionResult.error || 'Unable to create Stripe customer session',
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       customer_session_client_secret: sessionResult.clientSecret,
@@ -95,11 +55,9 @@ export async function POST(_req: NextRequest) {
   } catch (error: unknown) {
     console.error('Customer session creation error:', error);
 
-    // Enhanced error handling with specific error types
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
 
-      // Handle specific Stripe errors
       if (errorMessage.includes('no such customer')) {
         return NextResponse.json(
           {
@@ -175,4 +133,4 @@ export async function POST(_req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

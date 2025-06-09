@@ -3,8 +3,7 @@ import type { NextRequest } from 'next/server';
 
 import Twilio from 'twilio';
 
-import { isAdmin as checkIsAdmin } from '@/utils/admin';
-// Renamed import
+import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 interface RemovePhoneNumberRequest {
@@ -13,23 +12,9 @@ interface RemovePhoneNumberRequest {
 
 const twilioClient = Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-export async function POST(req: NextRequest) {
-  const { phoneNumber } = (await req.json()) as RemovePhoneNumberRequest;
+export const POST = requireAdmin(async (context, req: NextRequest) => {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // Use the checkIsAdmin utility function
-  const isUserAdmin = await checkIsAdmin(user.id); // Adjusted call
-
-  if (!isUserAdmin) {
-    // Adjusted condition
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const { phoneNumber } = (await req.json()) as RemovePhoneNumberRequest;
 
   const { data: phoneData, error: fetchError } = await supabase
     .from('phone_numbers')
@@ -59,4 +44,4 @@ export async function POST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to remove number';
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
-}
+});

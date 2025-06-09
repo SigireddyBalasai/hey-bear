@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { UserCircle } from 'lucide-react';
-import { toast } from 'sonner';
 
+import { useLoadingState } from '@/hooks/useLoadingState';
+import { showInfo, showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 import { AssistantList } from '../../components/concierge/AssistantList';
@@ -80,7 +81,7 @@ export default function AssistantsPage() {
     AssistantWithNonNullableFields[]
   >([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoading, setIsLoading } = useLoadingState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState('all');
@@ -107,60 +108,35 @@ export default function AssistantsPage() {
     }));
   };
 
-  // Handle signing out
-  const handleSignOut = () => {
-    const supabase = createClient();
-    void supabase.auth
-      .signOut()
-      .then(() => {
-        setUser(null);
-        router.push('/sign-in');
-      })
-      .catch((error: unknown) => {
-        console.error('Error signing out:', error);
-      });
-  };
-
   // Handle deleting an assistant - now using real Supabase deletion
   const handleDeleteAssistantAsync = async (assistantId: string) => {
-    try {
-      const assistantToDelete = normalizedAssistants.find(a => a.assistant.id === assistantId);
+    await withErrorHandling(
+      async () => {
+        const assistantToDelete = normalizedAssistants.find(a => a.assistant.id === assistantId);
 
-      if (!assistantToDelete?.assistant.id) {
-        toast.error('Error', {
-          description: 'Assistant not found',
-        });
-        return;
+        if (!assistantToDelete?.assistant.id) {
+          throw new Error('Assistant not found');
+        }
+
+        const supabase = createClient();
+
+        // Delete from Supabase
+        const { error } = await supabase.from('assistants').delete().eq('id', assistantId);
+
+        if (error) {
+          throw new Error('Failed to delete assistant from server');
+        }
+
+        // Update local state after successful deletion
+        setNormalizedAssistants(prev => prev.filter(a => a.assistant.id !== assistantId));
+
+        showSuccess('Assistant deleted', `${assistantToDelete.assistant.name} has been removed`);
+      },
+      {
+        toastTitle: 'Error deleting assistant',
+        fallbackMessage: 'Something went wrong while deleting the assistant',
       }
-
-      const supabase = createClient();
-
-      // Delete from Supabase
-      const { error } = await supabase.from('assistants').delete().eq('id', assistantId);
-
-      if (error) {
-        console.error('Error deleting assistant:', error);
-        toast.error('Error', {
-          description: 'Failed to delete assistant from server',
-        });
-        return;
-      }
-
-      // Update local state after successful deletion
-      setNormalizedAssistants(prev => prev.filter(a => a.assistant.id !== assistantId));
-
-      toast.success('Assistant deleted', {
-        description: `${assistantToDelete.assistant.name} has been removed`,
-      });
-    } catch (error: unknown) {
-      console.error('Error deleting assistant:', error);
-      toast.error('Error', {
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Something went wrong while deleting the assistant',
-      });
-    }
+    );
   };
 
   // Placeholder createAssistant handler - creation logic to be implemented elsewhere
@@ -179,112 +155,82 @@ export default function AssistantsPage() {
     setCreateDialogOpen(false);
 
     // Show placeholder message
-    toast('Creation pending', {
-      description: 'Assistant creation will be implemented elsewhere',
-    });
+    showInfo('Creation pending', 'Assistant creation will be implemented elsewhere');
   };
 
   // Function to fetch assistants with normalized data from Supabase
   const fetchAssistants = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const supabase = createClient();
+    setIsLoading(true);
 
-      // First get the authenticated user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error('Error fetching user:', userError);
-        router.push('/sign-in');
-        return;
-      }
+    await withErrorHandling(
+      async () => {
+        const supabase = createClient();
 
-      // Set user data
-      setUser({
-        id: user.id,
-        user_metadata: user.user_metadata,
-      });
-
-      // Get user ID from users table
-      const { data: userData, error: userDataError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (userDataError) {
-        // If error is "No rows found" this might be a new user - don't show error
-        if (userDataError.code === 'PGRST116') {
-          console.log('New user detected, no assistants yet');
-          setNormalizedAssistants([]);
-          setUserId(null);
-          setIsLoading(false);
+        // First get the authenticated user
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError || !user) {
+          router.push('/sign-in');
           return;
         }
 
-        console.error('Error fetching user data:', userDataError);
-        toast(CONNECTION_ERROR, {
-          description: 'Failed to fetch user data from server',
+        // Set user data
+        setUser({
+          id: user.id,
+          user_metadata: user.user_metadata,
         });
-        setIsLoading(false);
-        return;
+
+        // Store the auth user ID for use in components (no longer using separate users table)
+        setUserId(user.id);
+
+        // Fetch assistants belonging to this user - user_id now references auth.users.id directly
+        const { data: assistantsData, error: assistantsError } = await supabase
+          .from('assistants')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (assistantsError) {
+          throw new Error('Failed to fetch assistants from server');
+        }
+
+        // If no assistants exist, set empty array (don't use fallback dummy data)
+        if (!assistantsData || assistantsData.length === 0) {
+          console.log('User has 0 assistants');
+          setNormalizedAssistants([]);
+        } else {
+          // Transform the real data from the database
+          // Use actual data values or empty defaults, never dummy data
+          const transformedAssistants = assistantsData
+            .filter(assistant => assistant !== null) // Skip any null entries
+            .map(assistant => ({
+              assistant: {
+                ...assistant,
+                // Ensure name is always at least an empty string, never undefined
+                name: assistant.name || '',
+                // Explicitly set default value for starred status
+                is_starred: assistant.is_starred ?? false,
+              },
+              config: null as AssistantConfig,
+              subscription: undefined,
+              usageLimits: undefined,
+              activity: undefined,
+              interactions_count: 0, // Start with zero messages, not dummy data
+              last_interaction_at: null, // Start with null timestamp, not dummy data
+            })) as AssistantWithNonNullableFields[];
+
+          setNormalizedAssistants(transformedAssistants);
+        }
+      },
+      {
+        toastTitle: CONNECTION_ERROR,
+        fallbackMessage: 'Failed to connect to the server',
       }
+    );
 
-      // Store the user ID for use in components
-      setUserId(userData.id);
-
-      // Fetch assistants belonging to this user from the assistants schema
-      const { data: assistantsData, error: assistantsError } = await supabase
-        .from('assistants')
-        .select('*')
-        .eq('user_id', userData.id)
-        .order('created_at', { ascending: false });
-
-      if (assistantsError) {
-        console.error('Error fetching assistants:', assistantsError);
-        toast(CONNECTION_ERROR, {
-          description: 'Failed to fetch assistants from server',
-        });
-        return;
-      }
-
-      // If no assistants exist, set empty array (don't use fallback dummy data)
-      if (!assistantsData || assistantsData.length === 0) {
-        console.log('User has 0 assistants');
-        setNormalizedAssistants([]);
-      } else {
-        // Transform the real data from the database
-        // Use actual data values or empty defaults, never dummy data
-        const transformedAssistants = assistantsData
-          .filter(assistant => assistant !== null) // Skip any null entries
-          .map(assistant => ({
-            assistant: {
-              ...assistant,
-              // Ensure name is always at least an empty string, never undefined
-              name: assistant.name || '',
-              // Explicitly set default value for starred status
-              is_starred: assistant.is_starred ?? false,
-            },
-            config: null as AssistantConfig,
-            subscription: undefined,
-            usageLimits: undefined,
-            activity: undefined,
-            interactions_count: 0, // Start with zero messages, not dummy data
-            last_interaction_at: null, // Start with null timestamp, not dummy data
-          })) as AssistantWithNonNullableFields[];
-
-        setNormalizedAssistants(transformedAssistants);
-      }
-    } catch (error) {
-      console.error('Error in fetchAssistants:', error);
-      toast(CONNECTION_ERROR, {
-        description: 'Failed to connect to the server',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    setIsLoading(false);
   }, [router]);
 
   // Check for Stripe redirect parameters on component mount
@@ -295,17 +241,16 @@ export default function AssistantsPage() {
 
     if (success === 'true' && assistantId) {
       // Show success message
-      toast('Subscription successful', {
-        description: 'Your No-Show has been successfully activated!',
-      });
+      showSuccess('Subscription successful', 'Your No-Show has been successfully activated!');
 
       // Fetch the updated list of assistants to reflect the change
       void fetchAssistants();
     } else if (canceled === 'true' && assistantId) {
       // Show canceled message
-      toast('Checkout canceled', {
-        description: 'Your payment was not completed. The No-Show will remain inactive.',
-      });
+      showInfo(
+        'Checkout canceled',
+        'Your payment was not completed. The No-Show will remain inactive.'
+      );
 
       // Fetch the updated list of assistants to reflect the change
       void fetchAssistants();
@@ -336,15 +281,16 @@ export default function AssistantsPage() {
 
       if (paymentStatus === 'success') {
         // Show success message
-        toast.success('Payment successful!', {
-          description: 'Your subscription is active. Complete creating your assistant.',
-        });
+        showSuccess(
+          'Payment successful!',
+          'Your subscription is active. Complete creating your assistant.'
+        );
       } else {
         // Show cancelled message
-        toast('Payment cancelled', {
-          description:
-            'You can complete the payment later. Your assistant details have been preserved.',
-        });
+        showInfo(
+          'Payment cancelled',
+          'You can complete the payment later. Your assistant details have been preserved.'
+        );
       }
 
       // Open the create dialog with preserved data
@@ -361,14 +307,13 @@ export default function AssistantsPage() {
 
     if (success === 'true' && assistantId) {
       // Show success message
-      toast.success('Payment successful', {
-        description: 'Your No-Show has been activated with your subscription plan',
-      });
+      showSuccess(
+        'Payment successful',
+        'Your No-Show has been activated with your subscription plan'
+      );
     } else if (canceled === 'true' && assistantId) {
       // Show canceled message
-      toast('Payment canceled', {
-        description: 'You can complete the payment later to activate your No-Show',
-      });
+      showInfo('Payment canceled', 'You can complete the payment later to activate your No-Show');
     }
 
     // Clear URL parameters and refresh list in both legacy cases
@@ -415,59 +360,52 @@ export default function AssistantsPage() {
   // Utility functions removed - they were not being used
 
   const handleToggleStarAsync = async (assistantId: string, isStarred: boolean) => {
-    try {
-      const supabase = createClient();
+    await withErrorHandling(
+      async () => {
+        const supabase = createClient();
 
-      // Update in Supabase first
-      const { error } = await supabase
-        .from('assistants')
-        .update({ is_starred: isStarred })
-        .eq('id', assistantId);
+        // Update in Supabase first
+        const { error } = await supabase
+          .from('assistants')
+          .update({ is_starred: isStarred })
+          .eq('id', assistantId);
 
-      if (error) {
-        console.error('Error updating assistant star status:', error);
-        toast.error('Error', {
-          description: 'Failed to update assistant on server',
-        });
-        return;
+        if (error) {
+          throw new Error('Failed to update assistant on server');
+        }
+
+        // Update local state after successful update
+        setNormalizedAssistants(
+          normalizedAssistants.map(a =>
+            a.assistant.id === assistantId
+              ? { ...a, assistant: { ...a.assistant, is_starred: isStarred } }
+              : a
+          )
+        );
+
+        const assistantName =
+          normalizedAssistants.find(a => a.assistant.id === assistantId)?.assistant.name ??
+          'Unknown';
+
+        showSuccess(
+          `Assistant ${isStarred ? 'starred' : 'unstarred'}`,
+          `${assistantName} has been ${isStarred ? 'starred' : 'unstarred'}`
+        );
+      },
+      {
+        toastTitle: 'Error updating assistant',
+        fallbackMessage: 'Something went wrong while updating the assistant',
       }
-
-      // Update local state after successful update
-      setNormalizedAssistants(
-        normalizedAssistants.map(a =>
-          a.assistant.id === assistantId
-            ? { ...a, assistant: { ...a.assistant, is_starred: isStarred } }
-            : a
-        )
-      );
-
-      const assistantName =
-        normalizedAssistants.find(a => a.assistant.id === assistantId)?.assistant.name ?? 'Unknown';
-      toast(`Assistant ${isStarred ? 'starred' : 'unstarred'}`, {
-        description: `${assistantName} has been ${isStarred ? 'starred' : 'unstarred'}`,
-      });
-    } catch (error: unknown) {
-      console.error('Error toggling star:', error);
-      toast.error('Error', {
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Something went wrong while updating the assistant',
-      });
-    }
+    );
   };
 
   // Wrapper functions to handle async operations without returning promises
   const handleToggleStar = (assistantId: string, isStarred: boolean) => {
-    handleToggleStarAsync(assistantId, isStarred).catch((error: unknown) => {
-      console.error('Error in handleToggleStar:', error);
-    });
+    void handleToggleStarAsync(assistantId, isStarred);
   };
 
   const handleDeleteAssistant = (assistantId: string) => {
-    handleDeleteAssistantAsync(assistantId).catch((error: unknown) => {
-      console.error('Error in handleDeleteAssistant:', error);
-    });
+    void handleDeleteAssistantAsync(assistantId);
   };
 
   // Display loading state
@@ -482,7 +420,7 @@ export default function AssistantsPage() {
 
   return (
     <div className="container space-y-6 py-6">
-      <Header user={user} handleSignOut={handleSignOut} />
+      <Header user={user} />
 
       <div className="flex items-center justify-between">
         <TabsNavigation selectedTab={selectedTab} setSelectedTab={setSelectedTab} />

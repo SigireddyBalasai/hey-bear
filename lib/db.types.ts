@@ -310,60 +310,10 @@ export type Database = {
         }
         Relationships: []
       }
-      interaction_metrics: {
-        Row: {
-          ai_model: string | null
-          client_info: Json | null
-          cost_estimate: number | null
-          created_at: string
-          input_tokens: number | null
-          interaction_id: string
-          output_tokens: number | null
-          response_time_ms: number | null
-          sentiment_score: number | null
-          total_tokens: number | null
-          updated_at: string
-        }
-        Insert: {
-          ai_model?: string | null
-          client_info?: Json | null
-          cost_estimate?: number | null
-          created_at?: string
-          input_tokens?: number | null
-          interaction_id: string
-          output_tokens?: number | null
-          response_time_ms?: number | null
-          sentiment_score?: number | null
-          total_tokens?: number | null
-          updated_at?: string
-        }
-        Update: {
-          ai_model?: string | null
-          client_info?: Json | null
-          cost_estimate?: number | null
-          created_at?: string
-          input_tokens?: number | null
-          interaction_id?: string
-          output_tokens?: number | null
-          response_time_ms?: number | null
-          sentiment_score?: number | null
-          total_tokens?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interaction_metrics_interaction_id_fkey"
-            columns: ["interaction_id"]
-            isOneToOne: true
-            referencedRelation: "interactions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       interactions: {
         Row: {
-          assistant_id: string | null
-          chat: string | null
+          assistant_id: string
+          chat: Json | null
           cost_estimate: number | null
           created_at: string | null
           duration: number | null
@@ -371,17 +321,16 @@ export type Database = {
           input_tokens: number | null
           interaction_time: string | null
           is_error: boolean | null
-          monthly_period: string | null
           output_tokens: number | null
-          request: string
-          response: string
+          request: string | null
+          response: string | null
           token_usage: number | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
-          assistant_id?: string | null
-          chat?: string | null
+          assistant_id: string
+          chat?: Json | null
           cost_estimate?: number | null
           created_at?: string | null
           duration?: number | null
@@ -389,17 +338,16 @@ export type Database = {
           input_tokens?: number | null
           interaction_time?: string | null
           is_error?: boolean | null
-          monthly_period?: string | null
           output_tokens?: number | null
-          request: string
-          response: string
+          request?: string | null
+          response?: string | null
           token_usage?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
-          assistant_id?: string | null
-          chat?: string | null
+          assistant_id?: string
+          chat?: Json | null
           cost_estimate?: number | null
           created_at?: string | null
           duration?: number | null
@@ -407,103 +355,12 @@ export type Database = {
           input_tokens?: number | null
           interaction_time?: string | null
           is_error?: boolean | null
-          monthly_period?: string | null
           output_tokens?: number | null
-          request?: string
-          response?: string
+          request?: string | null
+          response?: string | null
           token_usage?: number | null
           updated_at?: string | null
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      interactions_shadow: {
-        Row: {
-          assistant_id: string | null
-          chat: string | null
-          cost_estimate: number | null
-          created_at: string | null
-          duration: number | null
-          id: string
-          input_tokens: number | null
-          interaction_time: string | null
-          is_error: boolean | null
-          monthly_period: string | null
-          output_tokens: number | null
-          request: string
-          response: string
-          token_usage: number | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          assistant_id?: string | null
-          chat?: string | null
-          cost_estimate?: number | null
-          created_at?: string | null
-          duration?: number | null
-          id?: string
-          input_tokens?: number | null
-          interaction_time?: string | null
-          is_error?: boolean | null
-          monthly_period?: string | null
-          output_tokens?: number | null
-          request: string
-          response: string
-          token_usage?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          assistant_id?: string | null
-          chat?: string | null
-          cost_estimate?: number | null
-          created_at?: string | null
-          duration?: number | null
-          id?: string
-          input_tokens?: number | null
-          interaction_time?: string | null
-          is_error?: boolean | null
-          monthly_period?: string | null
-          output_tokens?: number | null
-          request?: string
-          response?: string
-          token_usage?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      notifications: {
-        Row: {
-          created_at: string | null
-          id: string
-          message: string
-          read: boolean | null
-          title: string
-          type: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          message: string
-          read?: boolean | null
-          title: string
-          type: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          message?: string
-          read?: boolean | null
-          title?: string
-          type?: string
-          updated_at?: string | null
-          user_id?: string
         }
         Relationships: []
       }
@@ -701,65 +558,17 @@ export type Database = {
       }
     }
     Functions: {
-      add_file_chunk: {
-        Args: {
-          p_file_id: string
-          p_chunk_index: number
-          p_chunk_text: string
-          p_pinecone_id: string
-          p_metadata?: Json
-        }
-        Returns: string
-      }
-      apply_partition_policies: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       cleanup_old_audit_logs: {
         Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      complete_file_processing: {
-        Args: { p_file_id: string; p_vector_count: number; p_status?: string }
-        Returns: boolean
-      }
-      ensure_partition_exists: {
-        Args: { year_month: string }
-        Returns: undefined
-      }
-      insert_interaction: {
-        Args: {
-          p_assistant_id: string
-          p_user_id: string
-          p_request: string
-          p_response: string
-          p_interaction_time?: string
-          p_chat?: string
-          p_is_error?: boolean
-          p_token_usage?: number
-          p_input_tokens?: number
-          p_output_tokens?: number
-          p_duration?: number
-          p_cost_estimate?: number
-        }
-        Returns: string
-      }
-      insert_interaction_metrics: {
-        Args: {
-          p_interaction_id: string
-          p_input_tokens?: number
-          p_output_tokens?: number
-          p_cost_estimate?: number
-          p_response_time_ms?: number
-          p_ai_model?: string
-          p_client_info?: Json
-          p_sentiment_score?: number
-        }
         Returns: undefined
       }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      make_admin: {
+        Args: { user_email: string }
+        Returns: undefined
       }
       provision_twilio_number: {
         Args: {
@@ -772,21 +581,9 @@ export type Database = {
         }
         Returns: string
       }
-      refresh_materialized_views: {
-        Args: Record<PropertyKey, never>
+      remove_admin: {
+        Args: { user_email: string }
         Returns: undefined
-      }
-      search_file_metadata: {
-        Args: { p_assistant_id: string; p_query: string; p_limit?: number }
-        Returns: {
-          file_id: string
-          pinecone_id: string
-          file_name: string
-          file_type: string
-          created_at: string
-          status: string
-          relevance: number
-        }[]
       }
       update_twilio_webhooks: {
         Args: {
@@ -796,16 +593,6 @@ export type Database = {
           p_sms_fallback_url?: string
         }
         Returns: boolean
-      }
-      upload_file_to_pinecone: {
-        Args: {
-          p_assistant_id: string
-          p_file_name: string
-          p_file_type: string
-          p_file_size: number
-          p_file_content: string
-        }
-        Returns: Json
       }
     }
     Enums: {

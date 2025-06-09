@@ -1,41 +1,18 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 import twilio from 'twilio';
 import type { AccountInstance } from 'twilio/lib/rest/api/v2010/account';
 
-import { createClient } from '@/utils/supabase/server';
+import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
 
 interface TestConnectionRequest {
   accountSid: string;
   authToken: string;
 }
 
-export async function POST(req: Request) {
+export const POST = requireAdmin(async (context: AuthContext, req: NextRequest) => {
   try {
-    // Check authentication and admin permissions
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status directly without using the utility
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      console.log('Admin check failed:', userDataError, userData);
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
     // Get credentials from request body
     const { accountSid, authToken } = (await req.json()) as TestConnectionRequest;
 
@@ -86,4 +63,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
+});

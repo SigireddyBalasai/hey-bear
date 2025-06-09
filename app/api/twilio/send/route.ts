@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import type { MessageInstance } from 'twilio/lib/rest/api/v2010/account/message';
 
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 interface SendMessageRequest {
@@ -11,9 +12,10 @@ interface SendMessageRequest {
   assistantId: string;
 }
 
-export async function POST(req: Request) {
+export const POST = requireAuth(async (context, req: Request) => {
   try {
     const { to, message, assistantId } = (await req.json()) as SendMessageRequest;
+    const { user } = context;
 
     if (!to || !message || !assistantId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -21,12 +23,13 @@ export async function POST(req: Request) {
 
     const supabase = await createClient();
 
-    // Find the assistant
+    // Find the assistant - ensure it belongs to the authenticated user
     const { data: assistant, error: assistantError } = await supabase
 
       .from('assistants')
       .select('id, name, user_id, assigned_phone_number')
       .eq('id', assistantId)
+      .eq('user_id', user.id)
       .single();
 
     if (assistantError) {
@@ -82,4 +85,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
+});

@@ -9,7 +9,9 @@ import { BarChart3, ChevronRight, Download, HelpCircle, Home, Users } from 'luci
 
 import { fetchAllUsers } from '@/components/admin/utils/adminUtils';
 import { Button } from '@/components/ui/button';
+import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
+import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 interface SidebarLinkProps {
@@ -52,38 +54,42 @@ function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
 export function AdminSidebar() {
   const pathname = usePathname();
   const [userCount, setUserCount] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoading, setIsLoading } = useLoadingState(true);
 
   useEffect(() => {
     const getUserCount = async () => {
-      try {
-        // Use fetchAllUsers function to get the users array and its length
-        const users = await fetchAllUsers();
-        setUserCount(Array.isArray(users) ? users.length : 0);
-      } catch (error) {
-        console.error('Error fetching user count for sidebar:', error);
+      await withErrorHandling(
+        async () => {
+          try {
+            // Use fetchAllUsers function to get the users array and its length
+            const users = await fetchAllUsers();
+            setUserCount(Array.isArray(users) ? users.length : 0);
+          } catch (error) {
+            // Fallback to direct auth user count if fetchAllUsers fails
+            try {
+              const supabase = await createClient();
+              const { data: authUsersData, error } = await supabase.auth.admin.listUsers();
 
-        // Fallback to direct query if fetchAllUsers fails
-        try {
-          const supabase = await createClient();
-          const { count, error } = await supabase
-
-            .from('users')
-            .select('*', { count: 'exact', head: true });
-
-          if (!error && count !== null) {
-            setUserCount(count);
+              if (!error && authUsersData?.users) {
+                setUserCount(authUsersData.users.length);
+              }
+            } catch (error_) {
+              console.error('Fallback count also failed:', error_);
+            }
+            throw error; // Re-throw to trigger the error handling
+          } finally {
+            setIsLoading(false);
           }
-        } catch (error_) {
-          console.error('Fallback count also failed:', error_);
+        },
+        {
+          fallbackMessage: 'Failed to fetch user count for sidebar',
+          context: 'AdminSidebar',
         }
-      } finally {
-        setIsLoading(false);
-      }
+      );
     };
 
     getUserCount();
-  }, []);
+  }, [setIsLoading]);
 
   const links = [
     { href: '/admin', icon: <Home size={18} />, label: 'Overview' },

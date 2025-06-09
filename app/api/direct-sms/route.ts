@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 import twilio from 'twilio';
 
-import { logSMSMessage, updateSMSStatus } from '@/utils/sms-monitoring';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 // Interface for request body
@@ -12,16 +13,9 @@ interface DirectSMSRequest {
   assistantId?: string;
 }
 
-export async function POST(request: Request) {
+export const POST = requireAuth(async (_context, request: NextRequest) => {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const requestBody = (await request.json()) as DirectSMSRequest;
     const { to, message, assistantId } = requestBody;
@@ -67,31 +61,12 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Generate a unique message ID for tracking
-      const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-
-      // Log the outgoing SMS
-      await logSMSMessage({
-        messageId,
-        fromNumber: from,
-        toNumber: to,
-        message: message,
-        direction: 'outgoing',
-        status: 'pending',
-        timestamp: new Date().toISOString(),
-        assistantId,
-        userId: user.id,
-      });
-
       // Send message using real Twilio client
       const result = await twilioClient.messages.create({
         body: message,
         from: from,
         to: to,
       });
-
-      // Update SMS log with actual SID and status
-      await updateSMSStatus(messageId, result.status);
 
       console.log(`SMS sent with SID: ${result.sid}, status: ${result.status}`);
 
@@ -123,20 +98,11 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});
 
 // Endpoint to check status of a sent message
-export async function GET(request: Request) {
+export const GET = requireAuth(async (_context, request: NextRequest) => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const url = new URL(request.url);
     const messageSid = url.searchParams.get('sid');
 
@@ -167,4 +133,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+});

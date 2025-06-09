@@ -18,9 +18,7 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
-import { AssistantPhoneNumberSelector } from '@/components/AssistantPhoneNumberSelector';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,8 +38,10 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
 import type { Database } from '@/lib/db.types';
 import { cn } from '@/lib/utils';
+import { handleError, showSuccess } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 // Types
@@ -76,6 +76,18 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [assistantId, setAssistantId] = useState<string>('');
   const [displayName, setDisplayName] = useState<string>('');
 
+  // Consolidated loading states using useMultipleLoadingStates
+  const { loadingStates, setLoadingState } = useMultipleLoadingStates([
+    'pageLoading',
+    'sending',
+    'uploading',
+  ] as const);
+
+  // Extract individual loading states for easy access
+  const isLoading = loadingStates.pageLoading;
+  const isSending = loadingStates.sending;
+  const isUploading = loadingStates.uploading;
+
   // State variables
   const [pineconeName, setPineconeName] = useState<string>('');
   const [user, setUser] = useState<{ user_metadata?: { avatar_url?: string } } | null>(null);
@@ -86,9 +98,6 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [file, setFile] = useState<File | null>(null);
   const [isChatDisabled, setIsChatDisabled] = useState(true);
   const [fileList, setFileList] = useState<{ files: FileWithStatus[] }>({ files: [] });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSending, setIsSending] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('chat');
@@ -122,67 +131,62 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
 
       try {
         const isInitialLoad = isLoading;
-        if (isInitialLoad) setIsLoading(true);
+        if (isInitialLoad) setLoadingState('pageLoading', true);
 
-        // Use type assertion to bypass restrictive Supabase types
-        const supabaseClient = supabase as unknown as {
-          from: (table: string) => {
-            select: (columns: string) => {
-              eq: (
-                column: string,
-                value: string
-              ) => {
-                order: (
-                  column: string,
-                  options?: { ascending?: boolean }
-                ) => Promise<{
-                  data: Record<string, unknown>[] | null;
-                  error: Record<string, unknown> | null;
-                }>;
-              };
-            };
-          };
-        };
+        // Fetch files using the API endpoint
+        const response = await fetch('/api/Concierge/file/list', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            assistantId,
+            pinecone_name: pineconeName,
+          }),
+        });
 
-        // Fetch real files from assistant_files table
-        const { data: filesData, error: filesError } = await supabaseClient
-          .from('assistant_files')
-          .select('id, name, created_at, status, purpose, file_type, file_size')
-          .eq('assistant_id', assistantId)
-          .order('created_at', { ascending: false });
-
-        if (filesError) {
-          console.error('Error fetching files:', filesError);
-          toast('Error loading files', {
-            description: 'Failed to load assistant files. Please try again.',
+        if (!response.ok) {
+          const errorData = (await response.json()) as { error?: string };
+          console.error('Error fetching files:', errorData);
+          handleError(new Error(errorData.error || 'Failed to load assistant files'), {
+            toastTitle: 'Error loading files',
+            fallbackMessage: 'Failed to load assistant files. Please try again.',
           });
           return;
         }
 
-        // Transform database files to our internal format
-        const fileArray: FileWithStatus[] = (filesData ?? []).map(
-          (file: Record<string, unknown>) => ({
-            id: file.id as string,
-            name: file.name as string,
-            created_at: file.created_at as string,
-            status: (file.status ?? 'ready') as string,
-            purpose: file.purpose as string,
-          })
-        );
+        const responseData = (await response.json()) as {
+          files?: Array<{
+            id: string;
+            name: string;
+            created_at: string;
+            [key: string]: unknown;
+          }>;
+        };
+
+        // Transform Pinecone files to our internal format
+        const fileArray: FileWithStatus[] = (responseData.files ?? []).map(file => ({
+          id: file.id,
+          name: file.name,
+          created_at: file.created_at,
+          status: 'ready', // Pinecone files are always ready
+          purpose: 'assistant_knowledge',
+        }));
 
         setFileList({ files: fileArray });
         setProcessingFileIds([]);
         setIsChatDisabled(fileArray.length === 0); // Enable chat if files exist
       } catch (error) {
         console.error('Failed to fetch files:', error);
-        toast('Connection error', {
-          description: 'Failed to connect to the server. Please try again.',
+        handleError(error as Error, {
+          toastTitle: 'Connection error',
+          fallbackMessage: 'Failed to connect to the server. Please try again.',
         });
       } finally {
-        setIsLoading(false);
+        setLoadingState('pageLoading', false);
       }
     },
-    [isLoading, supabase]
+    [isLoading, pineconeName]
   );
 
   // Fetch real assistant data from database with joins
@@ -190,24 +194,9 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     async (assistantId: string): Promise<AssistantWithRelations | null> => {
       try {
         // Use type assertion to bypass restrictive Supabase types
-        const supabaseClient = supabase as unknown as {
-          from: (table: string) => {
-            select: (columns: string) => {
-              eq: (
-                column: string,
-                value: string
-              ) => {
-                single: () => Promise<{
-                  data: Record<string, unknown>;
-                  error: Record<string, unknown> | null;
-                }>;
-              };
-            };
-          };
-        };
 
         // Fetch assistant data with joins to get all related information
-        const { data: assistantData, error: assistantError } = await supabaseClient
+        const { data: assistantData, error: assistantError } = await supabase
           .from('assistants')
           .select(
             `
@@ -226,14 +215,14 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
 
         // Transform the data to match our expected structure
         const typedAssistantData = assistantData as Record<string, unknown> & {
-          assistant_configs?: Record<string, unknown>[];
-          assistant_usage_limits?: Record<string, unknown>[];
+          assistant_configs?: Record<string, unknown> | null;
+          assistant_usage_limits?: Record<string, unknown> | null;
         };
 
         return {
           assistant: typedAssistantData as AssistantRow,
-          config: (typedAssistantData.assistant_configs?.[0] ?? null) as AssistantConfig | null,
-          usageLimits: (typedAssistantData.assistant_usage_limits?.[0] ??
+          config: (typedAssistantData.assistant_configs ?? null) as AssistantConfig | null,
+          usageLimits: (typedAssistantData.assistant_usage_limits ??
             null) as AssistantUsageLimits | null,
         };
       } catch (error) {
@@ -285,8 +274,8 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         const assistantData = await fetchAssistantData(assistantName);
 
         if (!assistantData?.assistant) {
-          toast.error('Assistant not found', {
-            description: 'The requested assistant could not be found.',
+          handleError(new Error('The requested assistant could not be found'), {
+            toastTitle: 'Assistant not found',
           });
           router.push('/');
           return;
@@ -295,10 +284,15 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         processAssistantData(assistantData, assistantName);
       } catch (error) {
         console.error('Error loading params:', error);
-        setIsLoading(false);
-        toast.error('Failed to load Assistant', {
-          description: 'There was an error loading the assistant details.',
-        });
+        setLoadingState('pageLoading', false);
+        handleError(
+          error instanceof Error
+            ? error
+            : new Error('There was an error loading the assistant details'),
+          {
+            toastTitle: 'Failed to load Assistant',
+          }
+        );
       }
     }
 
@@ -313,10 +307,10 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
           data: { user },
         } = await supabase.auth.getUser();
         setUser(user);
-        setIsLoading(false);
+        setLoadingState('pageLoading', false);
       } catch (error) {
         console.error('Error fetching user:', error);
-        setIsLoading(false);
+        setLoadingState('pageLoading', false);
       }
     };
     void fetchUser();
@@ -364,7 +358,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       if (isChatDisabled || !message.trim() || isSending) return;
 
       try {
-        setIsSending(true);
+        setLoadingState('sending', true);
         // Add user message to chat history
         const userMessage = { role: 'user', content: message, timestamp: getCurrentTimestamp() };
         setChatHistory([...chatHistory, userMessage]);
@@ -399,8 +393,9 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         setChatHistory(prev => [...prev, assistantResponse]);
       } catch (error) {
         console.error('Chat error:', error);
-        toast('Communication error', {
-          description: 'Failed to send your message. Please try again.',
+        handleError(error as Error, {
+          toastTitle: 'Communication error',
+          fallbackMessage: 'Failed to send your message. Please try again.',
         });
 
         // Add error message to chat on failure
@@ -412,7 +407,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         };
         setChatHistory(prev => [...prev, errorResponse]);
       } finally {
-        setIsSending(false);
+        setLoadingState('sending', false);
       }
     },
     [isChatDisabled, message, isSending, chatHistory, assistantId]
@@ -423,7 +418,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     if (!file || !assistantId) return;
 
     try {
-      setIsUploading(true);
+      setLoadingState('uploading', true);
 
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
@@ -436,52 +431,40 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         });
       }, 100);
 
-      // Use type assertion to bypass restrictive Supabase types
-      const supabaseClient = supabase as unknown as {
-        from: (table: string) => {
-          insert: (data: Record<string, unknown>) => Promise<{
-            data: Record<string, unknown>[] | null;
-            error: Record<string, unknown> | null;
-          }>;
-        };
-      };
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('assistantId', assistantId);
 
-      // Insert file record into database
-      const fileData = {
-        assistant_id: assistantId,
-        name: file.name,
-        file_type: file.type,
-        file_size: file.size,
-        status: 'processing',
-        purpose: 'assistant_knowledge',
-      };
-
-      const { error: insertError } = await supabaseClient.from('assistant_files').insert(fileData);
+      // Use the file upload API endpoint
+      const response = await fetch('/api/Concierge/file/add', {
+        method: 'POST',
+        body: formData,
+      });
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      if (insertError) {
-        console.error('Error inserting file:', insertError);
-        throw new Error('Failed to save file to database');
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string };
+        throw new Error(errorData.error || 'Failed to upload file');
       }
 
       // Refresh the file list
       await fetchFiles(assistantId, pineconeName);
 
-      toast('File uploaded successfully!', {
-        description: `${file.name} has been added to the assistant`,
-      });
+      showSuccess('File uploaded successfully!', `${file.name} has been added to the assistant`);
       setFile(null);
     } catch (error) {
       console.error('File upload error:', error);
       setFileError({
         title: 'Upload Error',
-        description: 'Something went wrong during file upload',
+        description:
+          error instanceof Error ? error.message : 'Something went wrong during file upload',
         show: true,
       });
     } finally {
-      setIsUploading(false);
+      setLoadingState('uploading', false);
       setUploadProgress(0);
     }
   };
@@ -491,7 +474,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     if (!url || !assistantId) return;
 
     try {
-      setIsUploading(true);
+      setLoadingState('uploading', true);
 
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
@@ -504,51 +487,41 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         });
       }, 100);
 
-      // Use type assertion to bypass restrictive Supabase types
-      const supabaseClient = supabase as unknown as {
-        from: (table: string) => {
-          insert: (data: Record<string, unknown>) => Promise<{
-            data: Record<string, unknown>[] | null;
-            error: Record<string, unknown> | null;
-          }>;
-        };
-      };
-
-      // Insert URL as a file record into database
-      const urlData = {
-        assistant_id: assistantId,
-        name: url,
-        file_type: 'url',
-        status: 'processing',
-        purpose: 'assistant_knowledge',
-      };
-
-      const { error: insertError } = await supabaseClient.from('assistant_files').insert(urlData);
+      // Use the URL addition API endpoint
+      const response = await fetch('/api/Concierge/file/add-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+          assistantId,
+        }),
+      });
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      if (insertError) {
-        console.error('Error inserting URL:', insertError);
-        throw new Error('Failed to save URL to database');
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string };
+        throw new Error(errorData.error || 'Failed to add URL');
       }
 
       // Refresh the file list
       await fetchFiles(assistantId, pineconeName);
 
-      toast('URL added successfully!', {
-        description: `${url} has been added to the assistant`,
-      });
+      showSuccess('URL added successfully!', `${url} has been added to the assistant`);
       setUrl('');
     } catch (error) {
       console.error('URL addition error:', error);
       setFileError({
         title: 'URL Error',
-        description: 'Something went wrong while adding this URL',
+        description:
+          error instanceof Error ? error.message : 'Something went wrong while adding this URL',
         show: true,
       });
     } finally {
-      setIsUploading(false);
+      setLoadingState('uploading', false);
       setUploadProgress(0);
     }
   };
@@ -568,30 +541,21 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     setDeletingFileIds(prev => [...prev, fileId]);
 
     try {
-      // Use type assertion to bypass restrictive Supabase types
-      const supabaseClient = supabase as unknown as {
-        from: (table: string) => {
-          delete: () => {
-            eq: (
-              column: string,
-              value: string
-            ) => Promise<{
-              data: Record<string, unknown>[] | null;
-              error: Record<string, unknown> | null;
-            }>;
-          };
-        };
-      };
+      // Use the file deletion API endpoint
+      const response = await fetch('/api/Concierge/file/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileId,
+          assistantId,
+        }),
+      });
 
-      // Delete file from database
-      const { error: deleteError } = await supabaseClient
-        .from('assistant_files')
-        .delete()
-        .eq('id', fileId);
-
-      if (deleteError) {
-        console.error('Error deleting file:', deleteError);
-        throw new Error('Failed to delete file from database');
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string };
+        throw new Error(errorData.error || 'Failed to delete file');
       }
 
       // Refresh the file list
@@ -600,16 +564,15 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       // Remove from deletingFileIds
       setDeletingFileIds(prev => prev.filter(id => id !== fileId));
 
-      toast('File deleted successfully', {
-        description: 'The file has been removed from your assistant',
-      });
+      showSuccess('File deleted successfully', 'The file has been removed from your assistant');
     } catch (error) {
       // Remove from deletingFileIds if there was an error
       setDeletingFileIds(prev => prev.filter(id => id !== fileId));
 
       console.error('Error deleting file:', error);
-      toast('Error deleting file', {
-        description: error instanceof Error ? error.message : 'Failed to delete file',
+      handleError(error as Error, {
+        toastTitle: 'Error deleting file',
+        fallbackMessage: 'Failed to delete file',
       });
     }
   };
@@ -617,11 +580,6 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   // Handle closing the file error dialog
   const closeFileErrorDialog = () => {
     setFileError(prev => ({ ...prev, show: false }));
-  };
-
-  // Handle phone number assignment
-  const handlePhoneNumberAssigned = (phoneNumber: string) => {
-    setAssignedPhoneNumber(phoneNumber || null);
   };
 
   // Helper function to render loading state
@@ -993,18 +951,12 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       </CardContent>
 
       <CardFooter className="flex justify-between p-3 border-t bg-card/50">
-        {assignedPhoneNumber ? (
-          <Badge variant="outline" className="gap-1">
-            <Phone className="h-3 w-3" />
-            SMS Enabled: {assignedPhoneNumber}
-          </Badge>
-        ) : (
-          <AssistantPhoneNumberSelector
-            assistantId={assistantId}
-            onPhoneNumberAssigned={handlePhoneNumberAssigned}
-          />
-        )}
-
+        (
+        <Badge variant="outline" className="gap-1">
+          <Phone className="h-3 w-3" />
+          SMS Enabled: {assignedPhoneNumber}
+        </Badge>
+        )
         <Button
           variant="ghost"
           size="sm"

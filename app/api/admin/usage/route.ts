@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
+import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 /**
  * API route for fetching admin usage data
  */
-export async function GET(request: Request) {
+export const GET = requireAdmin(async (context: AuthContext, request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const timeframe = searchParams.get('timeframe') || '30d';
@@ -13,28 +15,6 @@ export async function GET(request: Request) {
     const _plan = searchParams.get('plan') || undefined;
 
     const supabase = await createClient();
-
-    // Check authentication and admin permissions
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check admin status
-    const { data: userData, error: userDataError } = await supabase
-
-      .from('users')
-      .select('is_admin')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userDataError || !userData.is_admin) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
 
     // Calculate date filter based on timeframe
     const now = new Date();
@@ -191,20 +171,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch user stats' }, { status: 500 });
     }
 
-    // Get user details from auth
-    const userIds = [
+    // Get user details directly from auth since we no longer have a separate users table
+    const _userIds = [
       ...new Set(userStatsRaw?.map(row => row.user_id).filter(Boolean) || []),
     ].filter((id): id is string => id !== null);
-
-    const { data: usersData, error: usersError } = await supabase
-
-      .from('users')
-      .select('auth_user_id, last_active')
-      .in('auth_user_id', userIds);
-
-    if (usersError) {
-      console.error('Error fetching users data:', usersError);
-    }
 
     // Get auth user data using admin API
     const { data: authUsersData, error: authUsersError } = await supabase.auth.admin.listUsers();
@@ -255,7 +225,6 @@ export async function GET(request: Request) {
 
     // Create user stats array
     const userStats = Array.from(userStatsMap.entries()).map(([userId, stats]) => {
-      const userData = usersData?.find(u => u.auth_user_id === userId);
       const authUser = authUsersData?.users?.find(u => u.id === userId);
       const userMetadata = authUser?.user_metadata as
         | { full_name?: string; name?: string }
@@ -270,7 +239,7 @@ export async function GET(request: Request) {
         inputTokens: stats.inputTokens,
         outputTokens: stats.outputTokens,
         costs: stats.costs,
-        lastActive: userData?.last_active || stats.lastInteraction,
+        lastActive: stats.lastInteraction, // Use last interaction time since we don't have users table
       };
     });
 
@@ -281,6 +250,16 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Error in admin usage API:', error);
+
+    if (error instanceof Error) {
+      if (error.message === 'Unauthorized') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      if (error.message === 'Forbidden - Admin access required') {
+        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      }
+    }
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

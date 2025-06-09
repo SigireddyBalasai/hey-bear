@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { recordInteraction } from '@/app/utils/interactionUtils';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 interface InteractionRequest {
@@ -15,19 +15,11 @@ interface InteractionRequest {
   isError?: boolean;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = requireAuth(async (context, request: NextRequest) => {
   const supabase = await createClient();
 
   try {
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { user } = context;
 
     // Parse the request body
     const requestBody = (await request.json()) as InteractionRequest;
@@ -41,19 +33,33 @@ export async function POST(request: NextRequest) {
       duration,
       isError,
     } = requestBody;
-
-    // Use the utility function to record the interaction with correct user ID mapping
-    const success = await recordInteraction(
-      user.id,
-      assistantId,
-      chat,
-      userRequest,
-      response,
-      tokenUsage ?? 0,
-      costEstimate ?? 0,
-      duration ?? 0,
-      isError ?? false
-    );
+    if (!assistantId || !userRequest || !response) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    // Record the interaction
+    const success = await supabase
+      .from('interactions')
+      .insert({
+        user_id: user.id,
+        assistant_id: assistantId,
+        chat,
+        request: userRequest,
+        response,
+        interaction_time: new Date().toISOString(),
+        token_usage: tokenUsage ?? 0,
+        cost_estimate: costEstimate ?? 0,
+        duration: duration ?? 0,
+        is_error: isError ?? false,
+        input_tokens: null, // Optional, can be added if needed
+        output_tokens: null, // Optional, can be added if needed
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error recording interaction:', error);
+          return false;
+        }
+        return true;
+      });
 
     if (!success) {
       return NextResponse.json({ error: 'Failed to record interaction' }, { status: 500 });
@@ -64,4 +70,4 @@ export async function POST(request: NextRequest) {
     console.error('Error in interactions API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

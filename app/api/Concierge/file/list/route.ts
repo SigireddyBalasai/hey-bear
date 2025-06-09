@@ -5,6 +5,7 @@ import type { AssistantFilesList } from '@pinecone-database/pinecone';
 
 import type { Database } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 // Use Supabase database types directly
@@ -22,7 +23,7 @@ interface ListFilesRequest {
   pinecone_name?: string;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (context, req: NextRequest) => {
   try {
     // Validate request body with proper typing
     const body = (await req.json()) as ListFilesRequest;
@@ -35,17 +36,6 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient();
-
-    // Check user authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // If pinecone_name wasn't provided in the request, fetch it from the database
     let assistantPineconeName: string | null = providedPineconeName ?? null;
@@ -130,4 +120,4 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
+});

@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-import { useRouter } from 'next/navigation';
-
-import type { User } from '@supabase/supabase-js';
 import { BarChart3, Download, FileSpreadsheet, Filter, Scroll, Users, Zap } from 'lucide-react';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -14,76 +11,78 @@ import { Loading } from '@/components/concierge/Loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { useAdminAuth } from '@/hooks/useAuth';
+import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-// Real user usage data fetching function
 const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
-  try {
-    const supabase = createClient();
+  const result = await withErrorHandling(
+    async () => {
+      const supabase = createClient();
 
-    // Get usage data directly from analytics.interactions table
-    const { data: interactions, error } = await supabase
+      // Get usage data directly from interactions table
+      const { data: interactions, error } = await supabase
+        .from('interactions')
+        .select('user_id, token_usage, cost_estimate')
+        .gte('interaction_time', startDate.toISOString())
+        .lte('interaction_time', endDate.toISOString());
 
-      .from('interactions')
-      .select('user_id, token_usage, cost_estimate')
-      .gte('interaction_time', startDate.toISOString())
-      .lte('interaction_time', endDate.toISOString());
-
-    if (error) {
-      console.error('Error fetching user usage data:', error);
-      return [];
-    }
-
-    // Group by user_id to calculate stats
-    const userStatsMap = new Map<
-      string,
-      {
-        user_id: string;
-        interactions_count: number;
-        token_usage: number;
-        cost_estimate: number;
-      }
-    >();
-
-    interactions.forEach(interaction => {
-      if (!interaction.user_id) return;
-
-      if (!userStatsMap.has(interaction.user_id)) {
-        userStatsMap.set(interaction.user_id, {
-          user_id: interaction.user_id,
-          interactions_count: 0,
-          token_usage: 0,
-          cost_estimate: 0,
-        });
+      if (error) {
+        throw error;
       }
 
-      const stats = userStatsMap.get(interaction.user_id);
-      if (stats) {
-        stats.interactions_count += 1;
-        stats.token_usage += interaction.token_usage ?? 0;
-        stats.cost_estimate += interaction.cost_estimate ?? 0;
-      }
-    });
+      // Group by user_id to calculate stats
+      const userStatsMap = new Map<
+        string,
+        {
+          user_id: string;
+          interactions_count: number;
+          token_usage: number;
+          cost_estimate: number;
+        }
+      >();
 
-    const data = [...userStatsMap.values()]
-      .sort((a, b) => b.token_usage - a.token_usage)
-      .slice(0, 100); // Apply limit
+      interactions.forEach(interaction => {
+        if (!interaction.user_id) return;
 
-    return data.map(item => ({
-      id: item.user_id,
-      user_id: item.user_id,
-      users: {
+        if (!userStatsMap.has(interaction.user_id)) {
+          userStatsMap.set(interaction.user_id, {
+            user_id: interaction.user_id,
+            interactions_count: 0,
+            token_usage: 0,
+            cost_estimate: 0,
+          });
+        }
+
+        const stats = userStatsMap.get(interaction.user_id);
+        if (stats) {
+          stats.interactions_count += 1;
+          stats.token_usage += interaction.token_usage ?? 0;
+          stats.cost_estimate += interaction.cost_estimate ?? 0;
+        }
+      });
+
+      const data = [...userStatsMap.values()]
+        .sort((a, b) => b.token_usage - a.token_usage)
+        .slice(0, 100); // Apply limit
+
+      return data.map(item => ({
         id: item.user_id,
-        email: `user-${item.user_id.slice(0, 8)}@example.com`, // We'd need to join with auth users for real email
-      },
-      total_interactions: item.interactions_count,
-      total_tokens: item.token_usage,
-      total_cost: item.cost_estimate,
-    }));
-  } catch (error) {
-    console.error('Error in fetchUserUsageData:', error);
-    return [];
-  }
+        user_id: item.user_id,
+        users: {
+          id: item.user_id,
+          email: `user-${item.user_id.slice(0, 8)}@example.com`, // We'd need to join with auth users for real email
+        },
+        total_interactions: item.interactions_count,
+        total_tokens: item.token_usage,
+        total_cost: item.cost_estimate,
+      }));
+    },
+    {
+      toastTitle: 'Failed to fetch user usage data',
+    }
+  );
+  return result || [];
 };
 
 type UserUsageData = {
@@ -99,67 +98,23 @@ type UserUsageData = {
 };
 
 export default function UserUsagePage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isAdmin, isLoading } = useAdminAuth();
   const [usageData, setUsageData] = useState<UserUsageData[]>([]);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
     to: new Date(),
   });
 
-  const router = useRouter();
-  const supabase = createClient();
-
-  // Check if current user is an admin
+  // Load usage data when admin auth is complete
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        setIsLoading(true);
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) {
-          console.error('Error fetching user:', userError);
-          setUser(null);
-          router.push('/sign-in');
-          return;
-        }
-
-        setUser(user);
-
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-
-          .from('users')
-          .select('is_admin')
-          .eq('auth_user_id', user.id)
-          .single();
-
-        if (userDataError || !userData.is_admin) {
-          setIsAdmin(false);
-          router.push('/');
-          return;
-        }
-
-        setIsAdmin(true);
-
-        // Load real usage data
+    if (!isLoading && isAdmin && user) {
+      const loadData = async () => {
         const realData = await fetchUserUsageData(dateRange.from, dateRange.to);
         setUsageData(realData);
-      } catch (error) {
-        console.error('Error in checking admin status:', error);
-        router.push('/');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void checkAdminStatus();
-  }, [router, supabase, dateRange.from, dateRange.to]);
+      };
+      void loadData();
+    }
+  }, [isLoading, isAdmin, user, dateRange.from, dateRange.to]);
 
   // Handle date range changes - fetch real data based on date range
   const handleDateRangeChange = async (range: { from?: Date; to?: Date } | undefined) => {
@@ -186,7 +141,7 @@ export default function UserUsagePage() {
           <p className="mb-6">You don't have permission to access this page.</p>
           <Button
             onClick={() => {
-              router.push('/');
+              window.location.href = '/';
             }}
           >
             Return to Home
