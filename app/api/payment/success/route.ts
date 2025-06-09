@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type Stripe from 'stripe';
 
 import type { Database } from '@/lib/db.types';
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
@@ -47,7 +47,7 @@ type PaymentSessionUpdate = Database['public']['Tables']['payment_sessions']['Up
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   let sessionId = 'unknown';
-  
+
   if (!request || !request.body || !request.headers || !request.json()) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
