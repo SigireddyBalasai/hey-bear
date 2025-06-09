@@ -1,7 +1,7 @@
 /**
  * Utilities for processing chat data
  */
-import type { Json } from '@/lib/db.types';
+import type { Json } from '@/types/db.types';
 
 /**
  * Parse and analyze chat data to determine direction

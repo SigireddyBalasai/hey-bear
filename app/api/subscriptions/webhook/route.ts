@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 // Re-added Supabase client
 
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server';
 
 // Types for DB operations

@@ -5,7 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { UsageData, UsageMetric } from '@/lib/types/usage';
+import type { UsageData, UsageMetric } from '@/types/usage.types';
 
 interface UsageDisplayProps {
   title: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import type { TransformedInteraction } from '@/app/dashboard/types';
+import type { TransformedInteraction } from '@/types/dashboard.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 

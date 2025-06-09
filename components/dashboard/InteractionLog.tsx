@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLoadingState } from '@/hooks/useLoadingState';
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { formatPhoneNumber } from '@/utils/phone-utils';
 import { createClient } from '@/utils/supabase/client';

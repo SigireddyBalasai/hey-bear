@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { v4 as uuidv4 } from 'uuid';
 
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 

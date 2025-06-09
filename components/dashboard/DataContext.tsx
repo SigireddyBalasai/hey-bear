@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useMemo, useRef, useStat
 import type { ReactNode } from 'react';
 
 import { useLoadingState } from '@/hooks/useLoadingState';
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 

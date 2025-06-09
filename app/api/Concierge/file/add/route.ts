@@ -7,7 +7,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';

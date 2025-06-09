@@ -1,4 +1,4 @@
-import type { Json } from '@/lib/db.types';
+import type { Json } from '@/types/db.types';
 
 export interface TransformedInteraction {
   id: string;

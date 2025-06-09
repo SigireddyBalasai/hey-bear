@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 
 import type { AssistantFilesList } from '@pinecone-database/pinecone';
 
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';

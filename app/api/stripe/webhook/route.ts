@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 import Stripe from 'stripe';
 
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server-admin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);

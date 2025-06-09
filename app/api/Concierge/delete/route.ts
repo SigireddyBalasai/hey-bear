@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Ensure SupabaseClient is imported
 
-import type { Database } from '@/lib/db.types';
+import type { Database } from '@/types/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 import { getStripeInstance } from '@/lib/stripe';
 import { requireAuth } from '@/utils/auth-utils';
