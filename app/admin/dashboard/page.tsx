@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminAuth } from '@/hooks/useAuth';
+import { DashboardData, UsageChartItem } from '@/types/app.types';
 import { withErrorHandling } from '@/utils/error-handling';
 
 ChartJS.register(
@@ -35,26 +36,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
-type UsageChartItem = {
-  date: string;
-  count: number;
-  tokens: number;
-  cost: number;
-};
-
-interface DashboardData {
-  usageChart: Array<UsageChartItem>;
-  users?: {
-    total: number;
-    activeToday: number;
-    activeThisWeek: number;
-  };
-  usage?: {
-    totalMessages: number;
-    totalCost: number;
-  };
-}
 
 export default function AdminDashboardPage() {
   const { user, isAdmin, isLoading } = useAdminAuth();

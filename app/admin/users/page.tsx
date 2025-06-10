@@ -60,6 +60,7 @@ import {
 import { useAdminAuth } from '@/hooks/useAuth';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
+import { UserData } from '@/types/app.types';
 import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
@@ -102,23 +103,6 @@ const getStatusBadgeContent = (status: string) => {
     </>
   );
 };
-
-interface UserData {
-  id: string;
-  auth_user_id?: string;
-  email?: string;
-  full_name?: string;
-  is_admin?: boolean;
-  last_sign_in?: string;
-  created_at?: string;
-  updated_at?: string;
-  status: 'active' | 'inactive' | 'pending'; // Made required by removing ?
-  subscription_plan?: string;
-  last_active?: string | null; // Updated to allow null
-  total_interactions?: number;
-  total_tokens?: number;
-  cost_estimate?: number;
-}
 
 export default function UsersPage() {
   const { user, isAdmin, isLoading } = useAdminAuth();

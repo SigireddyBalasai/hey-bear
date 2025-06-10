@@ -10,12 +10,7 @@ import type { User } from '@supabase/supabase-js';
 
 import { getAuthenticatedUser, requireAdminAuthentication } from '@/utils/auth-utils';
 import { showWarning } from '@/utils/error-handling';
-
-export interface UseAdminAuthResult {
-  user: User | null;
-  isAdmin: boolean;
-  isLoading: boolean;
-}
+import { UseAdminAuthResult } from '@/types/app.types';
 
 /**
  * Custom hook for admin authentication check

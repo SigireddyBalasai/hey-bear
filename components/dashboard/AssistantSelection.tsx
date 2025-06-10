@@ -13,15 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getDashboardUrl } from '@/utils/dashboard-urls';
 import { handleError } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-interface Assistant {
-  id: string;
-  name: string;
-  created_at?: string;
-}
+import { DashboardAssistant } from '@/types/app.types';
 
 export const AssistantSelection = () => {
-  const [assistants, setAssistants] = useState<Assistant[]>([]);
+  const [assistants, setAssistants] = useState<DashboardAssistant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
@@ -69,7 +64,7 @@ export const AssistantSelection = () => {
     fetchAssistants();
   }, [supabase]);
 
-  const handleAssistantSelect = (assistant: Assistant) => {
+  const handleAssistantSelect = (assistant: DashboardAssistant) => {
     const url = getDashboardUrl(assistant.name);
     router.push(url);
   };

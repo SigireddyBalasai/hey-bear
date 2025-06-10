@@ -23,26 +23,7 @@ import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
 import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-interface AssistantData {
-  id: string;
-  name: string;
-  is_starred: boolean;
-  created_at?: string;
-  description?: string;
-  has_phone_number?: boolean;
-  subscription_plan?: string;
-  total_messages?: number;
-  last_used_at?: string;
-}
-
-interface AssistantListProps {
-  assistant: AssistantData;
-  isLoading?: boolean;
-  isActionInProgress?: boolean;
-  onToggleStar?: (id: string, isStarred: boolean) => void;
-  onDelete?: (id: string) => void;
-}
+import { AssistantData, AssistantListProps } from '@/types/app.types';
 
 export function AssistantList({
   assistant,

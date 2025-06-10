@@ -9,6 +9,6 @@ export const getStripeInstance = async (): Promise<Stripe | null> => {
   }
 
   return new Stripe(secretKey, {
-    apiVersion: '2025-03-31.basil',
+    apiVersion: '2025-05-28.basil',
   });
 };

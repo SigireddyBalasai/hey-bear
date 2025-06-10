@@ -4,16 +4,7 @@ import { ArrowLeft, Bell, Settings } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-
-interface AdminHeaderProps {
-  user: {
-    email?: string;
-    user_metadata?: {
-      full_name?: string;
-      avatar_url?: string;
-    };
-  } | null;
-}
+import { AdminHeaderProps } from '@/types/app.types';
 
 export function AdminHeader({ user }: AdminHeaderProps) {
   const userInitials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'U';

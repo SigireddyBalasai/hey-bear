@@ -43,35 +43,7 @@ import { useData } from './DataContext';
 
 // Database types
 type InteractionRow = Database['public']['Tables']['interactions']['Row'];
-
-interface TransformedInteraction {
-  id: string;
-  interaction_time: string;
-  type: string;
-  status: string;
-  assistant_name: string;
-  assistant_id: string;
-  phone_number: string;
-  request: string;
-  response: string | null;
-}
-
-interface InteractionLogProps {
-  interactions?: TransformedInteraction[];
-  loading?: boolean;
-  error?: string | null;
-  currentPage?: number;
-  pageSize?: number;
-  totalPages?: number;
-  totalItems?: number;
-  activeTab: string;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
-  onSortChange?: (column: string) => void;
-  onPageChange?: (page: number) => void;
-  onTabChange?: (tab: string) => void;
-  setActiveTab?: (tab: string) => void;
-}
+import { TransformedInteraction, InteractionLogProps } from '@/types/app.types';
 
 // Memoized sub-components
 const SortableHeader = memo<{

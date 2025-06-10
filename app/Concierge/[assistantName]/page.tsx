@@ -41,23 +41,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/types/db.types';
+import {
+  AssistantWithRelations,
+  AssistantRow,
+  AssistantConfig,
+  AssistantUsageLimits,
+} from '@/types/app.types';
 import { handleError, showSuccess } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 // Types
 type AssistantFileStatus = 'ready' | 'processing' | 'failed';
-
-// Database types
-type AssistantRow = Database['public']['Tables']['assistants']['Row'];
-type AssistantConfig = Database['public']['Tables']['assistant_configs']['Row'];
-type AssistantUsageLimits = Database['public']['Tables']['assistant_usage_limits']['Row'];
-
-// Full assistant data with joins
-interface AssistantWithRelations {
-  assistant: AssistantRow;
-  config: AssistantConfig | null;
-  usageLimits: AssistantUsageLimits | null;
-}
 
 // File type for our internal use (mapped from database)
 type FileWithStatus = {

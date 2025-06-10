@@ -22,20 +22,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useData } from './DataContext';
 
 type Assistant = Database['public']['Tables']['assistants']['Row'];
-
-interface FilterComponentProps {
-  onClose?: () => void;
-  className?: string;
-  setShowFilters?: (show: boolean) => void;
-}
-
-interface FilterValues {
-  fromDate: Date | undefined;
-  toDate: Date | undefined;
-  assistantId: string;
-  searchTerm: string;
-  dateRange: string;
-}
+import { FilterComponentProps, FilterValues } from '@/types/app.types';
 
 // Memoized sub-components
 const DatePicker = memo<{

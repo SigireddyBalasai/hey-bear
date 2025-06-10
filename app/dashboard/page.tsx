@@ -26,11 +26,7 @@ import {
 } from '@/components/ui/select';
 import { handleError } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-interface Assistant {
-  id: string;
-  name: string;
-}
+import { DashboardAssistant } from '@/types/app.types';
 
 const ConciergeInteractionDashboard = () => {
   const searchParams = useSearchParams();
@@ -59,8 +55,8 @@ const ConciergeInteractionDashboard = () => {
   const [activeTab, setActiveTab] = useState('table');
   const [showFilters, setShowFilters] = useState(false);
   const [assistantName, setAssistantName] = useState('');
-  const [availableAssistants, setAvailableAssistants] = useState<Assistant[]>([]);
-  const [specificAssistant, setSpecificAssistant] = useState<Assistant | null>(null);
+  const [availableAssistants, setAvailableAssistants] = useState<DashboardAssistant[]>([]);
+  const [specificAssistant, setSpecificAssistant] = useState<DashboardAssistant | null>(null);
 
   const supabase = createClient();
 

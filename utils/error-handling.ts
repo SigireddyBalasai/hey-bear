@@ -4,15 +4,7 @@ import { toast } from 'sonner';
  * Standardized error handling utilities
  * Consolidates the repetitive error handling patterns found across the codebase
  */
-
-export interface ErrorHandlerOptions {
-  showToast?: boolean;
-  toastTitle?: string;
-  logError?: boolean;
-  fallbackMessage?: string;
-  context?: string;
-  onError?: (error: Error) => void;
-}
+import { ErrorHandlerOptions } from '@/types/app.types';
 
 /**
  * Generic error handler that can display toast notifications and log errors
