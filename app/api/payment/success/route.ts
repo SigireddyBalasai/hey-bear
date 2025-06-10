@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   let sessionId = 'unknown';
 
-  if (!request || !request.body || !request.headers || !request.json()) {
+  if (!request || !request.body || !request.headers) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 

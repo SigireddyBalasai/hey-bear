@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-
 import {
   AlertCircle,
   ArrowUpDown,
@@ -42,6 +41,7 @@ import {
 } from '@/components/ui/table';
 
 import { UserDetailModal } from './UserDetailModal';
+import type { UserUsageStats, UserUsageTableProps } from '@/types/components/admin-dashboard.types';
 
 // Get initials (moved to outer scope)
 const getInitials = (name?: string | null) => {
@@ -73,26 +73,6 @@ const formatDate = (dateStr?: string | null) => {
     return { short: 'Invalid date', year: '' };
   }
 };
-
-// Define a type for the user stats directly
-interface UserUsageStats {
-  id?: string;
-  user_id?: string;
-  users?: {
-    full_name?: string | null;
-    email?: string | null;
-    created_at?: string | null;
-    last_active?: string | null;
-  };
-  date?: string | null;
-  message_count?: number;
-  token_usage?: number;
-  cost_estimate?: number;
-}
-
-interface UserUsageTableProps {
-  usageData: UserUsageStats[];
-}
 
 export function UserUsageTable({ usageData }: UserUsageTableProps) {
   const [searchTerm, setSearchTerm] = useState('');

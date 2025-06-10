@@ -1,26 +1,7 @@
 import Stripe from 'stripe';
+import type { SessionData } from '@/types/components/admin-dashboard.types';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-export interface AssistantData {
-  name: string;
-  description?: string;
-  concierge_name?: string;
-  personality?: string;
-  business_name?: string;
-  business_phone?: string;
-  share_phone_number?: boolean;
-  display_name?: string;
-}
-
-export interface SessionData {
-  assistantData: AssistantData;
-  customerId: string;
-  userId: string;
-  authUserId: string;
-  createdAt: string;
-  expiresAt: string;
-}
 
 export async function createStripeSessionWithData(
   customerId: string,

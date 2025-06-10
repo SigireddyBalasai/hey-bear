@@ -4,65 +4,9 @@ import React, { createContext, useCallback, useContext, useMemo, useRef, useStat
 import type { ReactNode } from 'react';
 
 import { useLoadingState } from '@/hooks/useLoadingState';
-import type { Database } from '@/types/db.types';
+import type { RawInteractionData, StatsType, FilterOptions, Interaction, CacheEntry, InteractionCache, FetchParams } from '@/types/components/admin-dashboard.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-// Use the database types for interactions
-type Interaction = Database['public']['Tables']['interactions']['Row'];
-
-// Interface for raw interaction data from API responses
-// This interface exactly matches the database schema for the interactions table
-interface RawInteractionData {
-  id: string;
-  request: string;
-  response: string;
-  assistant_id: string | null;
-  chat: string | null;
-  cost_estimate: number | null;
-  created_at: string | null;
-  duration: number | null;
-  input_tokens: number | null;
-  interaction_time: string | null;
-  is_error: boolean | null;
-  monthly_period: string | null;
-  output_tokens: number | null;
-  token_usage: number | null;
-  updated_at: string | null;
-  user_id: string | null;
-}
-
-interface StatsType {
-  totalInteractions: number;
-  activeContacts: number;
-  interactionsPerContact: number;
-  averageResponseTime: string;
-}
-
-// Enhanced filter interface
-interface FilterOptions {
-  fromDate?: string;
-  toDate?: string;
-  assistantId?: string | null;
-  searchTerm?: string;
-}
-
-// Enhanced fetch params interface
-interface FetchParams {
-  page?: number;
-  pageSize?: number;
-  searchTerm?: string;
-  assistantId?: string | null | undefined;
-}
-
-// Cache entry interface for better typing
-interface CacheEntry {
-  data: Interaction[];
-  timestamp: number;
-}
-
-// Cache map type for better type safety
-type InteractionCache = Map<string, CacheEntry>;
 
 // Data validation utilities with proper typing
 const isValidString = (value: unknown): value is string =>

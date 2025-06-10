@@ -15,7 +15,6 @@ import {
   Title,
   Tooltip,
 } from 'chart.js';
-import type { TooltipItem } from 'chart.js';
 import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -28,6 +27,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminAuth } from '@/hooks/useAuth';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
+import type {
+  UserUsageStats,
+  ChartData,
+  ChartOptions,
+  TimeSeriesDataPoint,
+  DashboardStats
+} from '@/types/components/admin-dashboard.types';
 
 ChartJS.register(
   CategoryScale,
@@ -40,85 +46,6 @@ ChartJS.register(
   Legend,
   Filler
 );
-
-// Define UserUsageStats interface (similar to the one in UserUsageTable.tsx)
-interface UserUsageStats {
-  id: string; // Assuming user ID is a string (e.g., UUID)
-  user_id: string;
-  users?: {
-    full_name?: string | null;
-    email?: string | null;
-    created_at?: string | null; // Added created_at
-    last_active?: string | null;
-  };
-  date?: string | null; // Can be last_active or a relevant date for the stats
-  message_count: number;
-  token_usage: number;
-  cost_estimate: number;
-}
-
-interface ChartDataset {
-  label: string;
-  data: number[];
-  borderColor: string;
-  backgroundColor: string;
-  tension?: number;
-  fill?: boolean;
-}
-
-interface ChartData {
-  labels: string[];
-  datasets: ChartDataset[];
-}
-
-interface ChartOptions {
-  responsive: boolean;
-  maintainAspectRatio: boolean;
-  scales: {
-    y: {
-      beginAtZero: boolean;
-      ticks?: {
-        callback?: (value: string | number) => string; // Adjusted value type
-      };
-    };
-  };
-  plugins: {
-    legend: {
-      position: 'top' | 'bottom' | 'left' | 'right';
-    };
-    tooltip?: {
-      callbacks?: {
-        label?: (context: TooltipItem<'line'> | TooltipItem<'bar'>) => string;
-      };
-    };
-  };
-}
-
-interface TimeSeriesDataPoint {
-  date: string;
-  interactions: number;
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-  costs: number;
-  errors: number;
-}
-
-interface DashboardStats {
-  users: {
-    total: number;
-    activeToday: number;
-    activeThisWeek: number;
-  };
-  interactions: {
-    total: number;
-    totalTokens: number;
-    costEstimate: number;
-    errorRate: number;
-  };
-  timeSeriesData: TimeSeriesDataPoint[];
-  userUsage: UserUsageStats[]; // Added field for user-specific usage stats
-}
 
 function Dashboard() {
   const { user, isAdmin, isLoading } = useAdminAuth();
