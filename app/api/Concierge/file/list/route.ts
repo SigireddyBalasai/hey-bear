@@ -7,6 +7,7 @@ import { getPineconeClient } from '@/lib/pinecone';
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
+import type { ListFilesRequest } from '@/types/components/shared-interfaces';
 
 // Use Supabase database types directly
 type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
@@ -16,12 +17,6 @@ type AssistantRow = Database['public']['Tables']['assistants']['Row'];
 type AssistantWithConfig = AssistantRow & {
   assistant_configs: AssistantConfigRow; // Non-nullable due to the inner join
 };
-
-// Request body interface using proper naming
-interface ListFilesRequest {
-  assistantId?: string;
-  pinecone_name?: string;
-}
 
 export const POST = requireAuth(async (context, req: NextRequest) => {
   try {

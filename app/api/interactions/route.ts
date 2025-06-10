@@ -3,17 +3,7 @@ import type { NextRequest } from 'next/server';
 
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-
-interface InteractionRequest {
-  assistantId: string;
-  chat: string | null;
-  request: string;
-  response: string;
-  tokenUsage?: number;
-  costEstimate?: number;
-  duration?: number;
-  isError?: boolean;
-}
+import type { InteractionRequest } from '@/types/components/shared-interfaces';
 
 export const POST = requireAuth(async (context, request: NextRequest) => {
   const supabase = await createClient();

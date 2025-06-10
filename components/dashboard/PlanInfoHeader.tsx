@@ -6,23 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-interface PlanInfoHeaderProps {
-  planType: string;
-  isLoading: boolean;
-  /**
-   * Optional link for upgrading plan
-   */
-  upgradePath?: string;
-  /**
-   * Optional callback for upgrading plan
-   */
-  onUpgrade?: () => void;
-  /**
-   * Optional display variant
-   */
-  variant?: 'default' | 'compact' | 'badge';
-}
+import type { PlanInfoHeaderProps } from '@/types/components/shared-interfaces';
 
 /**
  * Component for displaying the plan type information

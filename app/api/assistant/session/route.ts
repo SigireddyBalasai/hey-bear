@@ -2,20 +2,10 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { requireAuth } from '@/utils/auth-utils';
+import type { AssistantSessionData } from '@/types/components/shared-interfaces';
 
 // Debug: Log that this module is being loaded
 console.log('[SESSION API] Module loaded at:', new Date().toISOString());
-
-// Define the assistant data interface
-interface AssistantSessionData {
-  name: string;
-  description?: string;
-  conciergeName: string;
-  personality: string;
-  businessName: string;
-  sharePhoneNumber: boolean;
-  phoneNumber: string;
-}
 
 // In-memory storage for temporary session data
 const sessionStore = new Map<

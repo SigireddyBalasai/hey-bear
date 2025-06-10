@@ -4,19 +4,10 @@ import { NextResponse } from 'next/server';
 
 import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server';
+import type { InteractionWebhookPayload } from '@/types/components/shared-interfaces';
 
 // Types for DB operations
 type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];
-
-// Define the expected structure for the incoming interaction data
-interface InteractionWebhookPayload {
-  assistant_id?: string;
-  user_id?: string;
-  request_data: string; // Maps to 'request' in the interactions table
-  response_data: string; // Maps to 'response' in the interactions table
-  chat_id?: string; // Optional: maps to 'chat' in the interactions table
-  // Add any other relevant fields you expect from the webhook
-}
 
 // This endpoint handles webhook events for interactions
 export async function POST(req: Request) {

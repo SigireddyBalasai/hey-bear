@@ -10,7 +10,8 @@ import { UserCircle } from 'lucide-react';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import { showInfo, showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
+import type { UserState, AssistantConfig } from '@/types/components/shared-interfaces';
+import type { NormalizedAssistantData } from '@/types/components/shared-interfaces';
 import { AssistantList } from '../../components/concierge/AssistantList';
 import { CreateAssistantDialog } from '../../components/concierge/CreateAssistantDialog';
 import { EmptyState } from '../../components/concierge/EmptyState';
@@ -30,38 +31,7 @@ const getUrlParameter = (name: string): string | null => {
   return new URLSearchParams(globalThis.location.search).get(name);
 };
 
-// Prefix Tables import with underscore since we're not using it directly
-
-interface UserState {
-  id: string;
-  user_metadata?: {
-    name?: string;
-    avatar_url?: string;
-  };
-}
-
-type AssistantConfig = {
-  description?: string;
-  business_phone?: string | null;
-} | null;
-
-interface NormalizedAssistantData {
-  assistant: {
-    id: string;
-    name: string;
-    is_starred?: boolean;
-    created_at: string;
-    assigned_phone_number?: string | null;
-    pending?: boolean;
-  };
-  config?: AssistantConfig;
-  subscription?: unknown;
-  usageLimits?: unknown;
-  activity?: unknown;
-  interactions_count: number;
-  last_interaction_at: string | null;
-}
-
+// Define type for assistants with non-nullable fields
 type AssistantWithNonNullableFields = Omit<NormalizedAssistantData, 'assistant' | 'config'> & {
   assistant: {
     id: string;
@@ -72,14 +42,13 @@ type AssistantWithNonNullableFields = Omit<NormalizedAssistantData, 'assistant' 
     pending?: boolean;
   };
   config?: AssistantConfig;
+  last_interaction_at: string | null;
 };
 
 export default function AssistantsPage() {
   const [user, setUser] = useState<UserState | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [normalizedAssistants, setNormalizedAssistants] = useState<
-    AssistantWithNonNullableFields[]
-  >([]);
+  const [normalizedAssistants, setNormalizedAssistants] = useState<AssistantWithNonNullableFields[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const { isLoading, setIsLoading } = useLoadingState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -128,7 +97,7 @@ export default function AssistantsPage() {
         }
 
         // Update local state after successful deletion
-        setNormalizedAssistants(prev => prev.filter(a => a.assistant.id !== assistantId));
+        setNormalizedAssistants((prev: AssistantWithNonNullableFields[]) => prev.filter((a: AssistantWithNonNullableFields) => a.assistant.id !== assistantId));
 
         showSuccess('Assistant deleted', `${assistantToDelete.assistant.name} has been removed`);
       },

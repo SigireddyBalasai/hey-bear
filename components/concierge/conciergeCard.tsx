@@ -32,28 +32,7 @@ import { cn } from '@/lib/utils';
 import { getDashboardUrl } from '@/utils/dashboard-urls';
 import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-// Define a clean interface for the assistant data
-export interface AssistantCardData {
-  id: string;
-  name: string;
-  is_starred: boolean;
-  created_at?: string;
-  description?: string;
-  has_phone_number?: boolean;
-  subscription_plan?: 'personal' | 'business';
-  total_messages?: number;
-  last_used_at?: string;
-}
-
-interface AssistantCardProps {
-  assistant: AssistantCardData;
-  isLoading?: boolean;
-  isActionInProgress?: boolean;
-  onToggleStar?: (id: string, isStarred: boolean) => void;
-  onDelete?: (id: string) => void;
-  onUpgrade?: (id: string) => void;
-}
+import type { AssistantCardProps } from '@/types/components/shared-interfaces';
 
 export function AssistantCard({
   assistant,

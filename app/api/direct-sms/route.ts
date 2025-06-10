@@ -5,13 +5,7 @@ import twilio from 'twilio';
 
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-
-// Interface for request body
-interface DirectSMSRequest {
-  to: string;
-  message: string;
-  assistantId?: string;
-}
+import type { DirectSMSRequest } from '@/types/components/shared-interfaces';
 
 export const POST = requireAuth(async (_context, request: NextRequest) => {
   try {

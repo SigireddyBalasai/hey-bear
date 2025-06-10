@@ -6,19 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-
-interface RequestBody {
-  business_name: string;
-  business_phone?: string;
-  concierge_name: string;
-  description?: string;
-  display_name: string;
-  pinecone_name?: string;
-  share_phone_number?: boolean;
-  system_prompt?: string;
-  plan_id: string;
-  customer_email?: string;
-}
+import type { RequestBody } from '@/types/components/shared-interfaces';
 
 export const GET = requireAuth(async (context, req: NextRequest) => {
   try {

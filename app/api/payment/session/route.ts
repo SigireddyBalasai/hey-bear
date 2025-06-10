@@ -3,27 +3,8 @@ import { NextResponse } from 'next/server';
 
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
+import type { PaymentSessionData } from '@/types/components/shared-interfaces';
 
-interface PaymentSessionData {
-  sessionId: string;
-  userId: string;
-  stripeCustomerId: string;
-  assistantName: string;
-  assistantDescription?: string;
-  conciergeName: string;
-  personality?: string;
-  businessName: string;
-  businessPhone?: string;
-  sharePhoneNumber?: boolean;
-  displayName?: string;
-  planType?: string;
-  paymentStatus?: string;
-  sessionStatus?: string;
-  amountTotal?: number;
-  currency?: string;
-}
-
-// Store payment session data
 export const POST = requireAuth(async (context, request: NextRequest) => {
   try {
     const supabase = await createClient();
