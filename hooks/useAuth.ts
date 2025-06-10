@@ -8,9 +8,9 @@ import { useRouter } from 'next/navigation';
 
 import type { User } from '@supabase/supabase-js';
 
+import { UseAdminAuthResult } from '@/types/app.types';
 import { getAuthenticatedUser, requireAdminAuthentication } from '@/utils/auth-utils';
 import { showWarning } from '@/utils/error-handling';
-import { UseAdminAuthResult } from '@/types/app.types';
 
 /**
  * Custom hook for admin authentication check

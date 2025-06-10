@@ -4,7 +4,7 @@ import { toast } from 'sonner';
  * Standardized error handling utilities
  * Consolidates the repetitive error handling patterns found across the codebase
  */
-import { ErrorHandlerOptions } from '@/types/app.types';
+import type { ErrorHandlerOptions } from '@/types/app.types';
 
 /**
  * Generic error handler that can display toast notifications and log errors

@@ -10,10 +10,10 @@ import { BarChart3, Bot, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { DashboardAssistant } from '@/types/app.types';
 import { getDashboardUrl } from '@/utils/dashboard-urls';
 import { handleError } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import { DashboardAssistant } from '@/types/app.types';
 
 export const AssistantSelection = () => {
   const [assistants, setAssistants] = useState<DashboardAssistant[]>([]);

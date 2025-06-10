@@ -21,9 +21,9 @@ import { Card, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
+import type { AssistantListProps } from '@/types/app.types';
 import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import { AssistantData, AssistantListProps } from '@/types/app.types';
 
 export function AssistantList({
   assistant,

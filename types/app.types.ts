@@ -1,3 +1,7 @@
+import type { User } from '@supabase/supabase-js';
+
+import type { Database } from '@/types/db.types';
+
 // This file will contain various TypeScript types and interfaces used throughout the application.
 // Add new types and interfaces here as needed.
 
@@ -37,8 +41,6 @@ export interface AssistantWithRelations {
   config: AssistantConfig | null;
   usageLimits: AssistantUsageLimits | null;
 }
-
-import type { Database } from '@/types/db.types';
 
 // Database types
 export type AssistantRow = Database['public']['Tables']['assistants']['Row'];
@@ -124,8 +126,6 @@ export interface DashboardData {
     totalCost: number;
   };
 }
-
-import type { User } from '@supabase/supabase-js';
 
 export interface UseAdminAuthResult {
   user: User | null;

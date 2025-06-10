@@ -24,9 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { DashboardAssistant } from '@/types/app.types';
 import { handleError } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import { DashboardAssistant } from '@/types/app.types';
 
 const ConciergeInteractionDashboard = () => {
   const searchParams = useSearchParams();

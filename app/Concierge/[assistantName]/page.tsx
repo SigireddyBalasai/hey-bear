@@ -40,12 +40,11 @@ import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
-import type { Database } from '@/types/db.types';
-import {
-  AssistantWithRelations,
-  AssistantRow,
+import type {
   AssistantConfig,
+  AssistantRow,
   AssistantUsageLimits,
+  AssistantWithRelations,
 } from '@/types/app.types';
 import { handleError, showSuccess } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';

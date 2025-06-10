@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLoadingState } from '@/hooks/useLoadingState';
+import type { InteractionLogProps, TransformedInteraction } from '@/types/app.types';
 import type { Database } from '@/types/db.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { formatPhoneNumber } from '@/utils/phone-utils';
@@ -43,7 +44,6 @@ import { useData } from './DataContext';
 
 // Database types
 type InteractionRow = Database['public']['Tables']['interactions']['Row'];
-import { TransformedInteraction, InteractionLogProps } from '@/types/app.types';
 
 // Memoized sub-components
 const SortableHeader = memo<{

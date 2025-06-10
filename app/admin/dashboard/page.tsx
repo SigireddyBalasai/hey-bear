@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminAuth } from '@/hooks/useAuth';
-import { DashboardData, UsageChartItem } from '@/types/app.types';
+import type { DashboardData, UsageChartItem } from '@/types/app.types';
 import { withErrorHandling } from '@/utils/error-handling';
 
 ChartJS.register(
