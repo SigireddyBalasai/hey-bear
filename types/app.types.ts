@@ -115,7 +115,7 @@ export type UsageChartItem = {
 };
 
 export interface DashboardData {
-  usageChart: Array<UsageChartItem>;
+  usageChart: UsageChartItem[];
   users?: {
     total: number;
     activeToday: number;

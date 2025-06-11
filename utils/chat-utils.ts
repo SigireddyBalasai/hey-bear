@@ -51,7 +51,7 @@ export const isChatDirection = (
  * @returns Number of messages matching the specified direction
  */
 export const countChatsByDirection = (
-  data: { chat?: Json | null }[],
+  data: Array<{ chat?: Json | null }>,
   direction: 'incoming' | 'outgoing'
 ): number => {
   if (!data || !Array.isArray(data)) return 0;

@@ -31,7 +31,7 @@ export async function authenticate(requireAdmin: boolean = false): Promise<AuthR
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError) {
+    if (authError !== null) {
       return {
         success: false,
         user: null,
@@ -44,7 +44,7 @@ export async function authenticate(requireAdmin: boolean = false): Promise<AuthR
       };
     }
 
-    if (!user) {
+    if (user === null) {
       return {
         success: false,
         user: null,
@@ -54,7 +54,6 @@ export async function authenticate(requireAdmin: boolean = false): Promise<AuthR
       };
     }
 
-    // Check admin status using database role
     const { data: adminCheck, error: adminError } = await supabase.rpc('is_admin');
 
     if (adminError) {
@@ -114,11 +113,18 @@ export function requireAuth(
     const authResult = await authenticate(false);
 
     if (!authResult.success) {
-      return authResult.response!;
+      if (!authResult.response) {
+        return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+      }
+      return authResult.response;
+    }
+
+    if (!authResult.user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 });
     }
 
     const context: AuthContext = {
-      user: authResult.user!,
+      user: authResult.user,
       isAdmin: authResult.isAdmin,
     };
 
@@ -137,11 +143,18 @@ export function requireAdmin(
     const authResult = await authenticate(true);
 
     if (!authResult.success) {
-      return authResult.response!;
+      if (!authResult.response) {
+        return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+      }
+      return authResult.response;
+    }
+
+    if (!authResult.user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 });
     }
 
     const context: AuthContext = {
-      user: authResult.user!,
+      user: authResult.user,
       isAdmin: authResult.isAdmin,
     };
 
@@ -157,11 +170,18 @@ export async function getAuthContext(requireAdmin: boolean = false): Promise<Aut
   const authResult = await authenticate(requireAdmin);
 
   if (!authResult.success) {
-    throw authResult.response!;
+    if (!authResult.response) {
+      throw NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+    }
+    throw authResult.response;
+  }
+
+  if (!authResult.user) {
+    throw NextResponse.json({ error: 'User not found' }, { status: 401 });
   }
 
   return {
-    user: authResult.user!,
+    user: authResult.user,
     isAdmin: authResult.isAdmin,
   };
 }

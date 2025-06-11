@@ -86,7 +86,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const [user, setUser] = useState<{ user_metadata?: { avatar_url?: string } } | null>(null);
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<
-    { role: string; content: string; timestamp: string }[]
+    Array<{ role: string; content: string; timestamp: string }>
   >([]);
   const [file, setFile] = useState<File | null>(null);
   const [isChatDisabled, setIsChatDisabled] = useState(true);

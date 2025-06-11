@@ -100,10 +100,10 @@ export default function UsageAnalyticsPage() {
   const [selectedModel, setSelectedModel] = useState('all');
   const [selectedAssistant, setSelectedAssistant] = useState('all');
   const [selectedPlan, setSelectedPlan] = useState('all');
-  const [assistants, setAssistants] = useState<{ id: string; name: string }[]>([]);
+  const [assistants, setAssistants] = useState<Array<{ id: string; name: string }>>([]);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesDataPoint[]>([]);
   const [tokenDistribution, setTokenDistribution] = useState<
-    { type: string; tokens: number; percentage: number }[]
+    Array<{ type: string; tokens: number; percentage: number }>
   >([]);
   const [userStats, setUserStats] = useState<UserStat[]>([]);
   const [totalStats, setTotalStats] = useState({

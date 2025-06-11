@@ -4,18 +4,19 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import type { Database } from "@/types/db.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const createClient = async () => {
+export const createClient = async (): Promise<SupabaseClient<Database>> => {
   const cookieStore = await cookies();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl) {
+  if (!supabaseUrl?.trim()) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
   }
 
-  if (!supabaseAnonKey) {
+  if (!supabaseAnonKey?.trim()) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
   }
 
