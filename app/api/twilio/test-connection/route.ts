@@ -4,14 +4,10 @@ import type { NextRequest } from 'next/server';
 import twilio from 'twilio';
 import type { AccountInstance } from 'twilio/lib/rest/api/v2010/account';
 
-import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
+import { requireAdmin } from '@/utils/auth-utils';
+import type { TestConnectionRequest } from '@/types/consolidated-interfaces';
 
-interface TestConnectionRequest {
-  accountSid: string;
-  authToken: string;
-}
-
-export const POST = requireAdmin(async (context: AuthContext, req: NextRequest) => {
+export const POST = requireAdmin(async (context, req: NextRequest) => {
   try {
     // Get credentials from request body
     const { accountSid, authToken } = (await req.json()) as TestConnectionRequest;

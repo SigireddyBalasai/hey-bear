@@ -11,14 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-interface FileErrorDialogProps {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  description: string;
-  details?: string;
-}
+import type { FileErrorDialogProps } from '@/types/consolidated-interfaces';
 
 export function FileErrorDialog({
   open,

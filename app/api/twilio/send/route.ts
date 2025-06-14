@@ -5,12 +5,7 @@ import type { MessageInstance } from 'twilio/lib/rest/api/v2010/account/message'
 
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-
-interface SendMessageRequest {
-  to: string;
-  message: string;
-  assistantId: string;
-}
+import type { SendMessageRequest } from '@/types/consolidated-interfaces';
 
 export const POST = requireAuth(async (context, req: Request) => {
   try {

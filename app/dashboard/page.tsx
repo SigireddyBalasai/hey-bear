@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { DashboardAssistant } from '@/types/app.types';
+import type { DashboardAssistant } from '@/types/assistant.types';
 import { handleError } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 

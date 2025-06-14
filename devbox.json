@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.14.2/.schema/devbox.schema.json",
+  "packages": ["pnpm@latest", "nodejs@latest", "supabase-cli@latest"],
+  "shell": {
+    "init_hook": ["echo 'Welcome to devbox!' > /dev/null", "pnpm install"],
+    "scripts": {
+      "test": ["echo \"Error: no test specified\" && exit 1"]
+    }
+  }
+}

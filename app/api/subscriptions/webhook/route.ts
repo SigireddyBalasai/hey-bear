@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 
+import type { InteractionWebhookPayload } from '@/types/api.types';
 // Re-added Supabase client
 
 import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server';
-import type { InteractionWebhookPayload } from '@/types/components/shared-interfaces';
 
 // Types for DB operations
 type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];

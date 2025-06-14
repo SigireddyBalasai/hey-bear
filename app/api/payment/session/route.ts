@@ -1,9 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import type { PaymentSessionData } from '@/types/api.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { PaymentSessionData } from '@/types/components/shared-interfaces';
 
 export const POST = requireAuth(async (context, request: NextRequest) => {
   try {

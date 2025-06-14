@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getPineconeClient } from '@/lib/pinecone';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
+import type { FirecrawlTaskResponse, FirecrawlCrawlResponse, RequestBody, ErrorData, FirecrawlResult } from '@/types/consolidated-interfaces';
 
 // Create a logger function for consistent log formatting
 const logger = {
@@ -45,64 +46,6 @@ const logger = {
 export const maxDuration = 60;
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const FIRECRAWL_BASE_URL = 'https://34.30.131.11:11235';
-
-// Define types for Firecrawl responses based on the observed response structure
-interface FirecrawlTaskResponse {
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  created_at: number;
-  result?: FirecrawlResult;
-  results?: FirecrawlResult[]; // Added to handle results array format
-}
-
-interface FirecrawlCrawlResponse {
-  task_id: string;
-}
-
-interface RequestBody {
-  assistantId: string;
-  pinecone_name: string;
-  url: string;
-}
-
-interface ErrorData {
-  detail?: string;
-  message?: string;
-}
-
-interface FirecrawlResult {
-  url: string;
-  html?: string;
-  cleaned_html?: string;
-  markdown?: string;
-  markdown_v2?: {
-    raw_markdown: string;
-    markdown_with_citations: string;
-    references_markdown: string;
-    fit_markdown: string;
-    fit_html: string;
-  };
-  media?: {
-    images: unknown[];
-    videos: unknown[];
-    audios: unknown[];
-  };
-  links?: {
-    internal: unknown[];
-    external: Array<{
-      href: string;
-      text: string;
-      title: string;
-    }>;
-  };
-  metadata?: {
-    title?: string;
-    description?: string;
-    author?: string | null;
-  };
-  success: boolean;
-  error_message?: string;
-  status_code?: number;
-}
 
 // Make HTTP request with enhanced logging
 const fetchWithLogging = async (url: string, options: RequestInit) => {

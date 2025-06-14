@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
+import { requireAdmin } from '@/utils/auth-utils';
+import type { UpdateSettingsRequest } from '@/types/consolidated-interfaces';
 
 // Define the settings object type
 type TwilioSettings = {
@@ -13,12 +14,8 @@ type TwilioSettings = {
   voiceEnabled: boolean;
 };
 
-interface UpdateSettingsRequest {
-  settings: TwilioSettings;
-}
-
 // Get current settings
-export const GET = requireAdmin(async (_context: AuthContext, _req: NextRequest) => {
+export const GET = requireAdmin(async (_context, _req: NextRequest) => {
   try {
     const settings: TwilioSettings = {
       accountSid: process.env.TWILIO_ACCOUNT_SID ?? '',
@@ -48,7 +45,7 @@ export const GET = requireAdmin(async (_context: AuthContext, _req: NextRequest)
 });
 
 // Update settings
-export const POST = requireAdmin(async (context: AuthContext, req: NextRequest) => {
+export const POST = requireAdmin(async (context, req: NextRequest) => {
   try {
     // Get settings from request body
     const { settings } = (await req.json()) as UpdateSettingsRequest;

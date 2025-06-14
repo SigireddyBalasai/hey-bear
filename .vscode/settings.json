@@ -1,31 +1,13 @@
 {
-  "IDX.aI.enableCodebaseIndexing": true,
-  "IDX.aI.enableInlineCompletion": true,
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "deno.enablePaths": [
-    "supabase/functions"
-  ],
-  "deno.lint": true,
-  "deno.unstable": [
-    "bare-node-builtins",
-    "byonm",
-    "sloppy-imports",
-    "unsafe-proto",
-    "webgpu",
-    "broadcast-channel",
-    "worker-options",
-    "cron",
-    "kv",
-    "ffi",
-    "fs",
-    "http",
-    "net"
-  ],
   "files.watcherExclude": {
     "**/.git/objects/**": true,
     "**/node_modules/**": true
-  }
+  },
+  "terminal.integrated.profiles.linux": {
+    "devbox": {
+      "path": "devbox",
+      "args": ["shell"],
+    }
+  },
 }

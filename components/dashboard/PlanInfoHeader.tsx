@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { PlanInfoHeaderProps } from '@/types/components/shared-interfaces';
+import type { PlanInfoHeaderProps } from '@/types/assistant.types';
 
 /**
  * Component for displaying the plan type information

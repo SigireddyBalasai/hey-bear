@@ -4,28 +4,10 @@ import twilio from 'twilio';
 import type { LocalInstance } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
 
 import { requireAdmin } from '@/utils/auth-utils';
-
-// Interface for request body
-interface AreaCodeRequest {
-  country?: string;
-}
+import type { AreaCodeRequest, AreaCodeInfo } from '@/types/consolidated-interfaces';
 
 // Use Twilio SDK type instead of custom interface
 type TwilioPhoneNumber = LocalInstance;
-
-// Interface for area code response
-interface AreaCodeInfo {
-  areaCode: string;
-  region: string;
-  country: string;
-  phoneNumber: string;
-  capabilities: {
-    voice?: boolean;
-    SMS?: boolean;
-    MMS?: boolean;
-    fax?: boolean;
-  };
-}
 
 // Simplified API that returns flat area code data for the UI to sort and group
 export const POST = requireAdmin(async (context, request) => {

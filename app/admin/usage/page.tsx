@@ -57,18 +57,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAdminAuth } from '@/hooks/useAuth';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-interface UserStat {
-  userId: string;
-  interactions: number;
-  tokens: number;
-  costs: number;
-  lastActive: string | null;
-  email?: string;
-  fullName?: string;
-  inputTokens: number;
-  outputTokens: number;
-}
+import type { UserStat, TimeSeriesDataPoint } from '@/types/consolidated-interfaces';
 
 ChartJS.register(
   CategoryScale,
@@ -82,17 +71,6 @@ ChartJS.register(
   Legend,
   Filler
 );
-
-interface TimeSeriesDataPoint {
-  date: string;
-  interactions: number;
-  tokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  costs: number;
-  activeUsers: number;
-  errors: number;
-}
 
 export default function UsageAnalyticsPage() {
   const { user, isAdmin, isLoading } = useAdminAuth();

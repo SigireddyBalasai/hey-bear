@@ -60,7 +60,7 @@ import {
 import { useAdminAuth } from '@/hooks/useAuth';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
-import type { UserData } from '@/types/app.types';
+import type { UserData } from '@/types/auth.types';
 import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 

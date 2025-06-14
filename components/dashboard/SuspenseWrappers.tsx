@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Suspense } from 'react';
+import type { JSX } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 
 import { AlertTriangle, RefreshCw } from 'lucide-react';
@@ -9,9 +10,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { ErrorFallbackProps, SuspenseWrapperProps } from '@/types/consolidated-interfaces';
 
 // Loading fallback components
-export const InteractionLogSkeleton = () => (
+export const InteractionLogSkeleton = (): JSX.Element => (
   <div className="space-y-4">
     <div className="flex items-center justify-between">
       <Skeleton className="h-6 w-32" />
@@ -43,7 +45,7 @@ export const InteractionLogSkeleton = () => (
   </div>
 );
 
-export const StatCardSkeleton = () => (
+export const StatCardSkeleton = (): JSX.Element => (
   <Card>
     <CardHeader className="pb-2">
       <Skeleton className="h-4 w-32" />
@@ -55,7 +57,7 @@ export const StatCardSkeleton = () => (
   </Card>
 );
 
-export const PlanUsageSkeleton = () => (
+export const PlanUsageSkeleton = (): JSX.Element => (
   <div className="space-y-4">
     <div className="flex items-center justify-between">
       <Skeleton className="h-6 w-40" />
@@ -86,12 +88,6 @@ export const PlanUsageSkeleton = () => (
 );
 
 // Error fallback component
-interface ErrorFallbackProps {
-  error: Error;
-  resetErrorBoundary: () => void;
-  componentName?: string;
-}
-
 export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   error,
   resetErrorBoundary,
@@ -113,12 +109,6 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
 );
 
 // Suspense wrapper with error boundary
-interface SuspenseWrapperProps {
-  children: React.ReactNode;
-  fallback: React.ReactNode;
-  componentName?: string;
-}
-
 export const SuspenseWrapper: React.FC<SuspenseWrapperProps> = ({
   children,
   fallback,
@@ -151,7 +141,7 @@ export const PlanUsageSuspense: React.FC<{ children: React.ReactNode }> = ({ chi
 );
 
 // Generic dashboard loading skeleton
-export const DashboardSkeleton = () => (
+export const DashboardSkeleton = (): JSX.Element => (
   <div className="space-y-6 p-6">
     {/* Header */}
     <div className="flex items-center justify-between">

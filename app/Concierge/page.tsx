@@ -8,10 +8,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { UserCircle } from 'lucide-react';
 
 import { useLoadingState } from '@/hooks/useLoadingState';
+import type { NormalizedAssistantData, SimpleAssistantConfig } from '@/types/assistant.types';
+import type { UserState } from '@/types/auth.types';
 import { showInfo, showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import type { UserState, AssistantConfig } from '@/types/components/shared-interfaces';
-import type { NormalizedAssistantData } from '@/types/components/shared-interfaces';
+
 import { AssistantList } from '../../components/concierge/AssistantList';
 import { CreateAssistantDialog } from '../../components/concierge/CreateAssistantDialog';
 import { EmptyState } from '../../components/concierge/EmptyState';
@@ -41,14 +42,16 @@ type AssistantWithNonNullableFields = Omit<NormalizedAssistantData, 'assistant' 
     assigned_phone_number?: string | null;
     pending?: boolean;
   };
-  config?: AssistantConfig;
+  config?: SimpleAssistantConfig;
   last_interaction_at: string | null;
 };
 
 export default function AssistantsPage() {
   const [user, setUser] = useState<UserState | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [normalizedAssistants, setNormalizedAssistants] = useState<AssistantWithNonNullableFields[]>([]);
+  const [normalizedAssistants, setNormalizedAssistants] = useState<
+    AssistantWithNonNullableFields[]
+  >([]);
   const [searchQuery, setSearchQuery] = useState('');
   const { isLoading, setIsLoading } = useLoadingState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -97,7 +100,9 @@ export default function AssistantsPage() {
         }
 
         // Update local state after successful deletion
-        setNormalizedAssistants((prev: AssistantWithNonNullableFields[]) => prev.filter((a: AssistantWithNonNullableFields) => a.assistant.id !== assistantId));
+        setNormalizedAssistants((prev: AssistantWithNonNullableFields[]) =>
+          prev.filter((a: AssistantWithNonNullableFields) => a.assistant.id !== assistantId)
+        );
 
         showSuccess('Assistant deleted', `${assistantToDelete.assistant.name} has been removed`);
       },
@@ -182,7 +187,7 @@ export default function AssistantsPage() {
                 // Explicitly set default value for starred status
                 is_starred: assistant.is_starred ?? false,
               },
-              config: null as AssistantConfig,
+              config: null as SimpleAssistantConfig,
               subscription: undefined,
               usageLimits: undefined,
               activity: undefined,

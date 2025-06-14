@@ -3,10 +3,10 @@ import { NextResponse } from 'next/server';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import type { RequestBody } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { RequestBody } from '@/types/components/shared-interfaces';
 
 export const GET = requireAuth(async (context, req: NextRequest) => {
   try {

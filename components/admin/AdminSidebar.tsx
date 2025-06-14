@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -13,8 +13,9 @@ import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
+import type { SidebarLinkProps } from '@/types/consolidated-interfaces';
 
-interface SidebarLinkProps {
+interface LinkType {
   href: string;
   icon: React.ReactNode;
   label: string;
@@ -22,7 +23,7 @@ interface SidebarLinkProps {
   badge?: number | string;
 }
 
-function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
+function SidebarLink({ href, icon, label, active, badge }: LinkType) {
   return (
     <Link href={href} passHref>
       <Button
@@ -53,7 +54,7 @@ function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [userCount, setUserCount] = useState<number | null>(null);
+  const [userCount, setUserCount] = React.useState<number | null>(null);
   const { isLoading, setIsLoading } = useLoadingState(true);
 
   useEffect(() => {

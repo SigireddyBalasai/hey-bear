@@ -25,15 +25,15 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminAuth } from '@/hooks/useAuth';
-import { withErrorHandling } from '@/utils/error-handling';
-import { createClient } from '@/utils/supabase/client';
 import type {
-  UserUsageStats,
   ChartData,
   ChartOptions,
+  DashboardStats,
   TimeSeriesDataPoint,
-  DashboardStats
-} from '@/types/components/admin-dashboard.types';
+  UserUsageStats,
+} from '@/types/admin.types';
+import { withErrorHandling } from '@/utils/error-handling';
+import { createClient } from '@/utils/supabase/client';
 
 ChartJS.register(
   CategoryScale,

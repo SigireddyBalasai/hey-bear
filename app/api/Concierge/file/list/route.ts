@@ -4,10 +4,10 @@ import type { NextRequest } from 'next/server';
 import type { AssistantFilesList } from '@pinecone-database/pinecone';
 
 import { getPineconeClient } from '@/lib/pinecone';
+import type { ListFilesRequest } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { ListFilesRequest } from '@/types/components/shared-interfaces';
 
 // Use Supabase database types directly
 type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];

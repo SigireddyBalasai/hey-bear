@@ -1,5 +1,7 @@
+import type { Session } from 'inspector/promises';
 import Stripe from 'stripe';
-import type { SessionData } from '@/types/components/admin-dashboard.types';
+
+import type { SessionData } from '@/types/admin.types';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -16,17 +18,14 @@ export async function createStripeSessionWithData(
     customerId: data.customerId,
     createdAt: data.createdAt,
     expiresAt: data.expiresAt,
-
-    // Assistant data
     assistant_name: data.assistantData.name,
-    assistant_description: data.assistantData.description || '',
-    concierge_name: data.assistantData.concierge_name || '',
-    personality: data.assistantData.personality || '',
-    business_name: data.assistantData.business_name || '',
-    business_phone: data.assistantData.business_phone || '',
+    assistant_description: data.assistantData.description ? data.assistantData.description : '',
+    concierge_name: data.assistantData.concierge_name ? data.assistantData.concierge_name : '',
+    personality: data.assistantData.personality ? data.assistantData.personality : '',
+    business_name: data.assistantData.business_name ? data.assistantData.business_name : '',
+    business_phone: data.assistantData.business_phone ? data.assistantData.business_phone : '',
     share_phone_number: data.assistantData.share_phone_number ? 'true' : 'false',
-    display_name: data.assistantData.display_name || '',
-
+    display_name: data.assistantData.display_name ? data.assistantData.display_name : '',
     // Mark this as a pricing table session
     pricing_table_session: 'true',
   };
@@ -54,31 +53,25 @@ export async function createStripeSessionWithData(
 // Get session data from Stripe session metadata
 export async function getSessionData(sessionId: string): Promise<SessionData | null> {
   try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-    if (!session.metadata) {
-      return null;
-    }
-
-    const metadata = session.metadata;
+    const session: Stripe.Checkout.Session = await stripe.checkout.sessions.retrieve(sessionId);
+    const metadata: Session.Metadata = session.metadata;
 
     // Reconstruct the session data from metadata
     const sessionData: SessionData = {
       userId: metadata.userId,
       authUserId: metadata.authUserId,
-      customerId:
-        typeof session.customer === 'string' ? session.customer : session.customer?.id || '',
+      customerId: metadata.customerId,
       createdAt: metadata.createdAt,
       expiresAt: metadata.expiresAt,
       assistantData: {
         name: metadata.assistant_name,
-        description: metadata.assistant_description || undefined,
-        concierge_name: metadata.concierge_name || undefined,
-        personality: metadata.personality || undefined,
-        business_name: metadata.business_name || undefined,
-        business_phone: metadata.business_phone || undefined,
+        description: metadata.assistant_description,
+        concierge_name: metadata.concierge_name,
+        personality: metadata.personality,
+        business_name: metadata.business_name,
+        business_phone: metadata.business_phone,
         share_phone_number: metadata.share_phone_number === 'true',
-        display_name: metadata.display_name || undefined,
+        display_name: metadata.display_name,
       },
     };
 

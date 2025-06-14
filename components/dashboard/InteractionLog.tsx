@@ -34,8 +34,8 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLoadingState } from '@/hooks/useLoadingState';
-import type { InteractionLogProps, TransformedInteraction } from '@/types/app.types';
 import type { Database } from '@/types/db.types';
+import type { InteractionLogProps, TransformedInteraction } from '@/types/interaction.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { formatPhoneNumber } from '@/utils/phone-utils';
 import { createClient } from '@/utils/supabase/client';

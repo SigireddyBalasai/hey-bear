@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server';
 
 import twilio from 'twilio';
 
+import type { DirectSMSRequest } from '@/types/api.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { DirectSMSRequest } from '@/types/components/shared-interfaces';
 
 export const POST = requireAuth(async (_context, request: NextRequest) => {
   try {

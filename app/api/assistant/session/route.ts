@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import type { AssistantSessionData } from '@/types/api.types';
 import { requireAuth } from '@/utils/auth-utils';
-import type { AssistantSessionData } from '@/types/components/shared-interfaces';
 
 // Debug: Log that this module is being loaded
 console.log('[SESSION API] Module loaded at:', new Date().toISOString());

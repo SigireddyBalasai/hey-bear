@@ -5,39 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { UsageData, UsageMetric } from '@/types/usage.types';
-
-interface UsageDisplayProps {
-  title: string;
-  /**
-   * The usage data to display. Can be either UsageMetric (used/total) or UsageData (current/limit)
-   */
-  usage?: UsageMetric | UsageData;
-  /**
-   * Whether to show as a standalone component or wrapped in a Card
-   */
-  variant?: 'inline' | 'card';
-  /**
-   * Whether the component is loading data
-   */
-  isLoading?: boolean;
-  /**
-   * The threshold percentage at which to show warning color
-   */
-  dangerThreshold?: number;
-  /**
-   * Optional secondary info/description for card variant
-   */
-  description?: string;
-  /**
-   * Optional icon to display in card variant
-   */
-  icon?: React.ReactNode;
-  /**
-   * Custom class names for the component
-   */
-  className?: string;
-}
+import type { UsageDisplayProps } from '@/types/consolidated-interfaces';
 
 /**
  * A flexible component for displaying usage metrics

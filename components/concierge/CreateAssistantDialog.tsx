@@ -26,25 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import { handleError, showInfo, showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-
-interface CreateAssistantDialogProps {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  formData: {
-    name: string;
-    description: string;
-    conciergeName: string;
-    personality: string;
-    businessName: string;
-    sharePhoneNumber: boolean;
-    phoneNumber: string;
-    selectedPlan: string;
-  };
-  handleInputChange: (field: string, value: string | boolean) => void;
-  handleCreateAssistant: () => void;
-  isCreating: boolean;
-  userId?: string;
-}
+import type { CreateAssistantDialogProps } from '@/types/consolidated-interfaces';
 
 export function CreateAssistantDialog({
   open,

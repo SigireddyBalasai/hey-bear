@@ -4,7 +4,15 @@ import React, { createContext, useCallback, useContext, useMemo, useRef, useStat
 import type { ReactNode } from 'react';
 
 import { useLoadingState } from '@/hooks/useLoadingState';
-import type { RawInteractionData, StatsType, FilterOptions, Interaction, CacheEntry, InteractionCache, FetchParams } from '@/types/components/admin-dashboard.types';
+import type {
+  CacheEntry,
+  FetchParams,
+  FilterOptions,
+  Interaction,
+  InteractionCache,
+  RawInteractionData,
+  StatsType,
+} from '@/types/admin.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 

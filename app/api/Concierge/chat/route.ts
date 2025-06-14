@@ -2,9 +2,10 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { getPineconeClient } from '@/lib/pinecone';
+import type { ChatRequest } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server';
-import type { ChatRequest } from '@/types/components/shared-interfaces';
+import type { PineconeResponse } from '@/types/consolidated-interfaces';
 
 type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];
 
@@ -42,19 +43,6 @@ export async function POST(req: NextRequest) {
     }
 
     const pinecone = getPineconeClient();
-
-    // Type the Pinecone response
-    interface PineconeResponse {
-      message?: {
-        content?: string;
-      };
-      usage?: {
-        totalTokens?: number;
-        promptTokens?: number;
-        completionTokens?: number;
-      };
-      citations?: unknown;
-    }
 
     const assistant = pinecone.Assistant(pinecone_name);
 

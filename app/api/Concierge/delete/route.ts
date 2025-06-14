@@ -5,8 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { getPineconeClient } from '@/lib/pinecone';
 import { getStripeInstance } from '@/lib/stripe';
-import type { DeleteAssistantRequest } from '@/types/components/shared-interfaces';
-
+import type { DeleteAssistantRequest } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';

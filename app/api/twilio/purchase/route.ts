@@ -5,10 +5,7 @@ import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/acco
 
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-
-interface PurchasePhoneNumberRequest {
-  phoneNumber: string;
-}
+import type { PurchasePhoneNumberRequest } from '@/types/consolidated-interfaces';
 
 // Use Twilio SDK type instead of custom interface
 type TwilioPhoneNumber = IncomingPhoneNumberInstance;

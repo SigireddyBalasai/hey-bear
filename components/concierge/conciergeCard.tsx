@@ -29,10 +29,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
+import type { AssistantCardProps } from '@/types/assistant.types';
 import { getDashboardUrl } from '@/utils/dashboard-urls';
 import { showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import type { AssistantCardProps } from '@/types/components/shared-interfaces';
 
 export function AssistantCard({
   assistant,

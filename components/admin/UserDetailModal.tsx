@@ -13,30 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-
-// Define the type locally to avoid import issues
-interface UserUsageStats {
-  id?: string;
-  user_id?: string;
-  users?: {
-    full_name?: string | null;
-    email?: string | null;
-    created_at?: string | null;
-    last_active?: string | null;
-  };
-  date?: string | null;
-  message_count?: number;
-  token_usage?: number;
-  cost_estimate?: number;
-  total_messages?: number;
-  assistant_count?: number;
-}
-
-interface UserDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  userData: UserUsageStats | null;
-}
+import type { UserUsageStats, UserDetailModalProps } from '@/types/consolidated-interfaces';
 
 export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalProps) {
   if (!userData) return null;

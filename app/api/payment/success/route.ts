@@ -7,39 +7,8 @@ import type Stripe from 'stripe';
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
 import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server-admin';
+import type { CreateAssistantResult, WebhookPayload, AssistantConfigData } from '@/types/consolidated-interfaces';
 
-interface CreateAssistantResult {
-  message: string;
-  assistantId: string;
-  pendingAssistantId: string;
-}
-
-interface WebhookPayload {
-  id: string;
-  object: string;
-  api_version: string;
-  created: number;
-  data: {
-    object: Stripe.Checkout.Session;
-  };
-  livemode: boolean;
-  pending_webhooks: number;
-  request: {
-    id: string;
-    idempotency_key: string;
-  };
-  type: string;
-}
-
-interface AssistantConfigData {
-  display_name?: string;
-  business_name?: string;
-  description?: string;
-  concierge_name?: string;
-  business_phone?: string;
-}
-
-// Type for payment session record from database
 type PaymentSession = Database['public']['Tables']['payment_sessions']['Row'];
 type PaymentSessionUpdate = Database['public']['Tables']['payment_sessions']['Update'];
 

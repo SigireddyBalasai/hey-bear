@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 
 import type { User } from '@supabase/supabase-js';
 
-import { UseAdminAuthResult } from '@/types/app.types';
+import type { UseAdminAuthResult } from '@/types/auth.types';
 import { getAuthenticatedUser, requireAdminAuthentication } from '@/utils/auth-utils';
 import { showWarning } from '@/utils/error-handling';
 
@@ -32,7 +32,6 @@ export function useAdminAuth(): UseAdminAuthResult {
 
         if (!isAuthenticated || !user) {
           console.error('User not authenticated');
-          setUser(null);
           router.push('/sign-in');
           return;
         }

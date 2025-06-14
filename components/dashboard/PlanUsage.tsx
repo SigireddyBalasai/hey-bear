@@ -26,7 +26,7 @@ const PlanUsage = ({
   loading: propLoading,
   selectedAssistant: propSelectedAssistant,
   assistantSelectionDisabled = false,
-}: PlanUsageProps = {}) => {
+}: Partial<PlanUsageProps> = {}) => {
   const [planType, setPlanType] = useState<string>(propPlanType ?? 'Free');
   const [phoneNumbers, setPhoneNumbers] = useState(propPhoneNumbers || defaultUsageMetric);
   const [smsReceived, setSmsReceived] = useState(propSmsReceived || defaultUsageMetric);
@@ -393,6 +393,8 @@ const PlanUsage = ({
             planType={planType}
             isLoading={loading}
             upgradePath="/dashboard/billing"
+            onUpgrade={() => window.location.href = '/dashboard/billing'}
+            variant="default"
           />
         </CardHeader>
         <CardContent className="space-y-4">

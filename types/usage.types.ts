@@ -22,13 +22,13 @@ export interface Assistant {
 }
 
 export interface PlanUsageProps {
-  planType?: string;
-  phoneNumbers?: UsageMetric;
-  smsReceived?: UsageMetric;
-  smsSent?: UsageMetric;
-  loading?: boolean;
-  selectedAssistant?: string;
-  assistantSelectionDisabled?: boolean;
+  planType: string;
+  phoneNumbers: UsageMetric;
+  smsReceived: UsageMetric;
+  smsSent: UsageMetric;
+  loading: boolean;
+  selectedAssistant: string;
+  assistantSelectionDisabled: boolean;
 }
 
 export const defaultUsageMetric: UsageMetric = {

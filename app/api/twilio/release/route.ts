@@ -4,12 +4,7 @@ import twilio from 'twilio';
 
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-
-interface ReleasePhoneNumberRequest {
-  twilioSid?: string;
-  phoneNumber?: string;
-  adminId?: string;
-}
+import type { ReleasePhoneNumberRequest } from '@/types/consolidated-interfaces';
 
 // Initialize Twilio client
 const accountSid = process.env.TWILIO_ACCOUNT_SID;

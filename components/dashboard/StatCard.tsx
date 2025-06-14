@@ -4,23 +4,8 @@ import React, { memo, useCallback, useMemo } from 'react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { StatCardProps } from '@/types/consolidated-interfaces';
 
-export interface StatCardProps {
-  title: string;
-  value: string | number;
-  description: string;
-  isLoading?: boolean;
-  icon?: React.ReactNode;
-  trend?: {
-    value: number;
-    label: string;
-    isPositive: boolean;
-  };
-  formatter?: (value: string | number) => string;
-  className?: string;
-}
-
-// Memoized components for better performance
 const StatValue = memo<{
   value: string | number;
   formatter?: (value: string | number) => string;

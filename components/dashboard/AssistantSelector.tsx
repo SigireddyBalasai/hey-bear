@@ -8,14 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Assistant } from '@/types/usage.types';
-
-interface AssistantSelectorProps {
-  assistants: Assistant[];
-  selectedAssistant: string;
-  onAssistantChange: (value: string) => void;
-  isLoading: boolean;
-}
+import type { AssistantSelectorProps } from '@/types/consolidated-interfaces';
 
 /**
  * Component for selecting an assistant from a dropdown

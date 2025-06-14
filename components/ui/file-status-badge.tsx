@@ -1,14 +1,9 @@
 import { Loader2 } from 'lucide-react';
 
 import { Badge } from './badge';
+import type { FileStatusBadgeProps } from '@/types/consolidated-interfaces';
 
 type FileStatus = 'ready' | 'processing' | 'failed';
-
-interface FileStatusBadgeProps {
-  status: FileStatus;
-  className?: string;
-  percentDone?: number;
-}
 
 export function FileStatusBadge({
   status,

@@ -15,8 +15,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
-import type { FilterComponentProps, FilterValues } from '@/types/app.types';
 import type { Database } from '@/types/db.types';
+import type { FilterComponentProps, FilterValues } from '@/types/interaction.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 

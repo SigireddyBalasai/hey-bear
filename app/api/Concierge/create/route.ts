@@ -9,6 +9,7 @@ import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
+import type { CreateAssistantRequest } from '@/types/consolidated-interfaces';
 
 // Import specific insert types
 type AssistantActivityInsert = Database['public']['Tables']['assistant_activity']['Insert'];
@@ -19,19 +20,6 @@ function generatePineconeName(base: string): string {
   prefix = prefix.slice(0, 40);
   const timestamp = Date.now().toString().slice(-6); // Use timestamp for uniqueness
   return `${prefix}-${timestamp}`;
-}
-
-interface CreateAssistantRequest {
-  assistantName: string;
-  description?: string;
-  params?: {
-    conciergeName?: string;
-    businessName?: string;
-    phoneNumber?: string;
-  };
-  stripeCheckoutSessionId?: string;
-  paymentSessionId?: string; // Add this for linking to payment session
-  plan?: string;
 }
 
 export const POST = requireAuth(async (context, req: NextRequest) => {

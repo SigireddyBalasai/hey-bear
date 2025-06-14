@@ -45,7 +45,7 @@ import type {
   AssistantRow,
   AssistantUsageLimits,
   AssistantWithRelations,
-} from '@/types/app.types';
+} from '@/types/assistant.types';
 import { handleError, showSuccess } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
@@ -141,7 +141,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         if (!response.ok) {
           const errorData = (await response.json()) as { error?: string };
           console.error('Error fetching files:', errorData);
-          handleError(new Error(errorData.error || 'Failed to load assistant files'), {
+          handleError(new Error(errorData.error ?? 'Failed to load assistant files'), {
             toastTitle: 'Error loading files',
             fallbackMessage: 'Failed to load assistant files. Please try again.',
           });
@@ -212,11 +212,37 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
           assistant_usage_limits?: Record<string, unknown> | null;
         };
 
+        // Provide default objects if null to satisfy type requirements
+        const defaultConfig: AssistantConfig = {
+          business_name: null,
+          business_phone: null,
+          concierge_name: null,
+          created_at: '',
+          description: null,
+          display_name: null,
+          id: '',
+          personality: null,
+          pinecone_name: null,
+          share_phone_number: null,
+          system_prompt: null,
+          updated_at: '',
+        };
+        const defaultUsageLimits: AssistantUsageLimits = {
+          assistant_id: '',
+          created_at: '',
+          document_limit: null,
+          max_messages: null,
+          max_tokens: null,
+          message_limit: null,
+          token_limit: null,
+          updated_at: '',
+          webpage_limit: null,
+        };
+
         return {
           assistant: typedAssistantData as AssistantRow,
-          config: (typedAssistantData.assistant_configs ?? null) as AssistantConfig | null,
-          usageLimits: (typedAssistantData.assistant_usage_limits ??
-            null) as AssistantUsageLimits | null,
+          config: (typedAssistantData.assistant_configs ?? defaultConfig) as AssistantConfig,
+          usageLimits: (typedAssistantData.assistant_usage_limits ?? defaultUsageLimits) as AssistantUsageLimits,
         };
       } catch (error) {
         console.error('Error in fetchAssistantData:', error);

@@ -1,18 +1,6 @@
 import { sanitizeForSms } from '@/utils/string-utils';
 import { createClient } from '@/utils/supabase/server';
-
-interface ChatAPIResponse {
-  response?: string;
-  tokens?: number;
-  usage?: {
-    promptTokens?: number;
-    completionTokens?: number;
-  };
-  cost?: number;
-  timing?: {
-    responseDuration?: number;
-  };
-}
+import type { ChatAPIResponse } from '@/types/consolidated-interfaces';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();

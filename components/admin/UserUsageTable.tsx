@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+
 import {
   AlertCircle,
   ArrowUpDown,
@@ -39,9 +40,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { UserUsageStats, UserUsageTableProps } from '@/types/admin.types';
 
 import { UserDetailModal } from './UserDetailModal';
-import type { UserUsageStats, UserUsageTableProps } from '@/types/components/admin-dashboard.types';
 
 // Get initials (moved to outer scope)
 const getInitials = (name?: string | null) => {

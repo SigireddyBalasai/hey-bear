@@ -23,8 +23,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminAuth } from '@/hooks/useAuth';
-import type { DashboardData, UsageChartItem } from '@/types/app.types';
+import type { DashboardData, UsageChartItem } from '@/types/interaction.types';
 import { withErrorHandling } from '@/utils/error-handling';
+import type { TimeSeriesResponse } from '@/types/consolidated-interfaces';
 
 ChartJS.register(
   CategoryScale,
@@ -79,23 +80,14 @@ export default function AdminDashboardPage() {
           throw new Error('Failed to fetch usage data');
         }
 
-        interface TimeSeriesResponse {
-          timeSeriesData: Array<{
-            date: string;
-            count: number;
-            tokens: number;
-            cost: number;
-          }>;
-        }
-
         const data = (await response.json()) as TimeSeriesResponse;
 
         setDashboardData((prev: DashboardData | null) => {
           const newUsageChart = data.timeSeriesData;
           const result: DashboardData = {
             usageChart: newUsageChart,
-            users: prev?.users ?? undefined,
-            usage: prev?.usage ?? undefined,
+            users: prev?.users ?? { total: 0, activeToday: 0, activeThisWeek: 0 },
+            usage: prev?.usage ?? { totalMessages: 0, totalCost: 0 },
           };
           return result;
         });
@@ -163,7 +155,13 @@ export default function AdminDashboardPage() {
     <div className="flex">
       <AdminSidebar />
       <div className="max-h-screen flex-1 overflow-y-auto p-8">
-        <AdminHeader user={user} />
+        <AdminHeader user={{
+          email: user.email ?? '',
+          user_metadata: {
+            full_name: user.user_metadata?.full_name ?? '',
+            avatar_url: user.user_metadata?.avatar_url ?? '',
+          },
+        }} />
 
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="p-4 transition-all hover:shadow-md">

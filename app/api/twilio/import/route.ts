@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
+import type { ImportPhoneNumberRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { ImportPhoneNumberRequest } from '@/types/components/shared-interfaces';
 
 export const POST = requireAdmin(async (context, req) => {
   try {

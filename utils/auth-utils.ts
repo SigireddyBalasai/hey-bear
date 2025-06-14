@@ -3,20 +3,8 @@ import { NextResponse } from 'next/server';
 
 import type { User } from '@supabase/supabase-js';
 
+import type { AuthContext, AuthResult } from '@/types/auth.types';
 import { createClient } from '@/utils/supabase/server';
-
-export interface AuthContext {
-  user: User;
-  isAdmin: boolean;
-}
-
-export interface AuthResult {
-  success: boolean;
-  user: User | null;
-  isAdmin: boolean;
-  error?: string;
-  response?: NextResponse;
-}
 
 /**
  * Core authentication function used by all auth utilities

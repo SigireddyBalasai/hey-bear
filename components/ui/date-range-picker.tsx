@@ -9,12 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-
-interface DateRangePickerProps {
-  dateRange: DateRange | undefined;
-  onDateRangeChange: (dateRange: DateRange | undefined) => void;
-  className?: string;
-}
+import type { DateRangePickerProps } from '@/types/consolidated-interfaces';
 
 export function DateRangePicker({ dateRange, onDateRangeChange, className }: DateRangePickerProps) {
   return (

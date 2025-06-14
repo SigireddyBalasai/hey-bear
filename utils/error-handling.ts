@@ -4,18 +4,19 @@ import { toast } from 'sonner';
  * Standardized error handling utilities
  * Consolidates the repetitive error handling patterns found across the codebase
  */
-import type { ErrorHandlerOptions } from '@/types/app.types';
+import type { ErrorHandlerOptions } from '@/types/interaction.types';
 
 /**
  * Generic error handler that can display toast notifications and log errors
  */
-export function handleError(error: unknown, options: ErrorHandlerOptions = {}): string {
+export function handleError(error: unknown, options: Partial<ErrorHandlerOptions> = {}): string {
   const {
     showToast = true,
     toastTitle = 'Error',
     logError = true,
     fallbackMessage = 'An unexpected error occurred',
     context = '',
+    onError,
   } = options;
 
   let errorMessage: string;
@@ -38,6 +39,10 @@ export function handleError(error: unknown, options: ErrorHandlerOptions = {}): 
     });
   }
 
+  if (onError) {
+    onError(error instanceof Error ? error : new Error(errorMessage));
+  }
+
   return errorMessage;
 }
 
@@ -46,7 +51,7 @@ export function handleError(error: unknown, options: ErrorHandlerOptions = {}): 
  */
 export async function withErrorHandling<T>(
   asyncFn: () => Promise<T>,
-  options: ErrorHandlerOptions = {}
+  options: Partial<ErrorHandlerOptions> = {}
 ): Promise<T | null> {
   try {
     return await asyncFn();

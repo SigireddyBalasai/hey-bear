@@ -7,6 +7,7 @@ import { getPineconeClient } from '@/lib/pinecone';
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
+import type { DeleteFileRequest } from '@/types/consolidated-interfaces';
 
 // Define the type for the data expected from Supabase using db.types.ts
 type AssistantConfigFromDb = Database['public']['Tables']['assistant_configs']['Row'];
@@ -16,12 +17,6 @@ type TypedAssistantWithSpecificConfig = AssistantFromDb & {
   // !inner join in select means assistant_configs object is expected
   assistant_configs: AssistantConfigFromDb; // Changed from Pick to full type
 };
-
-interface DeleteFileRequest {
-  assistantId: string;
-  pinecone_name?: string;
-  fileId: string;
-}
 
 export const POST = requireAuth(async (context, req: NextRequest) => {
   try {

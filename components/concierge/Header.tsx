@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { createClient } from '@/utils/supabase/client';
+import type { HeaderProps } from '@/types/consolidated-interfaces';
 
 interface HeaderProps {
   user: {
