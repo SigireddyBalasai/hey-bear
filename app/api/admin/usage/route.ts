@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
+import type { AuthContext } from '@/types/auth.types';
+import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
+
+// Force runtime rendering to prevent build-time Supabase initialization
+export const runtime = 'nodejs';
 
 /**
  * API route for fetching admin usage data
@@ -12,7 +16,6 @@ export const GET = requireAdmin(async (context: AuthContext, request: NextReques
     const { searchParams } = new URL(request.url);
     const timeframe = searchParams.get('timeframe') || '30d';
     const assistantId = searchParams.get('assistantId') || undefined;
-    const _plan = searchParams.get('plan') || undefined;
 
     const supabase = await createClient();
 
@@ -170,11 +173,6 @@ export const GET = requireAdmin(async (context: AuthContext, request: NextReques
       console.error('Error fetching user stats:', userStatsError);
       return NextResponse.json({ error: 'Failed to fetch user stats' }, { status: 500 });
     }
-
-    // Get user details directly from auth since we no longer have a separate users table
-    const _userIds = [
-      ...new Set(userStatsRaw?.map(row => row.user_id).filter(Boolean) || []),
-    ].filter((id): id is string => id !== null);
 
     // Get auth user data using admin API
     const { data: authUsersData, error: authUsersError } = await supabase.auth.admin.listUsers();

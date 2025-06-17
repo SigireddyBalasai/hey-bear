@@ -2,7 +2,7 @@ import React from 'react';
 
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { UsageProgressProps } from '@/types/consolidated-interfaces';
+import type { UsageProgressProps } from '@/types/dashboard.types';
 
 /**
  * A reusable component for showing usage metrics with progress bar

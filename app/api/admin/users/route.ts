@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 
-import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
+import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
+
+// Force runtime rendering to prevent build-time Supabase initialization
+export const runtime = 'nodejs';
 
 /**
  * API route for fetching all users with their usage data
  */
-export const GET = requireAdmin(async (_context: AuthContext, _req) => {
+export const GET = requireAdmin(async () => {
   try {
     const supabase = await createClient();
 

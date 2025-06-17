@@ -1,4 +1,10 @@
 // Interaction and usage-related interfaces and types
+import type { Database } from '@/types/db.types';
+
+// Database types - Re-export for convenience
+export type InteractionRow = Database['public']['Tables']['interactions']['Row'];
+export type InteractionInsert = Database['public']['Tables']['interactions']['Insert'];
+export type InteractionUpdate = Database['public']['Tables']['interactions']['Update'];
 
 // Plan limits interface
 export interface PlanLimits {
@@ -15,8 +21,8 @@ export interface FilterComponentProps {
 
 // Filter values interface
 export interface FilterValues {
-  fromDate: Date;
-  toDate: Date;
+  fromDate: Date | undefined;
+  toDate: Date | undefined;
   assistantId: string;
   searchTerm: string;
   dateRange: string;

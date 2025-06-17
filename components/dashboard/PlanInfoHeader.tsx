@@ -60,25 +60,27 @@ export const PlanInfoHeader: React.FC<PlanInfoHeaderProps> = ({
         )}
       </CardDescription>
 
-      {!isLoading && (upgradePath || onUpgrade) && planType.toLowerCase() !== 'enterprise' && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={onUpgrade}
-          asChild={!!upgradePath}
-        >
-          {upgradePath ? (
-            <a href={upgradePath}>
-              <CreditCard className="mr-1 h-3 w-3" /> Upgrade
-            </a>
-          ) : (
-            <>
-              <CreditCard className="mr-1 h-3 w-3" /> Upgrade
-            </>
-          )}
-        </Button>
-      )}
+      {!isLoading &&
+        (upgradePath || onUpgrade != null) &&
+        planType.toLowerCase() !== 'enterprise' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={onUpgrade}
+            asChild={!!upgradePath}
+          >
+            {upgradePath ? (
+              <a href={upgradePath}>
+                <CreditCard className="mr-1 h-3 w-3" /> Upgrade
+              </a>
+            ) : (
+              <>
+                <CreditCard className="mr-1 h-3 w-3" /> Upgrade
+              </>
+            )}
+          </Button>
+        )}
     </div>
   );
 };

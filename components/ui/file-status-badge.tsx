@@ -1,7 +1,8 @@
 import { Loader2 } from 'lucide-react';
 
+import type { FileStatusBadgeProps } from '@/types/ui.types';
+
 import { Badge } from './badge';
-import type { FileStatusBadgeProps } from '@/types/consolidated-interfaces';
 
 type FileStatus = 'ready' | 'processing' | 'failed';
 
@@ -26,10 +27,18 @@ export function FileStatusBadge({
         </Badge>
       );
     }
-    case 'failed': {
+    case 'completed': {
+      return (
+        <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
+          Completed
+        </Badge>
+      );
+    }
+    case 'failed':
+    case 'error': {
       return (
         <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
-          Failed
+          {status === 'failed' ? 'Failed' : 'Error'}
         </Badge>
       );
     }

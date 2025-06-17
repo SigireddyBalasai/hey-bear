@@ -4,7 +4,7 @@ import React, { memo, useCallback, useMemo } from 'react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { StatCardProps } from '@/types/consolidated-interfaces';
+import type { StatCardProps } from '@/types/dashboard.types';
 
 const StatValue = memo<{
   value: string | number;
@@ -122,7 +122,7 @@ export const UsageStatCard = memo<{
   );
 
   const formatter = useCallback(
-    (_value: string | number) => `${current.toLocaleString()} / ${total.toLocaleString()}`,
+    () => `${current.toLocaleString()} / ${total.toLocaleString()}`,
     [current, total]
   );
 

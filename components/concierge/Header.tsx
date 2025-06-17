@@ -15,19 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type { HeaderProps } from '@/types/ui.types';
 import { createClient } from '@/utils/supabase/client';
-import type { HeaderProps } from '@/types/consolidated-interfaces';
-
-interface HeaderProps {
-  user: {
-    id: string;
-    email?: string;
-    user_metadata?: {
-      full_name?: string;
-      avatar_url?: string;
-    };
-  } | null;
-}
 
 export function Header({ user }: HeaderProps) {
   const [isAdmin, setIsAdmin] = useState(false);

@@ -1,4 +1,16 @@
-import type { Json } from '@/types/db.types';
+import type { Database, Json } from '@/types/db.types';
+
+import type { Assistant, UsageData, UsageMetric } from './usage.types';
+
+export interface AssistantSelectorProps {
+  assistants: Assistant[];
+  selectedAssistant: string;
+  onAssistantChange: (value: string) => void;
+  isLoading: boolean;
+}
+
+// Database types - Re-export for convenience
+export type InteractionRow = Database['public']['Tables']['interactions']['Row'];
 
 export interface TransformedInteraction {
   id: string;
@@ -18,38 +30,48 @@ export interface TransformedInteraction {
 }
 
 // Dashboard component interfaces
+
 export interface StatCardProps {
   title: string;
   value: string | number;
-  description?: string;
+  description: string;
+  isLoading?: boolean;
   icon?: React.ReactNode;
   trend?: {
     value: number;
     label: string;
     isPositive: boolean;
   };
-}
-
-export interface UsageDisplayProps {
-  currentUsage: number;
-  limit: number;
-  label: string;
+  formatter?: (value: string | number) => string;
   className?: string;
 }
 
 export interface UsageProgressProps {
-  current: number;
-  limit: number;
-  label: string;
+  title: string;
+  metric?: UsageMetric; // UsageMetric from usage.types.ts
+  isLoading?: boolean;
+  dangerThreshold?: number;
+}
+
+export interface UsageDisplayProps {
+  title: string;
+  usage?: UsageMetric | UsageData; // UsageMetric | UsageData from usage.types.ts
+  variant?: 'inline' | 'card';
+  isLoading?: boolean;
+  dangerThreshold?: number;
+  description?: string;
+  icon?: React.ReactNode;
   className?: string;
 }
 
 export interface ErrorFallbackProps {
   error: Error;
   resetErrorBoundary: () => void;
+  componentName?: string;
 }
 
 export interface SuspenseWrapperProps {
-  fallback?: React.ReactNode;
   children: React.ReactNode;
+  fallback: React.ReactNode;
+  componentName?: string;
 }

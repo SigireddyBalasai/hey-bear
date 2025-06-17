@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
 import twilio from 'twilio';
 
-import { type AuthContext, requireAdmin } from '@/utils/auth-utils';
+import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
-export const GET = requireAdmin(async (_context: AuthContext, _req: NextRequest) => {
+export const GET = requireAdmin(async () => {
   try {
     const supabase = await createClient();
 

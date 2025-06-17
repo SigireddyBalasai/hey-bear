@@ -5,106 +5,52 @@ import { useDropzone } from 'react-dropzone';
 
 import { useRouter } from 'next/navigation';
 
-import { motion } from 'framer-motion';
-import {
-  Bot,
-  ChevronLeft,
-  FileText,
-  Loader2,
-  Paperclip,
-  Phone,
-  SendIcon,
-  Upload,
-  User,
-  X,
-} from 'lucide-react';
-
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { AssistantHeader } from '@/components/concierge/chat/AssistantHeader';
+import { ChatInterface } from '@/components/concierge/chat/ChatInterface';
+import { FilesInterface } from '@/components/concierge/chat/FilesInterface';
+import { LoadingState } from '@/components/concierge/chat/LoadingState';
+import { ProcessingIndicator } from '@/components/concierge/chat/ProcessingIndicator';
+import type { FileErrorState, FileWithStatus, User } from '@/components/concierge/chat/types';
+import { useChat } from '@/components/concierge/chat/useChat';
+import { useFileManagement } from '@/components/concierge/chat/useFileManagement';
 import { FileErrorDialog } from '@/components/ui/file-error-dialog';
-import { FileStatusBadge } from '@/components/ui/file-status-badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMultipleLoadingStates } from '@/hooks/useLoadingState';
-import { cn } from '@/lib/utils';
 import type {
   AssistantConfig,
   AssistantRow,
   AssistantUsageLimits,
   AssistantWithRelations,
 } from '@/types/assistant.types';
-import { handleError, showSuccess } from '@/utils/error-handling';
+import { handleError } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-// Types
-type AssistantFileStatus = 'ready' | 'processing' | 'failed';
-
-// File type for our internal use (mapped from database)
-type FileWithStatus = {
-  id: string;
-  name: string;
-  created_at: string;
-  status?: string;
-  purpose?: string;
-};
-
-// Helper function to get current timestamp
-const getCurrentTimestamp = () => new Date().toISOString();
-
 const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> }) => {
-  // Add missing state variables
-  const [assistantId, setAssistantId] = useState<string>('');
-  const [displayName, setDisplayName] = useState<string>('');
-
   // Consolidated loading states using useMultipleLoadingStates
   const { loadingStates, setLoadingState } = useMultipleLoadingStates([
     'pageLoading',
-    'sending',
     'uploading',
   ] as const);
 
   // Extract individual loading states for easy access
   const isLoading = loadingStates.pageLoading;
-  const isSending = loadingStates.sending;
   const isUploading = loadingStates.uploading;
 
   // State variables
+  const [assistantId, setAssistantId] = useState<string>('');
+  const [displayName, setDisplayName] = useState<string>('');
   const [pineconeName, setPineconeName] = useState<string>('');
-  const [user, setUser] = useState<{ user_metadata?: { avatar_url?: string } } | null>(null);
-  const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<
-    Array<{ role: string; content: string; timestamp: string }>
-  >([]);
+  const [user, setUser] = useState<User | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isChatDisabled, setIsChatDisabled] = useState(true);
   const [fileList, setFileList] = useState<{ files: FileWithStatus[] }>({ files: [] });
   const [uploadProgress, setUploadProgress] = useState(0);
   const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('chat');
-  const [deletingFileIds, setDeletingFileIds] = useState<string[]>([]);
-  const [processingFileIds, setProcessingFileIds] = useState<string[]>([]);
   const [inputType, setInputType] = useState<'file' | 'url'>('file');
   const [url, setUrl] = useState<string>('');
   const [isUrlValid, setIsUrlValid] = useState<boolean>(true);
-  const [fileError, setFileError] = useState<{
-    title: string;
-    description: string;
-    details?: string;
-    show: boolean;
-  }>({
+  const [fileError, setFileError] = useState<FileErrorState>({
     title: '',
     description: '',
     show: false,
@@ -115,79 +61,40 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch files for the assistant from database
-  const fetchFiles = useCallback(
-    async (assistantId: string, _pinecone?: string) => {
-      if (!assistantId) {
-        return;
-      }
+  // Custom hooks for chat and file management
+  const chat = useChat({
+    assistantId,
+    isChatDisabled,
+  });
 
-      try {
-        const isInitialLoad = isLoading;
-        if (isInitialLoad) setLoadingState('pageLoading', true);
+  const handleFilesUpdated = useCallback(async () => {
+    if (assistantId) {
+      const updatedFiles = await fileManagement.fetchFiles(assistantId);
+      setFileList(updatedFiles);
+      setIsChatDisabled(updatedFiles.files.length === 0);
+    }
+  }, [assistantId]);
 
-        // Fetch files using the API endpoint
-        const response = await fetch('/api/Concierge/file/list', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            assistantId,
-            pinecone_name: pineconeName,
-          }),
-        });
+  const fileManagement = useFileManagement({
+    assistantId,
+    pineconeName,
+    onFilesUpdated: handleFilesUpdated,
+  });
 
-        if (!response.ok) {
-          const errorData = (await response.json()) as { error?: string };
-          console.error('Error fetching files:', errorData);
-          handleError(new Error(errorData.error ?? 'Failed to load assistant files'), {
-            toastTitle: 'Error loading files',
-            fallbackMessage: 'Failed to load assistant files. Please try again.',
-          });
-          return;
-        }
-
-        const responseData = (await response.json()) as {
-          files?: Array<{
-            id: string;
-            name: string;
-            created_at: string;
-            [key: string]: unknown;
-          }>;
-        };
-
-        // Transform Pinecone files to our internal format
-        const fileArray: FileWithStatus[] = (responseData.files ?? []).map(file => ({
-          id: file.id,
-          name: file.name,
-          created_at: file.created_at,
-          status: 'ready', // Pinecone files are always ready
-          purpose: 'assistant_knowledge',
-        }));
-
-        setFileList({ files: fileArray });
-        setProcessingFileIds([]);
-        setIsChatDisabled(fileArray.length === 0); // Enable chat if files exist
-      } catch (error) {
-        console.error('Failed to fetch files:', error);
-        handleError(error as Error, {
-          toastTitle: 'Connection error',
-          fallbackMessage: 'Failed to connect to the server. Please try again.',
-        });
-      } finally {
-        setLoadingState('pageLoading', false);
+  // File dropzone functionality
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: acceptedFiles => {
+      if (acceptedFiles.length > 0) {
+        setFile(acceptedFiles[0]);
       }
     },
-    [isLoading, pineconeName]
-  );
+    maxFiles: 1,
+  });
 
   // Fetch real assistant data from database with joins
   const fetchAssistantData = useCallback(
     async (assistantId: string): Promise<AssistantWithRelations | null> => {
       try {
-        // Use type assertion to bypass restrictive Supabase types
-
         // Fetch assistant data with joins to get all related information
         const { data: assistantData, error: assistantError } = await supabase
           .from('assistants')
@@ -242,7 +149,8 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         return {
           assistant: typedAssistantData as AssistantRow,
           config: (typedAssistantData.assistant_configs ?? defaultConfig) as AssistantConfig,
-          usageLimits: (typedAssistantData.assistant_usage_limits ?? defaultUsageLimits) as AssistantUsageLimits,
+          usageLimits: (typedAssistantData.assistant_usage_limits ??
+            defaultUsageLimits) as AssistantUsageLimits,
         };
       } catch (error) {
         console.error('Error in fetchAssistantData:', error);
@@ -254,8 +162,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
 
   // Helper function to process assistant data and update state
   const processAssistantData = useCallback(
-    (assistantData: AssistantWithRelations, assistantName: string) => {
-      // Set all the data we need from real data
+    (assistantData: AssistantWithRelations) => {
       setDisplayName(assistantData.assistant.name);
       setAssignedPhoneNumber(assistantData.assistant.assigned_phone_number);
       setPineconeName(assistantData.config?.pinecone_name ?? '');
@@ -265,21 +172,15 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
 
       // Set system prompt if available from config
       if (assistantData.config?.system_prompt) {
-        setChatHistory([
-          {
-            role: 'system',
-            content: assistantData.config.system_prompt,
-            timestamp: getCurrentTimestamp(),
-          },
-        ]);
+        chat.setSystemPrompt(assistantData.config.system_prompt);
       }
 
       // Fetch files after getting pinecone_name from config
       if (assistantData.config?.pinecone_name) {
-        void fetchFiles(assistantName, assistantData.config.pinecone_name);
+        void handleFilesUpdated();
       }
     },
-    [fetchFiles]
+    [chat, handleFilesUpdated]
   );
 
   // Load params and fetch assistant details
@@ -300,7 +201,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
           return;
         }
 
-        processAssistantData(assistantData, assistantName);
+        processAssistantData(assistantData);
       } catch (error) {
         console.error('Error loading params:', error);
         setLoadingState('pageLoading', false);
@@ -316,7 +217,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     }
 
     void loadParams();
-  }, [params, router, fetchFiles, supabase, fetchAssistantData, processAssistantData]);
+  }, [params, router, fetchAssistantData, processAssistantData]);
 
   // Fetch user data
   useEffect(() => {
@@ -333,109 +234,15 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
       }
     };
     void fetchUser();
-  }, [supabase.auth]);
+  }, [supabase.auth, setLoadingState]);
 
   // Auto-scroll chat to bottom on new messages
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
+  }, [chat.chatHistory]);
 
-  // File dropzone functionality
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: acceptedFiles => {
-      if (acceptedFiles.length > 0) {
-        setFile(acceptedFiles[0]);
-      }
-    },
-    maxFiles: 1,
-  });
-
-  // Get status for a file - update return types
-  const getFileStatus = (file: FileWithStatus): AssistantFileStatus => {
-    // Check explicit file status first
-    if (file.status) {
-      if (file.status.toLowerCase() === 'ready') return 'ready';
-      if (file.status.toLowerCase() === 'processing') return 'processing';
-      if (file.status.toLowerCase() === 'failed') return 'failed';
-    }
-
-    // Check implicit status based on ID tracking
-    if (deletingFileIds.includes(file.id)) {
-      return 'processing'; // Show deleting files as processing
-    }
-    if (processingFileIds.includes(file.id)) {
-      return 'processing';
-    }
-
-    return 'ready'; // Default status
-  };
-
-  // Send message to assistant
-  const handleChat = useCallback(
-    async (e?: React.FormEvent) => {
-      if (e) e.preventDefault();
-      if (isChatDisabled || !message.trim() || isSending) return;
-
-      try {
-        setLoadingState('sending', true);
-        // Add user message to chat history
-        const userMessage = { role: 'user', content: message, timestamp: getCurrentTimestamp() };
-        setChatHistory([...chatHistory, userMessage]);
-        const currentMessage = message;
-        setMessage('');
-
-        // Call the real assistant API endpoint
-        const response = await fetch(`/api/Concierge/${assistantId}/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: currentMessage,
-            chatHistory: [...chatHistory, userMessage],
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`API call failed: ${String(response.status)}`);
-        }
-
-        const data = (await response.json()) as { message?: string };
-
-        // Add the assistant's response to chat history
-        const assistantResponse = {
-          role: 'assistant',
-          content: data.message ?? 'Sorry, I encountered an error processing your request.',
-          timestamp: getCurrentTimestamp(),
-        };
-
-        setChatHistory(prev => [...prev, assistantResponse]);
-      } catch (error) {
-        console.error('Chat error:', error);
-        handleError(error as Error, {
-          toastTitle: 'Communication error',
-          fallbackMessage: 'Failed to send your message. Please try again.',
-        });
-
-        // Add error message to chat on failure
-        const errorResponse = {
-          role: 'assistant',
-          content:
-            'I apologize, but I encountered an error processing your request. Please try again.',
-          timestamp: getCurrentTimestamp(),
-        };
-        setChatHistory(prev => [...prev, errorResponse]);
-      } finally {
-        setLoadingState('sending', false);
-      }
-    },
-    [isChatDisabled, message, isSending, chatHistory, assistantId]
-  );
-
-  // Add file to assistant
-  const handleAddFile = async () => {
-    if (!file || !assistantId) return;
-
+  // File and URL handlers
+  const handleAddContent = async () => {
     try {
       setLoadingState('uploading', true);
 
@@ -450,36 +257,24 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         });
       }, 100);
 
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('assistantId', assistantId);
-
-      // Use the file upload API endpoint
-      const response = await fetch('/api/Concierge/file/add', {
-        method: 'POST',
-        body: formData,
-      });
+      let success = false;
+      if (inputType === 'file' && file) {
+        success = await fileManagement.handleAddFile(file);
+        if (success) setFile(null);
+      } else if (inputType === 'url' && url && isUrlValid) {
+        success = await fileManagement.handleAddUrl(url);
+        if (success) setUrl('');
+      }
 
       clearInterval(progressInterval);
       setUploadProgress(100);
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as { error?: string };
-        throw new Error(errorData.error || 'Failed to upload file');
-      }
-
-      // Refresh the file list
-      await fetchFiles(assistantId, pineconeName);
-
-      showSuccess('File uploaded successfully!', `${file.name} has been added to the assistant`);
-      setFile(null);
     } catch (error) {
-      console.error('File upload error:', error);
       setFileError({
-        title: 'Upload Error',
+        title: inputType === 'file' ? 'Upload Error' : 'URL Error',
         description:
-          error instanceof Error ? error.message : 'Something went wrong during file upload',
+          error instanceof Error
+            ? error.message
+            : `Something went wrong ${inputType === 'file' ? 'during file upload' : 'while adding this URL'}`,
         show: true,
       });
     } finally {
@@ -488,594 +283,27 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     }
   };
 
-  // Handle adding URL to assistant
-  const handleAddUrl = async () => {
-    if (!url || !assistantId) return;
-
-    try {
-      setLoadingState('uploading', true);
-
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 95) {
-            clearInterval(progressInterval);
-            return 95;
-          }
-          return prev + 5;
-        });
-      }, 100);
-
-      // Use the URL addition API endpoint
-      const response = await fetch('/api/Concierge/file/add-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url,
-          assistantId,
-        }),
-      });
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as { error?: string };
-        throw new Error(errorData.error || 'Failed to add URL');
-      }
-
-      // Refresh the file list
-      await fetchFiles(assistantId, pineconeName);
-
-      showSuccess('URL added successfully!', `${url} has been added to the assistant`);
-      setUrl('');
-    } catch (error) {
-      console.error('URL addition error:', error);
-      setFileError({
-        title: 'URL Error',
-        description:
-          error instanceof Error ? error.message : 'Something went wrong while adding this URL',
-        show: true,
-      });
-    } finally {
-      setLoadingState('uploading', false);
-      setUploadProgress(0);
-    }
+  const handleUrlChange = (value: string) => {
+    setUrl(value);
+    setIsUrlValid(value === '' || /^https?:\/\/.+/.test(value));
   };
 
-  // Add file or URL to assistant
-  const handleAddContent = () => {
-    if (inputType === 'file') {
-      void handleAddFile();
+  // Navigation handlers
+  const handleBack = () => {
+    if (activeTab === 'files') {
+      setActiveTab('chat');
     } else {
-      void handleAddUrl();
+      router.push('/Concierge');
     }
   };
 
-  // Delete file from assistant
-  const handleDeleteFile = async (fileId: string) => {
-    // Add to deletingFileIds immediately for better UX
-    setDeletingFileIds(prev => [...prev, fileId]);
-
-    try {
-      // Use the file deletion API endpoint
-      const response = await fetch('/api/Concierge/file/delete', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileId,
-          assistantId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as { error?: string };
-        throw new Error(errorData.error || 'Failed to delete file');
-      }
-
-      // Refresh the file list
-      await fetchFiles(assistantId, pineconeName);
-
-      // Remove from deletingFileIds
-      setDeletingFileIds(prev => prev.filter(id => id !== fileId));
-
-      showSuccess('File deleted successfully', 'The file has been removed from your assistant');
-    } catch (error) {
-      // Remove from deletingFileIds if there was an error
-      setDeletingFileIds(prev => prev.filter(id => id !== fileId));
-
-      console.error('Error deleting file:', error);
-      handleError(error as Error, {
-        toastTitle: 'Error deleting file',
-        fallbackMessage: 'Failed to delete file',
-      });
-    }
+  const handleToggleTab = () => {
+    setActiveTab(activeTab === 'chat' ? 'files' : 'chat');
   };
 
   // Handle closing the file error dialog
   const closeFileErrorDialog = () => {
     setFileError(prev => ({ ...prev, show: false }));
-  };
-
-  // Helper function to render loading state
-  const renderLoadingState = () => (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="flex flex-col items-center space-y-4">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
-        <p className="text-lg">Loading...</p>
-      </div>
-    </div>
-  );
-
-  // Helper function to render authentication required state
-  const renderAuthState = () => (
-    <div className="flex items-center justify-center min-h-screen">
-      <Card className="w-[350px]">
-        <CardHeader>
-          <CardTitle>Authentication Required</CardTitle>
-          <CardDescription>Please log in to continue using this No-Show </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            className="w-full"
-            onClick={() => {
-              router.push('/sign-in');
-            }}
-          >
-            Go to Login
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  // Helper function to render chat interface
-  const renderChatInterface = () => (
-    <Card className="flex-1 flex flex-col overflow-hidden border-muted shadow-lg">
-      <CardHeader className="pb-3 border-b">
-        <div className="flex items-center space-x-2">
-          <Avatar className="h-8 w-8 ring-2 ring-primary/10">
-            <AvatarImage src="/bot-avatar.png" alt="Concierge" />
-            <AvatarFallback>
-              <Bot className="h-4 w-4" />
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <CardTitle className="text-lg">{displayName}</CardTitle>
-            <CardDescription className="text-xs">Your AI assistant</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex-1 overflow-hidden p-0">
-        {chatHistory.length === 0 ||
-        (chatHistory.length === 1 && chatHistory[0].role === 'system') ? (
-          <div className="flex items-center justify-center h-full p-6">
-            <div className="text-center max-w-lg">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 mx-auto">
-                <Bot className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg">
-                {fileList.files.length === 0
-                  ? 'Add Files or links to Start'
-                  : 'Start a conversation'}
-              </h3>
-              <p className="text-muted-foreground max-w-md mt-2">
-                {fileList.files.length === 0
-                  ? 'This No-Show needs information to work. Please add at least one file or link.'
-                  : "Ask me anything about the documents you've provided. I'm here to help!"}
-              </p>
-              {fileList.files.length === 0 && (
-                <Button
-                  variant="default"
-                  className="mt-6"
-                  onClick={() => {
-                    setActiveTab('files');
-                  }}
-                >
-                  <Paperclip className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4">
-              {chatHistory
-                .filter(msg => msg.role !== 'system')
-                .map((msg, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className={cn(
-                      'flex gap-3',
-                      msg.role === 'user' ? 'justify-end' : 'justify-start'
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'max-w-[80%] rounded-lg px-4 py-3 shadow-sm',
-                        msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground ml-auto'
-                          : 'bg-muted'
-                      )}
-                    >
-                      {msg.role === 'assistant' && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-xs">
-                              <Bot className="h-3 w-3" />
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs text-muted-foreground font-medium">
-                            {displayName}
-                          </span>
-                        </div>
-                      )}
-                      {msg.role === 'user' && (
-                        <div className="flex items-center gap-2 mb-2 justify-end">
-                          <span className="text-xs text-primary-foreground/70 font-medium">
-                            You
-                          </span>
-                          <Avatar className="h-5 w-5">
-                            <AvatarImage src={user?.user_metadata?.avatar_url} />
-                            <AvatarFallback className="text-xs bg-primary-foreground/20">
-                              <User className="h-3 w-3" />
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                      )}
-                      <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
-                    </div>
-                  </motion.div>
-                ))}
-              <div ref={chatEndRef} />
-            </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-
-      <CardFooter className="p-3 border-t bg-card/50">
-        <form
-          onSubmit={e => {
-            void handleChat(e);
-          }}
-          className="w-full flex items-end gap-2"
-        >
-          <div className="relative flex-1">
-            <Input
-              ref={inputRef}
-              placeholder={getInputPlaceholder()}
-              value={message}
-              onChange={e => {
-                setMessage(e.target.value);
-              }}
-              disabled={isChatDisabled || isSending}
-              className={cn(
-                'pr-10 py-5 shadow-sm focus-visible:ring-primary',
-                isChatDisabled ? 'bg-muted text-muted-foreground' : 'bg-background'
-              )}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleChat();
-                }
-              }}
-            />
-            <kbd className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-50">
-              {isChatDisabled ? 'Disabled' : '/'}
-            </kbd>
-          </div>
-          <Button
-            type="submit"
-            size="icon"
-            disabled={isChatDisabled || !message.trim() || isSending}
-            className={cn('rounded-full shadow-sm p-3 h-auto', isSending && 'animate-pulse')}
-          >
-            {isSending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <SendIcon className="h-5 w-5" />
-            )}
-            <span className="sr-only">Send</span>
-          </Button>
-        </form>
-      </CardFooter>
-    </Card>
-  );
-
-  // Helper function to render files interface
-  const renderFilesInterface = () => (
-    <Card className="flex-1 flex flex-col overflow-hidden border-muted shadow-lg">
-      <CardHeader className="pb-3 border-b">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Knowledge Files</CardTitle>
-            <CardDescription className="text-xs">
-              Add documents or URLs to teach your No-Show
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex-1 overflow-hidden p-0">
-        <div className="p-4">
-          <div className="flex gap-2 mb-4">
-            <Button
-              variant={inputType === 'file' ? 'default' : 'outline'}
-              className="flex-1"
-              onClick={() => {
-                setInputType('file');
-              }}
-            >
-              <FileText className="h-4 w-4 mr-2" /> File Upload
-            </Button>
-            <Button
-              variant={inputType === 'url' ? 'default' : 'outline'}
-              className="flex-1"
-              onClick={() => {
-                setInputType('url');
-              }}
-            >
-              <Link className="h-4 w-4 mr-2" /> URL Import
-            </Button>
-          </div>
-
-          {inputType === 'file' ? (
-            <div className="mb-6">
-              <div
-                {...getRootProps()}
-                className={cn(
-                  'border-2 border-dashed rounded-lg p-8 transition-colors cursor-pointer',
-                  isDragActive
-                    ? 'border-primary bg-primary/10'
-                    : 'border-muted-foreground/20 hover:border-primary/50'
-                )}
-              >
-                <input {...getInputProps()} />
-                <div className="flex flex-col items-center justify-center gap-3 text-center">
-                  <Upload className="h-10 w-10 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">
-                      {file ? file.name : 'Drop file here or click to upload'}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {file
-                        ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
-                        : 'PDF, TXT, DOCX, PPT and more'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mb-6">
-              <Label htmlFor="url-input" className="text-sm font-medium">
-                Website URL
-              </Label>
-              <div className="mt-2">
-                <Input
-                  id="url-input"
-                  placeholder="https://example.com"
-                  value={url}
-                  onChange={e => {
-                    const value = e.target.value;
-                    setUrl(value);
-                    setIsUrlValid(value === '' || /^https?:\/\/.+/.test(value));
-                  }}
-                  className={cn('w-full', !isUrlValid && 'border-red-500 focus:border-red-500')}
-                />
-                {!isUrlValid && (
-                  <p className="text-xs text-red-500 mt-1">
-                    Please enter a valid URL (must start with http:// or https://)
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {(file ?? (url && isUrlValid)) && (
-            <>
-              {isUploading && (
-                <div className="mb-4">
-                  <Label className="text-xs text-muted-foreground mb-1 block">
-                    Upload progress
-                  </Label>
-                  <Progress value={uploadProgress} className="h-2" />
-                </div>
-              )}
-              <Button onClick={handleAddContent} disabled={isUploading} className="w-full">
-                {isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {inputType === 'file' ? 'Uploading...' : 'Processing...'}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    {inputType === 'file' ? 'Upload File' : 'Add URL'}
-                  </>
-                )}
-              </Button>
-            </>
-          )}
-
-          <div className="mt-6">
-            <Label className="text-sm font-medium">Files ({fileList.files.length})</Label>
-            {fileList.files.length === 0 ? (
-              <div className="border rounded-md p-8 text-center mt-2">
-                <p className="text-muted-foreground">No files uploaded yet</p>
-              </div>
-            ) : (
-              <div className="mt-2 space-y-2">
-                {fileList.files.map(file => {
-                  const status = getFileStatus(file);
-                  const isDeleting = status === 'processing' && deletingFileIds.includes(file.id);
-                  const isProcessing = status === 'processing' && !isDeleting;
-
-                  return (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-3 rounded-md border border-muted bg-card/50 shadow-sm"
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <FileText className="h-5 w-5 text-blue-500" />
-                        <div className="truncate">
-                          <p className="font-medium truncate">{file.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {file.purpose} • {new Date(file.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FileStatusBadge status={status} />
-
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled={isDeleting || isProcessing}
-                                onClick={() => handleDeleteFile(file.id)}
-                                className="text-muted-foreground hover:text-destructive h-8 w-8"
-                              >
-                                {isDeleting ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <X className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {isDeleting ? 'Deleting...' : 'Delete file'}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-
-      <CardFooter className="flex justify-between p-3 border-t bg-card/50">
-        (
-        <Badge variant="outline" className="gap-1">
-          <Phone className="h-3 w-3" />
-          SMS Enabled: {assignedPhoneNumber}
-        </Badge>
-        )
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setActiveTab('chat');
-          }}
-        >
-          <Bot className="h-4 w-4 mr-2" />
-          Back to Chat
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-
-  // Helper function to render processing files indicator
-  const renderProcessingIndicator = () => {
-    const processingFilesCount = fileList.files.filter(
-      file => file.status === 'Processing' || processingFileIds.includes(file.id)
-    ).length;
-
-    if (processingFilesCount <= 0) return null;
-
-    return (
-      <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/70 dark:border-blue-800 shadow-sm">
-        <CardContent className="p-3 flex items-center gap-2">
-          <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-          <p className="text-sm">
-            {processingFilesCount} file(s) being processed. Chat will be available once processing
-            completes.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  // Helper function to render main header
-  const renderMainHeader = () => (
-    <div className="flex items-center mb-4 gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => {
-          if (activeTab === 'files') {
-            setActiveTab('chat');
-          } else {
-            router.push('/Concierge'); // Navigate to assistants page from chat tab
-          }
-        }}
-        className="hover:bg-muted"
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </Button>
-      <h1 className="text-2xl font-bold flex-1">
-        {displayName}
-        {assignedPhoneNumber && (
-          <Badge variant="outline" className="ml-2 gap-1 align-middle">
-            <Phone className="h-3 w-3" />
-            SMS
-          </Badge>
-        )}
-      </h1>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setActiveTab(activeTab === 'chat' ? 'files' : 'chat');
-              }}
-              className="shadow-sm hover:bg-accent"
-            >
-              {activeTab === 'chat' ? (
-                <>
-                  <Paperclip className="h-4 w-4 mr-2" /> Manage Knowledge
-                </>
-              ) : (
-                <>
-                  <Bot className="h-4 w-4 mr-2" /> Back to Chat
-                </>
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {activeTab === 'chat' ? 'Manage No-Show Files' : 'Return to Chat'}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
-  );
-
-  // Helper function to get input placeholder text
-  const getInputPlaceholder = () => {
-    if (fileList.files.length === 0) {
-      return 'Add files to enable chat functionality...';
-    }
-    if (isChatDisabled) {
-      return 'Chat disabled - waiting for files to process...';
-    }
-    return 'Type your message... (Press / to focus)';
   };
 
   // Handle keyboard shortcuts
@@ -1093,7 +321,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
         e.key === 'Enter' &&
         document.activeElement === inputRef.current
       ) {
-        void handleChat();
+        void chat.handleChat();
       }
     };
 
@@ -1101,30 +329,71 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     return () => {
       globalThis.removeEventListener('keydown', handleKeyPress);
     };
-  }, [message, isChatDisabled, handleChat]);
+  }, [chat]);
 
   // Loading state
   if (isLoading) {
-    return renderLoadingState();
+    return <LoadingState type="page" />;
   }
 
   // Not logged in state
   if (!user) {
-    return renderAuthState();
+    return <LoadingState type="auth" onNavigateToLogin={() => router.push('/sign-in')} />;
   }
 
   return (
     <div className="container mx-auto p-2 md:p-4 h-screen flex flex-col max-w-5xl">
-      {renderMainHeader()}
+      <AssistantHeader
+        displayName={displayName}
+        assignedPhoneNumber={assignedPhoneNumber}
+        activeTab={activeTab}
+        onBack={handleBack}
+        onToggleTab={handleToggleTab}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <TabsContent value="chat" className="flex-1 flex flex-col space-y-4 mt-0">
-          {renderProcessingIndicator()}
-          {renderChatInterface()}
+          <ProcessingIndicator
+            fileList={fileList}
+            processingFileIds={fileManagement.processingFileIds}
+          />
+          <ChatInterface
+            displayName={displayName}
+            chatHistory={chat.chatHistory}
+            message={chat.message}
+            setMessage={chat.setMessage}
+            isChatDisabled={isChatDisabled}
+            isSending={chat.isSending}
+            fileCount={fileList.files.length}
+            user={user}
+            inputRef={inputRef}
+            chatEndRef={chatEndRef}
+            onSubmit={chat.handleSubmit}
+            onSwitchToFiles={() => setActiveTab('files')}
+          />
         </TabsContent>
 
         <TabsContent value="files" className="flex-1 flex flex-col space-y-4 mt-0">
-          {renderFilesInterface()}
+          <FilesInterface
+            fileList={fileList}
+            file={file}
+            url={url}
+            inputType={inputType}
+            isUrlValid={isUrlValid}
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+            assignedPhoneNumber={assignedPhoneNumber}
+            deletingFileIds={fileManagement.deletingFileIds}
+            processingFileIds={fileManagement.processingFileIds}
+            getRootProps={getRootProps}
+            getInputProps={getInputProps}
+            isDragActive={isDragActive}
+            onInputTypeChange={setInputType}
+            onUrlChange={handleUrlChange}
+            onAddContent={handleAddContent}
+            onDeleteFile={fileManagement.handleDeleteFile}
+            onSwitchToChat={() => setActiveTab('chat')}
+          />
         </TabsContent>
       </Tabs>
 
@@ -1140,24 +409,3 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
 };
 
 export default AssistantPage;
-
-// Helper components
-const Link = (props: React.SVGProps<SVGSVGElement>) => {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-  );
-};

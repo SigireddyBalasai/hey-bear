@@ -11,9 +11,12 @@ import { Loading } from '@/components/concierge/Loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { useAdminAuth } from '@/hooks/useAuth';
+import { useAdminAuth } from '@/hooks/useClientAuth';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
+
+// Prevent prerendering during build
+export const dynamic = 'force-dynamic';
 
 const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
   const result = await withErrorHandling(
@@ -42,25 +45,31 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
         }
       >();
 
-      interactions.forEach(interaction => {
-        if (!interaction.user_id) return;
+      interactions.forEach(
+        (interaction: {
+          user_id: string | null;
+          token_usage: number | null;
+          cost_estimate: number | null;
+        }) => {
+          if (!interaction.user_id) return;
 
-        if (!userStatsMap.has(interaction.user_id)) {
-          userStatsMap.set(interaction.user_id, {
-            user_id: interaction.user_id,
-            interactions_count: 0,
-            token_usage: 0,
-            cost_estimate: 0,
-          });
-        }
+          if (!userStatsMap.has(interaction.user_id)) {
+            userStatsMap.set(interaction.user_id, {
+              user_id: interaction.user_id,
+              interactions_count: 0,
+              token_usage: 0,
+              cost_estimate: 0,
+            });
+          }
 
-        const stats = userStatsMap.get(interaction.user_id);
-        if (stats) {
-          stats.interactions_count += 1;
-          stats.token_usage += interaction.token_usage ?? 0;
-          stats.cost_estimate += interaction.cost_estimate ?? 0;
+          const stats = userStatsMap.get(interaction.user_id);
+          if (stats) {
+            stats.interactions_count += 1;
+            stats.token_usage += interaction.token_usage ?? 0;
+            stats.cost_estimate += interaction.cost_estimate ?? 0;
+          }
         }
-      });
+      );
 
       const data = [...userStatsMap.values()]
         .sort((a, b) => b.token_usage - a.token_usage)
@@ -162,7 +171,15 @@ export default function UserUsagePage() {
     <div className="flex">
       <AdminSidebar />
       <div className="max-h-screen flex-1 overflow-y-auto p-8">
-        <AdminHeader user={user} />
+        <AdminHeader
+          user={{
+            email: user.email || '',
+            user_metadata: {
+              full_name: user.user_metadata?.full_name || '',
+              avatar_url: user.user_metadata?.avatar_url || '',
+            },
+          }}
+        />
 
         <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
@@ -272,7 +289,22 @@ export default function UserUsagePage() {
             </CardHeader>
 
             <CardContent className="p-0">
-              <UserUsageTable usageData={usageData} />
+              <UserUsageTable
+                usageData={usageData.map(data => ({
+                  id: data.id,
+                  user_id: data.user_id,
+                  users: {
+                    full_name: '',
+                    email: data.users?.email || '',
+                    created_at: '',
+                    last_active: '',
+                  },
+                  date: '',
+                  message_count: data.total_interactions,
+                  token_usage: data.total_tokens,
+                  cost_estimate: data.total_cost,
+                }))}
+              />
             </CardContent>
           </Card>
         </div>

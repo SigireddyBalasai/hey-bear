@@ -1,6 +1,18 @@
 // Admin-related interfaces and types
 import type { Database } from '@/types/db.types';
 
+// Database types - Re-export for convenience
+export type InteractionRow = Database['public']['Tables']['interactions']['Row'];
+export type UsageStatisticsRow = Database['public']['Tables']['usage_statistics']['Row'];
+export type PaymentSessionRow = Database['public']['Tables']['payment_sessions']['Row'];
+export type AuditLogRow = Database['public']['Tables']['audit_logs']['Row'];
+
+// Database insert types
+export type InteractionInsert = Database['public']['Tables']['interactions']['Insert'];
+export type UsageStatisticsInsert = Database['public']['Tables']['usage_statistics']['Insert'];
+export type PaymentSessionInsert = Database['public']['Tables']['payment_sessions']['Insert'];
+export type AuditLogInsert = Database['public']['Tables']['audit_logs']['Insert'];
+
 // User usage statistics interface
 export interface UserUsageStats {
   id: string;
@@ -22,25 +34,8 @@ export interface UserUsageTableProps {
   usageData: UserUsageStats[];
 }
 
-// Raw interaction data interface
-export interface RawInteractionData {
-  id: string;
-  request: string;
-  response: string;
-  assistant_id: string;
-  chat: string;
-  cost_estimate: number;
-  created_at: string;
-  duration: number;
-  input_tokens: number;
-  interaction_time: string;
-  is_error: boolean;
-  monthly_period: string;
-  output_tokens: number;
-  token_usage: number;
-  updated_at: string;
-  user_id: string;
-}
+// Raw interaction data interface - Use database type instead
+export type RawInteractionData = InteractionRow;
 
 // Stats type interface
 export interface StatsType {
@@ -52,8 +47,8 @@ export interface StatsType {
 
 // Filter options interface
 export interface FilterOptions {
-  fromDate: string;
-  toDate: string;
+  fromDate?: string;
+  toDate?: string;
   assistantId: string;
   searchTerm: string;
 }
@@ -100,10 +95,12 @@ export interface ChartOptions {
 export interface TimeSeriesDataPoint {
   date: string;
   interactions: number;
+  tokens: number;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
   costs: number;
+  activeUsers: number;
   errors: number;
 }
 
@@ -166,23 +163,16 @@ export interface SessionData {
   expiresAt: string;
 }
 
-// User detail modal interfaces
-export interface UserDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  userId: string;
-  userEmail: string;
-}
-
 // Admin sidebar interfaces
 export interface SidebarLinkProps {
   href: string;
-  children: React.ReactNode;
-  icon?: React.ReactNode;
-  isActive?: boolean;
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  badge?: number | string;
 }
 
-// Admin usage page interfaces
+// Admin usage page interfaces - Database-oriented UserStat
 export interface UserStat {
   id: string;
   email: string;
@@ -191,6 +181,20 @@ export interface UserStat {
   total_assistants: number;
   total_messages: number;
   total_cost: number;
+}
+
+// Analytics UserStat interface - for analytics data
+export interface AnalyticsUserStat {
+  userId: string;
+  interactions: number;
+  tokens: number;
+  costs: number;
+  lastActive: string | null;
+  email?: string;
+  fullName?: string;
+  inputTokens: number;
+  outputTokens: number;
+  percentage?: number;
 }
 
 // Admin database page interfaces
@@ -214,5 +218,18 @@ export interface IndexStatData {
 
 // Admin dashboard interfaces
 export interface TimeSeriesResponse {
-  data: TimeSeriesDataPoint[];
+  timeSeriesData: Array<{
+    date: string;
+    count: number;
+    tokens: number;
+    cost: number;
+  }>;
+}
+
+export interface UserDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  userData: UserUsageStats | null;
+  userId?: string;
+  userEmail?: string;
 }

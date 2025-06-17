@@ -20,7 +20,7 @@ export interface AuthResult {
 
 // Admin auth hook result
 export interface UseAdminAuthResult {
-  user: User;
+  user: User | null;
   isAdmin: boolean;
   isLoading: boolean;
 }

@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 import { getPineconeClient } from '@/lib/pinecone';
+import type { DeleteFileRequest } from '@/types/api.types';
 // Import Database type
 
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { DeleteFileRequest } from '@/types/consolidated-interfaces';
 
 // Define the type for the data expected from Supabase using db.types.ts
 type AssistantConfigFromDb = Database['public']['Tables']['assistant_configs']['Row'];

@@ -1,9 +1,8 @@
-import type { Session } from 'inspector/promises';
 import Stripe from 'stripe';
 
 import type { SessionData } from '@/types/admin.types';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy');
 
 export async function createStripeSessionWithData(
   customerId: string,
@@ -54,7 +53,7 @@ export async function createStripeSessionWithData(
 export async function getSessionData(sessionId: string): Promise<SessionData | null> {
   try {
     const session: Stripe.Checkout.Session = await stripe.checkout.sessions.retrieve(sessionId);
-    const metadata: Session.Metadata = session.metadata;
+    const metadata: Stripe.Metadata = session.metadata || {};
 
     // Reconstruct the session data from metadata
     const sessionData: SessionData = {

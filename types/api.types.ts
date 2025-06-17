@@ -2,24 +2,32 @@
 
 // Twilio API interfaces
 export interface AreaCodeRequest {
-  country: string;
+  country?: string;
 }
 
 export interface AreaCodeInfo {
   areaCode: string;
   region: string;
+  country: string;
 }
 
 export interface ChatAPIResponse {
-  response: string;
-  cost?: number;
+  response?: string;
   tokens?: number;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+  };
+  cost?: number;
+  timing?: {
+    responseDuration?: number;
+  };
 }
 
 export interface SearchPhoneNumberRequest {
-  areaCode?: string;
-  contains?: string;
+  areaCode: string;
   country?: string;
+  smsEnabled?: boolean;
 }
 
 export interface SendMessageRequest {
@@ -36,16 +44,17 @@ export interface RemovePhoneNumberRequest {
 export interface ReleasePhoneNumberRequest {
   phoneNumber: string;
   assistantId: string;
+  twilioSid?: string;
+  adminId?: string;
 }
 
 export interface PurchasePhoneNumberRequest {
   phoneNumber: string;
-  assistantId: string;
 }
 
 export interface UpdateSettingsRequest {
   assistantId: string;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 export interface TestConnectionRequest {
@@ -57,69 +66,104 @@ export interface TestConnectionRequest {
 export interface DeleteFileRequest {
   fileId: string;
   assistantId: string;
+  pinecone_name?: string;
 }
 
 export interface FirecrawlTaskResponse {
-  success: boolean;
-  id: string;
-  url: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  created_at: number;
+  result?: FirecrawlResult;
+  results?: FirecrawlResult[];
+  success?: boolean;
+  id?: string;
+  url?: string;
 }
 
 export interface FirecrawlCrawlResponse {
-  success: boolean;
-  id: string;
-  url: string;
-  data?: any;
+  task_id: string;
+  success?: boolean;
+  id?: string;
+  url?: string;
+  data?: Record<string, unknown>;
 }
 
 export interface RequestBody {
-  business_name: string;
-  business_phone: string;
-  concierge_name: string;
-  description: string;
-  display_name: string;
+  assistantId: string;
   pinecone_name: string;
-  share_phone_number: boolean;
-  system_prompt: string;
-  plan_id: string;
-  customer_email: string;
+  url: string;
+  business_name?: string;
+  business_phone?: string;
+  concierge_name?: string;
+  description?: string;
+  display_name?: string;
+  share_phone_number?: boolean;
+  system_prompt?: string;
+  plan_id?: string;
+  customer_email?: string;
 }
 
 export interface ErrorData {
-  error: string;
+  error?: string;
+  detail?: string;
   details?: string;
+  message?: string;
 }
 
 export interface FirecrawlResult {
-  success: boolean;
-  data?: any;
+  url: string;
+  html?: string;
+  cleaned_html?: string;
+  markdown?: string;
+  markdown_v2?: {
+    raw_markdown: string;
+    markdown_with_citations: string;
+    references_markdown: string;
+  };
+  status_code?: number;
+  error_message?: string;
+  metadata?: {
+    title?: string;
+    description?: string;
+    author?: string;
+  };
+  links?: {
+    external: Array<{ url: string; text?: string; href?: string; title?: string }>;
+  };
+  success?: boolean;
+  data?: Record<string, unknown>;
   error?: string;
 }
 
 export interface PineconeResponse {
-  matches: Array<{
-    id: string;
-    score: number;
-    metadata: Record<string, any>;
-  }>;
+  message?: {
+    content?: string;
+  };
+  usage?: {
+    totalTokens?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+  };
+  citations?: unknown;
 }
 
 export interface CreateAssistantRequest {
-  name: string;
-  description: string;
-  systemPrompt: string;
-  businessName: string;
-  businessPhone: string;
-  sharePhoneNumber: boolean;
-  planId: string;
-  customerEmail: string;
+  assistantName: string;
+  description?: string;
+  params?: {
+    conciergeName?: string;
+    businessName?: string;
+    phoneNumber?: string;
+  };
+  stripeCheckoutSessionId?: string;
+  paymentSessionId?: string;
+  plan?: string;
 }
 
 // Payment API interfaces
 export interface CreateAssistantResult {
-  success: boolean;
-  assistantId?: string;
-  error?: string;
+  message: string;
+  assistantId: string;
+  pendingAssistantId: string;
 }
 
 export interface WebhookPayload {
@@ -128,18 +172,18 @@ export interface WebhookPayload {
     object: {
       id: string;
       customer: string;
-      metadata: Record<string, any>;
+      metadata: Record<string, unknown>;
+      object?: string;
     };
   };
 }
 
 export interface AssistantConfigData {
-  name: string;
-  description: string;
-  systemPrompt: string;
-  businessName: string;
-  businessPhone: string;
-  sharePhoneNumber: boolean;
+  display_name?: string;
+  business_name?: string;
+  description?: string;
+  concierge_name?: string;
+  business_phone?: string;
 }
 
 // Stripe interfaces
@@ -150,22 +194,73 @@ export interface StripeCustomerResult {
 }
 
 export interface CustomerSessionResponse {
-  client_secret: string;
+  customer_session_client_secret: string;
 }
 
-// Shared API interfaces (moved from shared-interfaces.ts)
-export interface DeleteAssistantRequest {
-  assistantName: string;
-}
-
-export interface ChatRequest {
+// File operations interfaces
+export interface RequestBody {
   assistantId: string;
+  pinecone_name: string;
+  url: string;
+}
+
+export interface ErrorData {
+  detail?: string;
+  details?: string;
+  message?: string;
+}
+
+export interface FirecrawlTaskResponse {
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  created_at: number;
+  result?: FirecrawlResult;
+  results?: FirecrawlResult[];
+}
+
+export interface FirecrawlCrawlResponse {
+  task_id: string;
+}
+
+export interface FirecrawlResult {
+  url: string;
+  html?: string;
+  cleaned_html?: string;
+  markdown?: string;
+  markdown_v2?: {
+    raw_markdown: string;
+    markdown_with_citations: string;
+    references_markdown: string;
+  };
+  status_code?: number;
+  error_message?: string;
+  metadata?: {
+    title?: string;
+    description?: string;
+    author?: string;
+  };
+  links?: {
+    external: Array<{ url: string; text?: string; href?: string; title?: string }>;
+  };
+}
+
+// Missing API interfaces
+export interface ChatRequest {
   message: string;
+  assistantId: string;
+  chatId?: string;
+}
+
+export interface DeleteAssistantRequest {
+  assistantId: string;
+  assistantName?: string;
+  pinecone_name?: string;
+  namespace?: string;
+  index_name?: string;
 }
 
 export interface ListFilesRequest {
   assistantId: string;
-  pinecone_name: string;
+  pinecone_name?: string;
 }
 
 export interface DirectSMSRequest {
@@ -176,15 +271,24 @@ export interface DirectSMSRequest {
 
 export interface InteractionRequest {
   assistantId: string;
-  chat: string;
-  request: string;
-  response: string;
-  tokenUsage: number;
-  costEstimate: number;
-  duration: number;
-  isError: boolean;
+  requestData: string;
+  responseData: string;
+  chatId?: string;
+  chat?: string;
+  request?: string;
+  response?: string;
+  tokenUsage?: number;
+  costEstimate?: number;
+  duration?: number;
+  isError?: boolean;
 }
 
+export interface ImportPhoneNumberRequest {
+  phoneNumber: string;
+  assistantId: string;
+}
+
+// Additional missing interfaces
 export interface PaymentSessionData {
   sessionId: string;
   userId: string;
@@ -210,10 +314,6 @@ export interface InteractionWebhookPayload {
   request_data: string;
   response_data: string;
   chat_id: string;
-}
-
-export interface ImportPhoneNumberRequest {
-  phoneNumber: string;
 }
 
 export interface AssistantSessionData {

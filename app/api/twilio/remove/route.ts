@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server';
 
 import Twilio from 'twilio';
 
+import type { RemovePhoneNumberRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { RemovePhoneNumberRequest } from '@/types/consolidated-interfaces';
 
 const twilioClient = Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 

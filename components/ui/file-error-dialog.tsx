@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { FileErrorDialogProps } from '@/types/consolidated-interfaces';
+import type { FileErrorDialogProps } from '@/types/ui.types';
 
 export function FileErrorDialog({
   open,

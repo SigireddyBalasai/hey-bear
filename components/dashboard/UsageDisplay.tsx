@@ -5,7 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { UsageDisplayProps } from '@/types/consolidated-interfaces';
+import type { UsageDisplayProps } from '@/types/dashboard.types';
 
 /**
  * A flexible component for displaying usage metrics

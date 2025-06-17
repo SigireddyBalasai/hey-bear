@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+import type { UpdateSettingsRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
-import type { UpdateSettingsRequest } from '@/types/consolidated-interfaces';
 
 // Define the settings object type
 type TwilioSettings = {
@@ -15,7 +15,7 @@ type TwilioSettings = {
 };
 
 // Get current settings
-export const GET = requireAdmin(async (_context, _req: NextRequest) => {
+export const GET = requireAdmin(async () => {
   try {
     const settings: TwilioSettings = {
       accountSid: process.env.TWILIO_ACCOUNT_SID ?? '',

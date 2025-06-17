@@ -81,10 +81,12 @@ const PlanUsage = ({
               assistantsData = []; // Use empty array on error
             } else {
               // Ensure we have valid IDs and names in the assistants data
-              assistantsData = (result.data || []).map(assistant => ({
-                id: typeof assistant.id === 'string' ? assistant.id : '',
-                name: typeof assistant.name === 'string' ? assistant.name : 'Unknown Assistant',
-              }));
+              assistantsData = (result.data || []).map(
+                (assistant: { id: string; name: string }) => ({
+                  id: typeof assistant.id === 'string' ? assistant.id : '',
+                  name: typeof assistant.name === 'string' ? assistant.name : 'Unknown Assistant',
+                })
+              );
             }
           } catch (schemaError) {
             console.error('Assistants schema not accessible:', schemaError);
@@ -197,10 +199,11 @@ const PlanUsage = ({
               if (!analyticsError && analyticsData) {
                 // Process each item to determine if it's incoming or outgoing
                 smsReceived = analyticsData.filter(item => {
-                  if (!item.chat || typeof item.chat !== 'string') return false;
+                  const chatField = item.chat;
+                  if (!chatField || typeof chatField !== 'string') return false;
                   try {
                     // Type-safe JSON parsing with explicit type casting
-                    const chatData = JSON.parse(item.chat) as Record<string, unknown>;
+                    const chatData = JSON.parse(chatField) as Record<string, unknown>;
 
                     // Safely check properties with type guards
                     if (chatData && typeof chatData === 'object') {
@@ -210,17 +213,18 @@ const PlanUsage = ({
                       return 'from' in chatData;
                     }
                     return false;
-                  } catch (_parseError) {
-                    // Use underscore prefix for unused variables
+                  } catch {
+                    // Parse error - skip this item
                     return false;
                   }
                 }).length;
 
                 smsSent = analyticsData.filter(item => {
-                  if (!item.chat || typeof item.chat !== 'string') return false;
+                  const chatField = item.chat;
+                  if (!chatField || typeof chatField !== 'string') return false;
                   try {
                     // Type-safe JSON parsing with explicit type casting
-                    const chatData = JSON.parse(item.chat) as Record<string, unknown>;
+                    const chatData = JSON.parse(chatField) as Record<string, unknown>;
 
                     // Safely check properties with type guards
                     if (chatData && typeof chatData === 'object') {
@@ -230,8 +234,8 @@ const PlanUsage = ({
                       return 'to' in chatData;
                     }
                     return false;
-                  } catch (_parseError) {
-                    // Use underscore prefix for unused variables
+                  } catch {
+                    // Parse error - skip this item
                     return false;
                   }
                 }).length;
@@ -301,7 +305,7 @@ const PlanUsage = ({
                           ? 'Unknown error'
                           : errorJson
                     );
-                  } catch (_jsonError) {
+                  } catch {
                     console.warn('Could not fetch SMS analytics data: Error details unavailable');
                   }
                 }
@@ -393,7 +397,7 @@ const PlanUsage = ({
             planType={planType}
             isLoading={loading}
             upgradePath="/dashboard/billing"
-            onUpgrade={() => window.location.href = '/dashboard/billing'}
+            onUpgrade={() => (window.location.href = '/dashboard/billing')}
             variant="default"
           />
         </CardHeader>
