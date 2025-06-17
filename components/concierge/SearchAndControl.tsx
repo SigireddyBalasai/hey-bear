@@ -1,7 +1,6 @@
 import { LayoutGrid, LayoutList, Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -9,20 +8,18 @@ type ViewMode = 'grid' | 'list';
 
 type SearchAndControlsProps = {
   searchQuery: string;
-  onSearchChange: (query: string) => void;
+  setSearchQuery: (query: string) => void;
   viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
-  createDialogOpen: boolean;
-  onCreateDialogChange: (open: boolean) => void;
+  setViewMode: (mode: ViewMode) => void;
+  onCreateNew: () => void;
 };
 
 export function SearchAndControls({
   searchQuery,
-  onSearchChange,
+  setSearchQuery,
   viewMode,
-  onViewModeChange,
-  createDialogOpen,
-  onCreateDialogChange,
+  setViewMode,
+  onCreateNew,
 }: SearchAndControlsProps) {
   return (
     <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
@@ -33,7 +30,7 @@ export function SearchAndControls({
           className="pl-10"
           value={searchQuery}
           onChange={e => {
-            onSearchChange(e.target.value);
+            setSearchQuery(e.target.value);
           }}
         />
       </div>
@@ -48,7 +45,7 @@ export function SearchAndControls({
                   size="icon"
                   className="h-9 w-9"
                   onClick={() => {
-                    onViewModeChange('grid');
+                    setViewMode('grid');
                   }}
                   aria-label="Grid view"
                 >
@@ -59,7 +56,7 @@ export function SearchAndControls({
                   size="icon"
                   className="h-9 w-9"
                   onClick={() => {
-                    onViewModeChange('list');
+                    setViewMode('list');
                   }}
                   aria-label="List view"
                 >
@@ -71,14 +68,10 @@ export function SearchAndControls({
           </Tooltip>
         </TooltipProvider>
 
-        <Dialog open={createDialogOpen} onOpenChange={onCreateDialogChange}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              <span>New no-show</span>
-            </Button>
-          </DialogTrigger>
-        </Dialog>
+        <Button className="gap-2" onClick={onCreateNew}>
+          <Plus className="h-4 w-4" />
+          <span>New no-show</span>
+        </Button>
       </div>
     </div>
   );

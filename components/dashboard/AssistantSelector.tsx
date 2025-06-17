@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { AssistantSelectorProps } from '@/types/consolidated-interfaces';
+import type { AssistantSelectorProps } from '@/types/dashboard.types';
 
 /**
  * Component for selecting an assistant from a dropdown

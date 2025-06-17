@@ -105,10 +105,10 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
         responseTime: responseTime,
         assistant_id: chat.assistant_id,
         user_id: chat.user_id ?? user.id,
-        duration: chat.duration ?? undefined,
-        interaction_time: chat.interaction_time ?? undefined,
+        duration: chat.duration ?? 0,
+        interaction_time: chat.interaction_time ?? '',
         chat: chat.chat,
-        assistant_name: null,
+        assistant_name: '',
         status: 'Completed',
       };
     });

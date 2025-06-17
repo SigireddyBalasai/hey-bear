@@ -7,9 +7,15 @@ import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getPineconeClient } from '@/lib/pinecone';
+import type {
+  ErrorData,
+  FirecrawlCrawlResponse,
+  FirecrawlResult,
+  FirecrawlTaskResponse,
+  RequestBody,
+} from '@/types/api.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { FirecrawlTaskResponse, FirecrawlCrawlResponse, RequestBody, ErrorData, FirecrawlResult } from '@/types/consolidated-interfaces';
 
 // Create a logger function for consistent log formatting
 const logger = {

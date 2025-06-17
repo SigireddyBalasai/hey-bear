@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import type { UserUsageStats, UserDetailModalProps } from '@/types/consolidated-interfaces';
+import type { UserDetailModalProps } from '@/types/admin.types';
 
 export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalProps) {
   if (!userData) return null;

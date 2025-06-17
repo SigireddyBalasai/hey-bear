@@ -13,7 +13,6 @@ import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import type { SidebarLinkProps } from '@/types/consolidated-interfaces';
 
 interface LinkType {
   href: string;

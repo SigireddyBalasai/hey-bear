@@ -4,8 +4,8 @@ import type { NextRequest } from 'next/server';
 import twilio from 'twilio';
 import type { AccountInstance } from 'twilio/lib/rest/api/v2010/account';
 
+import type { TestConnectionRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
-import type { TestConnectionRequest } from '@/types/consolidated-interfaces';
 
 export const POST = requireAdmin(async (context, req: NextRequest) => {
   try {

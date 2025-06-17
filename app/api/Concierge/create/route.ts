@@ -5,11 +5,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
+import type { CreateAssistantRequest } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
-import type { CreateAssistantRequest } from '@/types/consolidated-interfaces';
 
 // Import specific insert types
 type AssistantActivityInsert = Database['public']['Tables']['assistant_activity']['Insert'];

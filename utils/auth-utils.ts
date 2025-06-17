@@ -175,14 +175,14 @@ export async function getAuthContext(requireAdmin: boolean = false): Promise<Aut
 }
 
 /**
- * Check if user is admin using database role (utility function)
+ * Check if user is admin using database role (server-side utility function)
+ * This function uses server-side Supabase client
  */
 export async function isUserAdmin(user: User | null): Promise<boolean> {
   if (!user) return false;
 
   try {
-    const { createClient } = await import('@/utils/supabase/client');
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: adminCheck, error: adminError } = await supabase.rpc('is_admin');
 
@@ -205,65 +205,3 @@ export const authenticateUser = () => authenticate(false);
 export const authenticateAdmin = () => authenticate(true);
 export const withAuthHandler = requireAuth;
 export const withAdminHandler = requireAdmin;
-
-/**
- * Client-side authentication functions for components
- * These functions use the client-side Supabase client
- */
-
-/**
- * Client-side authentication check for components
- * Returns user data if authenticated, null otherwise
- */
-export async function getAuthenticatedUser(): Promise<User | null> {
-  try {
-    const { createClient } = await import('@/utils/supabase/client');
-    const supabase = createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return null;
-    }
-
-    return user;
-  } catch (error) {
-    console.error('Error getting authenticated user:', error);
-    return null;
-  }
-}
-
-/**
- * Utility for checking authentication in components
- */
-export async function requireAuthentication(): Promise<{
-  user: User | null;
-  isAuthenticated: boolean;
-}> {
-  const user = await getAuthenticatedUser();
-  return {
-    user,
-    isAuthenticated: user !== null,
-  };
-}
-
-/**
- * Utility for checking admin status in components
- */
-export async function requireAdminAuthentication(): Promise<{
-  user: User | null;
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-}> {
-  const user = await getAuthenticatedUser();
-  const isAdmin = await isUserAdmin(user);
-
-  return {
-    user,
-    isAuthenticated: user !== null,
-    isAdmin,
-  };
-}

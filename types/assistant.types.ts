@@ -1,10 +1,24 @@
 // Assistant-related interfaces and types
 import type { Database } from '@/types/db.types';
 
-// Database types
+// Database types - Re-export for convenience
 export type AssistantRow = Database['public']['Tables']['assistants']['Row'];
 export type AssistantConfig = Database['public']['Tables']['assistant_configs']['Row'];
 export type AssistantUsageLimits = Database['public']['Tables']['assistant_usage_limits']['Row'];
+export type AssistantActivity = Database['public']['Tables']['assistant_activity']['Row'];
+export type AssistantSubscription = Database['public']['Tables']['assistant_subscriptions']['Row'];
+
+// Database insert types
+export type AssistantInsert = Database['public']['Tables']['assistants']['Insert'];
+export type AssistantConfigInsert = Database['public']['Tables']['assistant_configs']['Insert'];
+export type AssistantUsageLimitsInsert =
+  Database['public']['Tables']['assistant_usage_limits']['Insert'];
+
+// Database update types
+export type AssistantUpdate = Database['public']['Tables']['assistants']['Update'];
+export type AssistantConfigUpdate = Database['public']['Tables']['assistant_configs']['Update'];
+export type AssistantUsageLimitsUpdate =
+  Database['public']['Tables']['assistant_usage_limits']['Update'];
 
 // Assistant data interface
 export interface AssistantData {
@@ -43,11 +57,6 @@ export interface DashboardAssistant {
 }
 
 // Assistant selector props
-export interface AssistantSelectorProps {
-  selectedAssistant: string;
-  onAssistantChange: (assistantId: string) => void;
-}
-
 // Assistant for dashboard URL interface
 export interface Assistant {
   id: string;
@@ -73,6 +82,7 @@ export interface AssistantCardProps {
   isActionInProgress: boolean;
   onToggleStar: (id: string, isStarred: boolean) => void;
   onDelete: (id: string) => void;
+  onDeleteAssistant: (assistantId: string) => void;
   onUpgrade: (id: string) => void;
 }
 

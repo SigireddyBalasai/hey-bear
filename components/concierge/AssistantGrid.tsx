@@ -1,0 +1,111 @@
+'use client';
+
+import React from 'react';
+
+import { motion } from 'framer-motion';
+
+import type { AssistantWithNonNullableFields } from '@/types/concierge.types';
+
+import { AssistantCard } from './conciergeCard';
+
+interface AssistantGridProps {
+  assistants: AssistantWithNonNullableFields[];
+  searchQuery: string;
+  selectedTab: string;
+  viewMode: 'grid' | 'list';
+  onDeleteAssistant: (assistantId: string) => void;
+}
+
+const filterAssistants = (
+  assistants: AssistantWithNonNullableFields[],
+  selectedTab: string,
+  searchQuery: string
+) => {
+  return assistants.filter(assistant => {
+    // Filter by tab
+    if (selectedTab === 'starred' && !assistant.assistant.is_starred) return false;
+    if (selectedTab === 'recent' && !assistant.last_interaction_at) return false;
+
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const name = assistant.assistant.name.toLowerCase();
+      const description = assistant.config?.description?.toLowerCase() || '';
+      return name.includes(query) || description.includes(query);
+    }
+
+    return true;
+  });
+};
+
+export function AssistantGrid({
+  assistants,
+  searchQuery,
+  selectedTab,
+  viewMode,
+  onDeleteAssistant,
+}: AssistantGridProps) {
+  const filteredAssistants = filterAssistants(assistants, selectedTab, searchQuery);
+
+  if (filteredAssistants.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">
+          {searchQuery
+            ? `No assistants found matching "${searchQuery}"`
+            : selectedTab === 'starred'
+              ? 'No starred assistants yet'
+              : selectedTab === 'recent'
+                ? 'No recent activity'
+                : 'No assistants found'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      className={`gap-6 ${
+        viewMode === 'grid'
+          ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+          : 'flex flex-col space-y-4'
+      }`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      {filteredAssistants.map((assistant, index) => (
+        <motion.div
+          key={assistant.assistant.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: index * 0.1 }}
+        >
+          <AssistantCard
+            assistant={{
+              id: assistant.assistant.id,
+              name: assistant.assistant.name || '',
+              is_starred: assistant.assistant.is_starred ?? false,
+              created_at: assistant.assistant.created_at,
+              description: assistant.config.description || '',
+              has_phone_number: !!(
+                assistant.assistant.assigned_phone_number ?? assistant.config?.business_phone
+              ),
+              subscription_plan: 'personal' as 'personal' | 'business',
+              total_messages: assistant.interactions_count,
+              last_used_at: assistant.last_interaction_at || '',
+            }}
+            isLoading={false}
+            isActionInProgress={false}
+            onToggleStar={() => {
+              // TODO: implement toggle star functionality
+            }}
+            onDelete={onDeleteAssistant}
+            onDeleteAssistant={onDeleteAssistant}
+            onUpgrade={() => {}}
+          />
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+}

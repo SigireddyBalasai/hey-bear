@@ -1,4 +1,6 @@
 // UI component interfaces and types
+import type { DateRange } from 'react-day-picker';
+
 import type { VariantProps } from 'class-variance-authority';
 
 import type { badgeVariants } from '@/components/ui/badge';
@@ -18,45 +20,62 @@ export interface ButtonProps
 
 // File status badge interfaces
 export interface FileStatusBadgeProps {
-  status: 'processing' | 'completed' | 'error';
+  status: 'ready' | 'processing' | 'failed' | 'completed' | 'error';
   className?: string;
+  percentDone?: number;
 }
 
 // File error dialog interfaces
 export interface FileErrorDialogProps {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
-  error: string;
-  fileName?: string;
+  title: string;
+  description: string;
+  details?: string;
 }
 
 // Date range picker interfaces
 export interface DateRangePickerProps {
-  value?: {
-    from: Date;
-    to: Date;
-  };
-  onChange?: (range: { from: Date; to: Date } | undefined) => void;
+  dateRange?: DateRange;
+  onDateRangeChange?: (range: DateRange | undefined) => void;
   placeholder?: string;
-  className?: string;
-}
-
-// Stripe pricing table interfaces
-export interface StripePricingTableProps {
-  customerId?: string;
   className?: string;
 }
 
 // Header interfaces
 export interface HeaderProps {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
+  user: {
+    id: string;
+    email?: string;
+    user_metadata?: {
+      full_name?: string;
+      avatar_url?: string;
+    };
+  } | null;
+  onCreateNew?: () => void;
 }
 
-// Create assistant dialog interfaces
+//  Create Assistant Dialog interfaces
 export interface CreateAssistantDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  formData: {
+    name: string;
+    description: string;
+    conciergeName: string;
+    personality: string;
+    businessName: string;
+    sharePhoneNumber: boolean;
+    phoneNumber: string;
+    selectedPlan?: string;
+  };
+  onInputChange: (field: string, value: string | boolean) => void;
+}
+
+// Stripe pricing table interfaces
+export interface StripePricingTableProps {
+  sessionId: string;
+  onPaymentSuccess?: () => void;
+  onPaymentCancel?: () => void;
+  className?: string;
 }

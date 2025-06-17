@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
-import type { NextRequest } from 'next/server';
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   console.log('Payment cancel route called');
 
   // Since Stripe pricing table cancellation doesn't pass assistant data,

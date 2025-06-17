@@ -39,7 +39,7 @@ export const isChatDirection = (
     }
 
     return false;
-  } catch (_parseError) {
+  } catch {
     return false;
   }
 };

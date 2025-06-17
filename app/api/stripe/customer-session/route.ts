@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
 import { requireAuth } from '@/utils/auth-utils';
 import {
@@ -8,7 +7,7 @@ import {
 } from '@/utils/stripe-customer-auth';
 import { createClient as createAdminClient } from '@/utils/supabase/server-admin';
 
-export const POST = requireAuth(async (context, _req: NextRequest) => {
+export const POST = requireAuth(async context => {
   try {
     if (!context.user?.email) {
       return NextResponse.json(

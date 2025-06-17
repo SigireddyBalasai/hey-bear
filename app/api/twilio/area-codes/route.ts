@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import type { LocalInstance } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
 
+import type { AreaCodeInfo, AreaCodeRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
-import type { AreaCodeRequest, AreaCodeInfo } from '@/types/consolidated-interfaces';
 
 // Use Twilio SDK type instead of custom interface
 type TwilioPhoneNumber = LocalInstance;

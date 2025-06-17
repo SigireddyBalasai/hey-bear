@@ -24,21 +24,19 @@ import { StripePricingTable } from '@/components/ui/stripe-pricing-table';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useLoadingState } from '@/hooks/useLoadingState';
+import type { CreateAssistantDialogProps } from '@/types/ui.types';
 import { handleError, showInfo, showSuccess, withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import type { CreateAssistantDialogProps } from '@/types/consolidated-interfaces';
 
 export function CreateAssistantDialog({
   open,
-  setOpen,
+  onOpenChange,
   formData,
-  handleInputChange,
-  handleCreateAssistant: _handleCreateAssistant,
-  isCreating: _isCreating,
-  userId: _userIdProp,
+  onInputChange,
 }: CreateAssistantDialogProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<'details' | 'payment'>('details');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_userId, _setUserId] = useState<string>('');
   const { isLoading: isSavingSession, setIsLoading: setIsSavingSession } = useLoadingState(false);
 
@@ -182,17 +180,17 @@ export function CreateAssistantDialog({
   const handlePaymentSuccess = () => {
     setSessionId(null);
     setCurrentStep('details');
-    setOpen(false);
+    onOpenChange(false);
     showSuccess('Payment successful!', 'Your assistant has been activated and is ready to use.');
     // Reset form data after successful payment
-    handleInputChange('name', '');
-    handleInputChange('description', '');
-    handleInputChange('conciergeName', '');
-    handleInputChange('personality', '');
-    handleInputChange('businessName', '');
-    handleInputChange('sharePhoneNumber', false);
-    handleInputChange('phoneNumber', '');
-    handleInputChange('selectedPlan', '');
+    onInputChange('name', '');
+    onInputChange('description', '');
+    onInputChange('conciergeName', '');
+    onInputChange('personality', '');
+    onInputChange('businessName', '');
+    onInputChange('sharePhoneNumber', false);
+    onInputChange('phoneNumber', '');
+    onInputChange('selectedPlan', '');
   };
 
   const handlePaymentCancel = () => {
@@ -202,7 +200,7 @@ export function CreateAssistantDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className={`max-h-[85vh] overflow-y-auto ${currentStep === 'payment' ? 'sm:max-w-[900px]' : 'sm:max-w-[600px]'}`}
         >
@@ -215,7 +213,7 @@ export function CreateAssistantDialog({
                   if (currentStep === 'payment') {
                     setCurrentStep('details');
                   } else {
-                    setOpen(false);
+                    onOpenChange(false);
                   }
                 }}
                 className="hover:bg-muted"
@@ -249,7 +247,7 @@ export function CreateAssistantDialog({
                     placeholder="E.g., Sales Assistant, Support Bot"
                     value={formData.name}
                     onChange={e => {
-                      handleInputChange('name', e.target.value);
+                      onInputChange('name', e.target.value);
                     }}
                     className="w-full"
                     autoFocus
@@ -268,7 +266,7 @@ export function CreateAssistantDialog({
                     placeholder="E.g., Alex, Sales Team"
                     value={formData.conciergeName}
                     onChange={e => {
-                      handleInputChange('conciergeName', e.target.value);
+                      onInputChange('conciergeName', e.target.value);
                     }}
                     className="w-full"
                   />
@@ -284,7 +282,7 @@ export function CreateAssistantDialog({
                   <Select
                     value={formData.personality}
                     onValueChange={value => {
-                      handleInputChange('personality', value);
+                      onInputChange('personality', value);
                     }}
                   >
                     <SelectTrigger className="w-full">
@@ -312,7 +310,7 @@ export function CreateAssistantDialog({
                     placeholder="E.g., Acme Inc., John Smith"
                     value={formData.businessName}
                     onChange={e => {
-                      handleInputChange('businessName', e.target.value);
+                      onInputChange('businessName', e.target.value);
                     }}
                     className="w-full"
                   />
@@ -328,7 +326,7 @@ export function CreateAssistantDialog({
                     placeholder="Describe what this No-show does..."
                     value={formData.description}
                     onChange={e => {
-                      handleInputChange('description', e.target.value);
+                      onInputChange('description', e.target.value);
                     }}
                     className="min-h-[80px] w-full"
                   />
@@ -348,7 +346,7 @@ export function CreateAssistantDialog({
                       id="sharePhoneNumber"
                       checked={formData.sharePhoneNumber}
                       onCheckedChange={checked => {
-                        handleInputChange('sharePhoneNumber', checked);
+                        onInputChange('sharePhoneNumber', checked);
                       }}
                     />
                   </div>
@@ -361,7 +359,7 @@ export function CreateAssistantDialog({
                         placeholder="E.g., +1 (555) 123-4567"
                         value={formData.phoneNumber}
                         onChange={e => {
-                          handleInputChange('phoneNumber', e.target.value);
+                          onInputChange('phoneNumber', e.target.value);
                         }}
                         className="w-full"
                       />
@@ -378,7 +376,7 @@ export function CreateAssistantDialog({
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setOpen(false);
+                    onOpenChange(false);
                   }}
                 >
                   Cancel
@@ -450,7 +448,7 @@ export function CreateAssistantDialog({
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setOpen(false);
+                    onOpenChange(false);
                     // Reset state when closing
                     setCurrentStep('details');
                     setSessionId(null);

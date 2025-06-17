@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { ErrorFallbackProps, SuspenseWrapperProps } from '@/types/consolidated-interfaces';
+import type { ErrorFallbackProps, SuspenseWrapperProps } from '@/types/dashboard.types';
 
 // Loading fallback components
 export const InteractionLogSkeleton = (): JSX.Element => (

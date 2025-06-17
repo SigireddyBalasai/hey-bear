@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import type { IncomingPhoneNumberInstance } from 'twilio/lib/rest/api/v2010/account/incomingPhoneNumber';
 
+import type { PurchasePhoneNumberRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { PurchasePhoneNumberRequest } from '@/types/consolidated-interfaces';
 
 // Use Twilio SDK type instead of custom interface
 type TwilioPhoneNumber = IncomingPhoneNumberInstance;

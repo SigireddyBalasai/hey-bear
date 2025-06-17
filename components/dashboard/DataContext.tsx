@@ -10,7 +10,7 @@ import type {
   FilterOptions,
   Interaction,
   InteractionCache,
-  RawInteractionData,
+  InteractionRow,
   StatsType,
 } from '@/types/admin.types';
 import { withErrorHandling } from '@/utils/error-handling';
@@ -29,7 +29,7 @@ const isValidOptionalNumber = (value: unknown): value is number | null =>
 const isValidOptionalBoolean = (value: unknown): value is boolean | null =>
   value === null || typeof value === 'boolean';
 
-const validateRawInteractionData = (data: unknown): data is RawInteractionData => {
+const validateInteractionRow = (data: unknown): data is InteractionRow => {
   if (!data || typeof data !== 'object') return false;
 
   const obj = data as Record<string, unknown>;
@@ -54,14 +54,14 @@ const validateRawInteractionData = (data: unknown): data is RawInteractionData =
   );
 };
 
-const transformToInteraction = (rawData: RawInteractionData): Interaction => {
+const transformToInteraction = (rawData: InteractionRow): Interaction => {
   return rawData as Interaction;
 };
 
 const validateInteractions = (data: unknown): Interaction[] => {
   if (!Array.isArray(data)) return [];
 
-  return data.filter(validateRawInteractionData).map(transformToInteraction);
+  return data.filter(validateInteractionRow).map(transformToInteraction);
 };
 
 // Error recovery utilities
@@ -312,6 +312,8 @@ export const DataProvider = React.memo(function DataProvider({
         ...params,
         page: params.page || 1,
         pageSize: params.pageSize || pageSize,
+        fromDate: '',
+        toDate: '',
       });
       const cachedData = getCachedData(cacheKey);
 
@@ -390,7 +392,7 @@ export const DataProvider = React.memo(function DataProvider({
       page: currentPage,
       pageSize,
       searchTerm,
-      assistantId: assistantId || undefined,
+      assistantId: assistantId || '',
     });
   }, [clearCache, fetchInteractions, currentPage, pageSize, searchTerm, assistantId]);
 
@@ -404,7 +406,7 @@ export const DataProvider = React.memo(function DataProvider({
       }
 
       searchTimeoutRef.current = setTimeout(() => {
-        fetchInteractions({ page: 1, pageSize, searchTerm, assistantId: assistantId || undefined });
+        fetchInteractions({ page: 1, pageSize, searchTerm, assistantId: assistantId || '' });
       }, delay);
     },
     [fetchInteractions, pageSize, assistantId]

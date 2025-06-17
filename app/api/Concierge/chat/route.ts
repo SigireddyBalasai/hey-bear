@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 
 import { getPineconeClient } from '@/lib/pinecone';
 import type { ChatRequest } from '@/types/api.types';
+import type { PineconeResponse } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 import { createClient } from '@/utils/supabase/server';
-import type { PineconeResponse } from '@/types/consolidated-interfaces';
 
 type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];
 

@@ -245,7 +245,14 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
           filters.toDate = filterValues.toDate.toISOString();
         }
 
-        await filterInteractions(filters);
+        // Add required FilterOptions properties
+        const completeFilters = {
+          ...filters,
+          assistantId: filterValues.assistantId === 'all' ? '' : filterValues.assistantId,
+          searchTerm: filterValues.searchTerm,
+        };
+
+        await filterInteractions(completeFilters);
 
         // Close filter panel
         onClose?.();
@@ -311,7 +318,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
                 <Label className="text-xs">From Date</Label>
                 <DatePicker
                   date={filterValues.fromDate}
-                  onSelect={date => updateFilterValue('fromDate', date)}
+                  onSelect={date => updateFilterValue('fromDate', date || undefined)}
                   placeholder="Select start date"
                   disabled={loadingStates.applying}
                 />
@@ -320,7 +327,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
                 <Label className="text-xs">To Date</Label>
                 <DatePicker
                   date={filterValues.toDate}
-                  onSelect={date => updateFilterValue('toDate', date)}
+                  onSelect={date => updateFilterValue('toDate', date || undefined)}
                   placeholder="Select end date"
                   disabled={loadingStates.applying}
                 />
@@ -367,7 +374,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
               )}
             </Button>
 
-            {(onClose || setShowFilters) && (
+            {(onClose != null || setShowFilters != null) && (
               <Button
                 variant="outline"
                 onClick={() => {

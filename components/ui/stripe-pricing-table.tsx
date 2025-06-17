@@ -5,9 +5,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 
 import { useLoadingState } from '@/hooks/useLoadingState';
+import type { CustomerSessionResponse } from '@/types/api.types';
+import type { StripePricingTableProps } from '@/types/ui.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
-import type { StripePricingTableProps, CustomerSessionResponse } from '@/types/consolidated-interfaces';
 
 export function StripePricingTable({
   sessionId,

@@ -2,6 +2,9 @@ import React from 'react';
 
 import type { Metadata } from 'next';
 
+// Force dynamic rendering for all admin pages
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Admin Dashboard | Hey Bear',
   description: 'Admin dashboard for Hey Bear application',

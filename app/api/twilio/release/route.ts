@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 
 import twilio from 'twilio';
 
+import type { ReleasePhoneNumberRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-import type { ReleasePhoneNumberRequest } from '@/types/consolidated-interfaces';
 
 // Initialize Twilio client
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -16,7 +16,7 @@ export const POST = requireAdmin(async (context, request) => {
 
     // Parse request body
     const body = (await request.json()) as ReleasePhoneNumberRequest;
-    const { twilioSid, phoneNumber, adminId: _adminId } = body;
+    const { twilioSid, phoneNumber } = body;
 
     if (!twilioSid && !phoneNumber) {
       return NextResponse.json(

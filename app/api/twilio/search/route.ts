@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import type { LocalInstance } from 'twilio/lib/rest/api/v2010/account/availablePhoneNumberCountry/local';
 
+import type { SearchPhoneNumberRequest } from '@/types/api.types';
 import { requireAdmin } from '@/utils/auth-utils';
-import type { SearchPhoneNumberRequest } from '@/types/consolidated-interfaces';
 
 export const POST = requireAdmin(async (context, req) => {
   try {
