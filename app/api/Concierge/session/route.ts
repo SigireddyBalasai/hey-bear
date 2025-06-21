@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-
 import { v4 as uuidv4 } from 'uuid';
 
 import type { RequestBody } from '@/types/api.types';
@@ -30,6 +29,7 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
 
     if (fetchError || !paymentSession) {
       console.error('Error fetching payment session:', fetchError);
+
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
@@ -51,6 +51,7 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
     });
   } catch (error) {
     console.error('Unexpected error in session retrieval:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });
@@ -94,14 +95,13 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       pinecone_name,
       share_phone_number = false,
       system_prompt,
-      plan_id,
       customer_email,
     } = body;
 
     // Validate required fields
-    if (!business_name || !concierge_name || !display_name || !plan_id) {
+    if (!business_name || !concierge_name || !display_name) {
       return NextResponse.json(
-        { error: 'Missing required fields: business_name, concierge_name, display_name, plan_id' },
+        { error: 'Missing required fields: business_name, concierge_name, display_name' },
         { status: 400 }
       );
     }
@@ -126,7 +126,6 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       session_id: sessionId,
       user_id: context.user.id,
       assistant_config_data: assistantConfigData,
-      plan_id,
       customer_email: customer_email || context.user.email,
       status: 'pending',
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
@@ -135,7 +134,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
     const { data: paymentSession, error: insertError } = await supabase
       .from('payment_sessions')
       .insert([paymentSessionData])
-      .select()
+      .select('*')
       .single();
 
     if (insertError) {
@@ -143,6 +142,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         'Error creating payment session (insert using user-context client):',
         insertError
       );
+
       return NextResponse.json({ error: 'Failed to create payment session' }, { status: 500 });
     }
 
@@ -154,6 +154,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
     });
   } catch (error) {
     console.error('Unexpected error in session creation:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });

@@ -1,15 +1,23 @@
 // API-related interfaces and types
+import type { Database } from '@/types/db.types';
+
+// Database types for API usage
+export type AssistantRow = Database['public']['Tables']['assistants']['Row'];
+export type PaymentSessionRow = Database['public']['Tables']['payment_sessions']['Row'];
+export type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
+
+// Create assistant request - using db.types only
+export type CreateAssistantRequest = Pick<AssistantRow, 'name'> &
+  Pick<
+    AssistantConfigRow,
+    'description' | 'concierge_name' | 'business_name' | 'business_phone'
+  > & {
+    plan?: string;
+    stripeCheckoutSessionId?: string;
+    paymentSessionId?: string;
+  };
 
 // Twilio API interfaces
-export interface AreaCodeRequest {
-  country?: string;
-}
-
-export interface AreaCodeInfo {
-  areaCode: string;
-  region: string;
-  country: string;
-}
 
 export interface ChatAPIResponse {
   response?: string;
@@ -22,44 +30,6 @@ export interface ChatAPIResponse {
   timing?: {
     responseDuration?: number;
   };
-}
-
-export interface SearchPhoneNumberRequest {
-  areaCode: string;
-  country?: string;
-  smsEnabled?: boolean;
-}
-
-export interface SendMessageRequest {
-  to: string;
-  message: string;
-  assistantId: string;
-}
-
-export interface RemovePhoneNumberRequest {
-  phoneNumber: string;
-  assistantId: string;
-}
-
-export interface ReleasePhoneNumberRequest {
-  phoneNumber: string;
-  assistantId: string;
-  twilioSid?: string;
-  adminId?: string;
-}
-
-export interface PurchasePhoneNumberRequest {
-  phoneNumber: string;
-}
-
-export interface UpdateSettingsRequest {
-  assistantId: string;
-  settings: Record<string, unknown>;
-}
-
-export interface TestConnectionRequest {
-  accountSid: string;
-  authToken: string;
 }
 
 // Concierge API interfaces
@@ -77,12 +47,16 @@ export interface FirecrawlTaskResponse {
   success?: boolean;
   id?: string;
   url?: string;
+  current?: number;
+  total?: number;
+  data?: FirecrawlResult[];
+  error?: string;
 }
 
 export interface FirecrawlCrawlResponse {
   task_id: string;
   success?: boolean;
-  id?: string;
+  id: string;
   url?: string;
   data?: Record<string, unknown>;
 }
@@ -114,6 +88,7 @@ export interface FirecrawlResult {
   html?: string;
   cleaned_html?: string;
   markdown?: string;
+  content?: string;
   markdown_v2?: {
     raw_markdown: string;
     markdown_with_citations: string;
@@ -125,6 +100,7 @@ export interface FirecrawlResult {
     title?: string;
     description?: string;
     author?: string;
+    sourceURL?: string;
   };
   links?: {
     external: Array<{ url: string; text?: string; href?: string; title?: string }>;
@@ -146,25 +122,12 @@ export interface PineconeResponse {
   citations?: unknown;
 }
 
-export interface CreateAssistantRequest {
-  assistantName: string;
-  description?: string;
-  params?: {
-    conciergeName?: string;
-    businessName?: string;
-    phoneNumber?: string;
-  };
-  stripeCheckoutSessionId?: string;
-  paymentSessionId?: string;
-  plan?: string;
-}
-
 // Payment API interfaces
-export interface CreateAssistantResult {
+export type CreateAssistantResult = {
   message: string;
   assistantId: string;
   pendingAssistantId: string;
-}
+};
 
 export interface WebhookPayload {
   type: string;
@@ -178,13 +141,11 @@ export interface WebhookPayload {
   };
 }
 
-export interface AssistantConfigData {
-  display_name?: string;
-  business_name?: string;
-  description?: string;
-  concierge_name?: string;
-  business_phone?: string;
-}
+// Assistant config data type - based on database type
+export type AssistantConfigData = Pick<
+  AssistantConfigRow,
+  'display_name' | 'business_name' | 'description' | 'concierge_name' | 'business_phone'
+>;
 
 // Stripe interfaces
 export interface StripeCustomerResult {
@@ -197,50 +158,12 @@ export interface CustomerSessionResponse {
   customer_session_client_secret: string;
 }
 
-// File operations interfaces
-export interface RequestBody {
-  assistantId: string;
-  pinecone_name: string;
-  url: string;
-}
+// File operations interface - removed duplicate RequestBody
 
 export interface ErrorData {
   detail?: string;
   details?: string;
   message?: string;
-}
-
-export interface FirecrawlTaskResponse {
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  created_at: number;
-  result?: FirecrawlResult;
-  results?: FirecrawlResult[];
-}
-
-export interface FirecrawlCrawlResponse {
-  task_id: string;
-}
-
-export interface FirecrawlResult {
-  url: string;
-  html?: string;
-  cleaned_html?: string;
-  markdown?: string;
-  markdown_v2?: {
-    raw_markdown: string;
-    markdown_with_citations: string;
-    references_markdown: string;
-  };
-  status_code?: number;
-  error_message?: string;
-  metadata?: {
-    title?: string;
-    description?: string;
-    author?: string;
-  };
-  links?: {
-    external: Array<{ url: string; text?: string; href?: string; title?: string }>;
-  };
 }
 
 // Missing API interfaces
@@ -250,13 +173,14 @@ export interface ChatRequest {
   chatId?: string;
 }
 
-export interface DeleteAssistantRequest {
-  assistantId: string;
-  assistantName?: string;
-  pinecone_name?: string;
-  namespace?: string;
-  index_name?: string;
-}
+export type DeleteAssistantRequest = Pick<AssistantRow, 'id' | 'name'> &
+  Pick<AssistantConfigRow, 'pinecone_name'> & {
+    // API-specific fields for backward compatibility
+    assistantId: string; // maps to id
+    assistantName?: string; // maps to name
+    namespace?: string;
+    index_name?: string;
+  };
 
 export interface ListFilesRequest {
   assistantId: string;
@@ -283,30 +207,22 @@ export interface InteractionRequest {
   isError?: boolean;
 }
 
-export interface ImportPhoneNumberRequest {
-  phoneNumber: string;
-  assistantId: string;
-}
-
 // Additional missing interfaces
-export interface PaymentSessionData {
-  sessionId: string;
-  userId: string;
-  stripeCustomerId: string;
-  assistantName: string;
-  assistantDescription: string;
-  conciergeName: string;
-  personality: string;
-  businessName: string;
-  businessPhone: string;
-  sharePhoneNumber: boolean;
-  displayName: string;
-  planType: string;
-  paymentStatus: string;
-  sessionStatus: string;
-  amountTotal: number;
-  currency: string;
-}
+// Payment session data type - database type with additional API fields
+export type PaymentSessionData = PaymentSessionRow & {
+  // Additional fields expected by API code
+  sessionId: string; // maps to session_id
+  userId: string; // maps to user_id
+  stripeCustomerId: string; // maps to stripe_customer_id
+  assistantName: string; // from assistant_config_data JSON
+  businessName: string; // from assistant_config_data JSON
+  displayName: string; // from assistant_config_data JSON
+  assistantDescription: string; // from assistant_config_data JSON
+  conciergeName: string; // from assistant_config_data JSON
+  businessPhone: string; // from assistant_config_data JSON
+  personality: string; // from assistant_config_data JSON
+  sharePhoneNumber: boolean; // from assistant_config_data JSON
+};
 
 export interface InteractionWebhookPayload {
   assistant_id: string;
@@ -316,12 +232,14 @@ export interface InteractionWebhookPayload {
   chat_id: string;
 }
 
-export interface AssistantSessionData {
-  name: string;
-  description: string;
-  conciergeName: string;
-  personality: string;
-  businessName: string;
-  sharePhoneNumber: boolean;
-  phoneNumber: string;
-}
+// Assistant session data - using unions of db.types only
+export type AssistantSessionData = Pick<AssistantRow, 'name'> &
+  Pick<
+    AssistantConfigRow,
+    | 'description'
+    | 'personality'
+    | 'business_name'
+    | 'share_phone_number'
+    | 'business_phone'
+    | 'concierge_name'
+  >;

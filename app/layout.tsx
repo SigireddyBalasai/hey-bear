@@ -1,7 +1,7 @@
-import React from 'react';
 
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
+import React from 'react';
 
 import './globals.css';
 
@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={geistSans.className} suppressHydrationWarning>
       <head>
-        <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+        <script async src="https://js.stripe.com/v3/pricing-table.js" />
       </head>
       <body className="min-h-screen bg-background text-foreground" suppressHydrationWarning>
         {children}

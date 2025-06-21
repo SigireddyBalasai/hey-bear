@@ -21,13 +21,12 @@ export const isChatDirection = (
     // Handle both string and Json types
     if (typeof item.chat === 'string') {
       chatData = JSON.parse(item.chat) as Record<string, unknown>;
-    } else if (typeof item.chat === 'object') {
+    } else if (typeof item.chat === 'object' && item.chat !== null) {
       chatData = item.chat as Record<string, unknown>;
     } else {
       return false;
     }
 
-    // Safely check properties with type guards
     if (chatData && typeof chatData === 'object') {
       // First check explicit direction property
       if ('direction' in chatData && typeof chatData.direction === 'string') {
@@ -42,18 +41,4 @@ export const isChatDirection = (
   } catch {
     return false;
   }
-};
-
-/**
- * Process an array of chat data to count messages by direction
- * @param data Array of chat items to analyze
- * @param direction The direction to count (incoming or outgoing)
- * @returns Number of messages matching the specified direction
- */
-export const countChatsByDirection = (
-  data: Array<{ chat?: Json | null }>,
-  direction: 'incoming' | 'outgoing'
-): number => {
-  if (!data || !Array.isArray(data)) return 0;
-  return data.filter(item => isChatDirection(item, direction)).length;
 };

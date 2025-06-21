@@ -15,12 +15,11 @@ const StatValue = memo<{
       return formatter(value);
     }
 
-    if (typeof value === 'number') {
-      // Add comma formatting for large numbers
-      return value.toLocaleString();
+    if (Number.isNaN(Number(value))) {
+      return String(value);
     }
 
-    return value;
+    return Number(value).toLocaleString();
   }, [value, formatter]);
 
   return <div className="text-2xl font-bold text-foreground">{formattedValue}</div>;
@@ -158,15 +157,13 @@ export const MetricStatCard = memo<{
   previousValue?: number;
   unit?: string;
 }>(({ title, value, description, isLoading = false, icon, previousValue, unit = '' }) => {
-  const numericValue = useMemo(
-    () => (typeof value === 'string' ? parseFloat(value) || 0 : value),
-    [value]
-  );
+  const numericValue = useMemo(() => (Number.isNaN(Number(value)) ? 0 : Number(value)), [value]);
 
   const trend = useMemo(() => {
     if (previousValue === undefined || previousValue === 0) return undefined;
 
     const change = ((numericValue - previousValue) / previousValue) * 100;
+
     return {
       value: Math.abs(change),
       label: 'vs last period',
@@ -175,7 +172,7 @@ export const MetricStatCard = memo<{
   }, [numericValue, previousValue]);
 
   const formatter = useCallback(
-    (val: string | number) => `${typeof val === 'number' ? val.toLocaleString() : val}${unit}`,
+    (val: string | number) => `${Number(val).toLocaleString()}${unit}`,
     [unit]
   );
 

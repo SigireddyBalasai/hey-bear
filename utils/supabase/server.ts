@@ -1,10 +1,10 @@
 "use server";
 
 import { createServerClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 import type { Database } from "@/types/db.types";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const createClient = async (): Promise<SupabaseClient<Database>> => {
   const cookieStore = await cookies();
@@ -30,9 +30,9 @@ export const createClient = async (): Promise<SupabaseClient<Database>> => {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => {
+            for (const { name, value, options } of cookiesToSet) {
               cookieStore.set(name, value, options);
-            });
+            }
           } catch {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing

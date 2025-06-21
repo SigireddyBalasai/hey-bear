@@ -1,13 +1,8 @@
-import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
-import type { TransformedInteraction } from '@/types/dashboard.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
-
-function formatResponseTime(durationMs: number): string {
-  return durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(2)}s`;
-}
 
 export const GET = requireAuth(async (context, req: NextRequest) => {
   try {
@@ -46,7 +41,7 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
     // Get the total count with the same filters applied
     let countQuery = supabase
       .from('interactions')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id);
 
     if (assistantId) {
@@ -74,59 +69,23 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
       throw error;
     }
 
-    // Transform to TransformedInteraction format
-    const interactions: TransformedInteraction[] = chatData.map(chat => {
-      const date = new Date(chat.interaction_time ?? new Date());
-      const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().slice(2)}`;
-
-      const phoneNumber = chat.assistant_id ?? 'Unknown';
-
-      let type = 'Unknown';
-      if (chat.request && chat.response) {
-        type = 'Inbound, Outbound';
-      } else if (chat.request) {
-        type = 'Inbound';
-      } else if (chat.response) {
-        type = 'Outbound';
-      }
-
-      let responseTime = '0ms';
-      if (chat.duration) {
-        responseTime = formatResponseTime(chat.duration);
-      }
-
-      return {
-        id: chat.id,
-        date: formattedDate,
-        phoneNumber: phoneNumber,
-        message: typeof chat.request === 'string' ? chat.request : JSON.stringify(chat.request),
-        response: typeof chat.response === 'string' ? chat.response : JSON.stringify(chat.response),
-        type: type,
-        responseTime: responseTime,
-        assistant_id: chat.assistant_id,
-        user_id: chat.user_id ?? user.id,
-        duration: chat.duration ?? 0,
-        interaction_time: chat.interaction_time ?? '',
-        chat: chat.chat,
-        assistant_name: '',
-        status: 'Completed',
-      };
-    });
-
+    // Return the raw interaction data
     return NextResponse.json({
-      interactions,
+      interactions: chatData || [],
       totalPages: Math.ceil((count ?? 0) / pageSize),
       currentPage: page,
       totalCount: count,
     });
   } catch (error: unknown) {
     const errorObj = error instanceof Error ? error : new Error('Unknown error');
+
     console.error('Error fetching interactions:', {
       message: errorObj.message,
       name: errorObj.name,
       stack: errorObj.stack || 'No stack trace',
-      error: error,
+      error,
     });
+
     return NextResponse.json({ error: 'Failed to fetch interactions' }, { status: 500 });
   }
 });

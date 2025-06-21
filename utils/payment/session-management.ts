@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+
 import type { Database } from '@/types/db.types';
 
 type PaymentSession = Database['public']['Tables']['payment_sessions']['Row'];
@@ -13,34 +14,31 @@ export async function fetchPaymentSession(
   stripeCheckoutSessionId: string
 ): Promise<PaymentSession> {
   let paymentSession: PaymentSession | null = null;
-  let error: any = null;
+  let error: unknown = null;
 
   if (internalPaymentSessionId) {
-    console.log(
-      '[PAYMENT SESSION] Fetching by internal session_id:',
-      internalPaymentSessionId
-    );
-    const result = await supabase
+    console.log('[PAYMENT SESSION] Fetching by internal session_id:', internalPaymentSessionId);
+    const { data: paymentSessionData, error: paymentError } = await supabase
       .from('payment_sessions')
       .select('*')
       .eq('session_id', internalPaymentSessionId)
       .single();
-    
-    paymentSession = result.data;
-    error = result.error;
+
+    paymentSession = paymentSessionData;
+    error = paymentError;
   } else {
     console.warn(
       '[PAYMENT SESSION] Falling back to stripe_checkout_session_id:',
       stripeCheckoutSessionId
     );
-    const result = await supabase
+    const { data: paymentSessionFallback, error: errorFallback } = await supabase
       .from('payment_sessions')
       .select('*')
       .eq('stripe_checkout_session_id', stripeCheckoutSessionId)
       .single();
-    
-    paymentSession = result.data;
-    error = result.error;
+
+    paymentSession = paymentSessionFallback;
+    error = errorFallback;
   }
 
   if (error || !paymentSession) {
@@ -68,10 +66,7 @@ export async function updatePaymentSession(
 
   // Update stripe checkout session ID if different
   if (paymentSession.stripe_checkout_session_id !== stripeCheckoutSessionId) {
-    console.log(
-      '[PAYMENT SESSION] Updating stripe_checkout_session_id:',
-      stripeCheckoutSessionId
-    );
+    console.log('[PAYMENT SESSION] Updating stripe_checkout_session_id:', stripeCheckoutSessionId);
     updatePayload.stripe_checkout_session_id = stripeCheckoutSessionId;
   }
 

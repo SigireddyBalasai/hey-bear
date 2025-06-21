@@ -1,9 +1,10 @@
 import type { ChatAPIResponse } from '@/types/api.types';
 import { sanitizeForSms } from '@/utils/string-utils';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server-admin';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();
+
   console.log(`[${timestamp}] Twilio webhook received`);
 
   try {
@@ -16,6 +17,7 @@ export async function POST(req: Request) {
     console.log(`Query parameters:`, Object.fromEntries(url.searchParams));
 
     const formData = await req.formData();
+
     console.log(`Form data keys: ${[...formData.keys()].join(', ')}`);
 
     // Extract data from Twilio webhook
@@ -29,42 +31,43 @@ export async function POST(req: Request) {
     // Optional token verification - can be enabled in a production environment
     if (process.env.VERIFY_WEBHOOK_TOKEN === 'true' && token !== process.env.WEBHOOK_TOKEN) {
       console.error('Invalid webhook token');
+
       return generateSmsResponse('Unauthorized webhook access');
     }
 
     if (!assistantId) {
       console.log(`No No-show provided, cannot process request`);
+
       return generateSmsResponse('No-show ID is required');
     }
 
     console.log(`Using assistantId from URL param: ${assistantId}`);
 
     if (!from || !to || !body) {
-      console.error('Missing required information:', { from: !!from, to: !!to, body: !!body });
+      console.error('Missing required information:', {
+        from: Boolean(from),
+        to: Boolean(to),
+        body: Boolean(body),
+      });
+
       return generateSmsResponse('Missing required information');
     }
 
     const supabase = await createClient();
+
     console.log('Supabase client created');
 
     // Get assistant details
     console.log(`Fetching assistant with ID: ${assistantId}`);
     const { data: assistant, error } = await supabase
-      // Corrected schema
       .from('assistants')
-      .select(
-        `
-        id,
-        name,
-        user_id,
-        assigned_phone_number
-      `
-      )
+      .select('*')
       .eq('id', assistantId)
       .single();
 
     if (!assistant) {
       console.error('Error fetching No-Show by ID:', error);
+
       return generateSmsResponse('No-Show not found');
     }
 
@@ -110,14 +113,17 @@ export async function POST(req: Request) {
 
       if (!chatResponse.ok) {
         const errorText = await chatResponse.text().catch(() => 'No error details');
+
         console.error(`Chat API error response: ${errorText}`);
         // logTwilioError('Webhook', `Chat API error: ${chatResponse.status}`, { errorText }); // Replaced
         throw new Error(`Chat API error: ${chatResponse.status}`);
       }
 
       const responseData = (await chatResponse.json()) as ChatAPIResponse;
+
       console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
       const aiResponse = responseData.response ?? "I'm sorry, I couldn't generate a response.";
+
       console.log(
         `AI response: "${aiResponse.slice(0, 100)}${aiResponse.length > 100 ? '...' : ''}"`
       );
@@ -169,6 +175,7 @@ export async function POST(req: Request) {
       // Fallback response
       const fallbackResponse =
         "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
+
       console.log(`Using fallback response: "${fallbackResponse}"`);
 
       // Record error interaction
@@ -194,6 +201,7 @@ export async function POST(req: Request) {
     }
   } catch (error) {
     console.error('Error processing Twilio webhook:', error);
+
     // logTwilioError('Webhook', 'Unhandled error in webhook processor', error); // Replaced
     // No assistantId available here, so we can't log with logTwilioInteraction fully.
     // Consider a more generic error logger if this case is critical.
@@ -212,8 +220,9 @@ function generateSmsResponse(message: string) {
 
   // Sanitize the message for SMS - but don't strip too aggressively
   let sanitizedMessage = message;
+
   if (sanitizedMessage.length > 1600) {
-    sanitizedMessage = sanitizedMessage.slice(0, 1597) + '...';
+    sanitizedMessage = `${sanitizedMessage.slice(0, 1597)}...`;
   }
 
   // Log the exact message we're sending in TwiML

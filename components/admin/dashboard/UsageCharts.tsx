@@ -72,6 +72,7 @@ export function UsageCharts({ dashboardData, generateChartData }: UsageChartsPro
                 data={{
                   labels: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => {
                     const date = new Date(item.date);
+
                     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                   }),
                   datasets: [
@@ -108,6 +109,7 @@ export function UsageCharts({ dashboardData, generateChartData }: UsageChartsPro
                 data={{
                   labels: (dashboardData?.usageChart ?? []).map((item: UsageChartItem) => {
                     const date = new Date(item.date);
+
                     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                   }),
                   datasets: [

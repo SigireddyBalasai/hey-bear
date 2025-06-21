@@ -8,7 +8,7 @@ import type { PlanLimits } from '@/types/interaction.types';
  * @param planType The plan type (free, pro, business, enterprise)
  * @returns Object with limits for the specified plan
  */
-export const getPlanLimits = (planType: string = 'free'): PlanLimits => {
+export const getPlanLimits = (planType = 'free'): PlanLimits => {
   switch (planType.toLowerCase()) {
     case 'pro':
       return {
@@ -40,5 +40,6 @@ export const getPlanLimits = (planType: string = 'free'): PlanLimits => {
  */
 export const capitalizeFirstLetter = (str: string): string => {
   if (!str) return '';
+
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 };

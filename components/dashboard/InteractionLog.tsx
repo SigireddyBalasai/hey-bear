@@ -1,16 +1,27 @@
 'use client';
 
 import React, { memo } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { useData } from './DataContext';
+import { InteractionEmptyState } from './InteractionEmptyState';
+import { InteractionRow } from './InteractionRow';
+import { PaginationControls } from './PaginationControls';
+import { SortableHeader } from './SortableHeader';
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { InteractionLogProps } from '@/types/interaction.types';
-import { useData } from './DataContext';
 import { useInteractionData } from '@/hooks/useInteractionData';
-import { PaginationControls } from './PaginationControls';
-import { SortableHeader } from './SortableHeader';
-import { InteractionRow } from './InteractionRow';
+import type { InteractionLogProps } from '@/types/interaction.types';
+
 
 // Loading component
 const LoadingRow = memo(() => (
@@ -22,6 +33,7 @@ const LoadingRow = memo(() => (
     ))}
   </TableRow>
 ));
+
 LoadingRow.displayName = 'LoadingRow';
 
 const InteractionLogComponent: React.FC<InteractionLogProps> = ({
@@ -37,13 +49,14 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
   sortDirection: propSortDirection,
   onSortChange: propOnSortChange,
   onPageChange: propOnPageChange,
+  onShowFilters, // New optional prop
 }) => {
-  // Context data
-  const { dateRange, searchTerm, assistantId } = useData();
+  // Context data - must be called at top level
+  const { searchTerm, assistantId, setSearchTerm, setAssistantId, dateRange } = useData();
 
   // Use custom hook for data management if props are not provided
   const hookData = useInteractionData({
-    dateRange,
+    dateRange: null, // Convert string dateRange to null for now, or implement proper conversion
     searchTerm,
     assistantId,
     activeTab,
@@ -80,15 +93,35 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
 
   // Empty state
   if (!loading && interactions.length === 0) {
+    // Get assistant name for display
+    const getAssistantDisplayName = (id: string | null) => {
+      if (!id || id === 'all') return 'All Assistants';
+
+      return `Assistant ${id.slice(-8)}`; // Show last 8 characters of ID
+    };
+
+    const hasFiltersApplied = Boolean(assistantId && assistantId !== 'all');
+
+    const handleClearSearch = () => {
+      setSearchTerm('');
+    };
+
+    const handleClearFilters = () => {
+      setSearchTerm('');
+      setAssistantId(null);
+    };
+
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>No Interactions Found</CardTitle>
-          <CardDescription>
-            No interactions match your current filters. Try adjusting your search criteria.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <InteractionEmptyState
+        searchTerm={searchTerm}
+        hasFiltersApplied={hasFiltersApplied}
+        assistantName={getAssistantDisplayName(assistantId)}
+        dateRange={dateRange}
+        onClearSearch={handleClearSearch}
+        onClearFilters={handleClearFilters}
+        onShowFilters={onShowFilters}
+        className="mx-auto max-w-2xl"
+      />
     );
   }
 
@@ -96,9 +129,7 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Interaction Log</CardTitle>
-        <CardDescription>
-          View and manage all interactions with your assistants
-        </CardDescription>
+        <CardDescription>View and manage all interactions with your assistants</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="all" value={activeTab}>
@@ -109,7 +140,7 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
             <TabsTrigger value="errors">Errors</TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab || "all"} className="space-y-4">
+          <TabsContent value={activeTab || 'all'} className="space-y-4">
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -181,18 +212,13 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading ? (
-                    Array.from({ length: pageSize }).map((_, index) => (
-                      <LoadingRow key={index} />
-                    ))
-                  ) : (
-                    interactions.map((interaction) => (
-                      <InteractionRow
-                        key={interaction.id}
-                        interaction={interaction}
-                      />
-                    ))
-                  )}
+                  {loading
+                    ? Array.from({ length: pageSize }, (_, index) => (
+                        <LoadingRow key={`skeleton-row-${Math.random()}-${index}`} />
+                      ))
+                    : interactions.map(interaction => (
+                        <InteractionRow key={interaction.id} interaction={interaction} />
+                      ))}
                 </TableBody>
               </Table>
             </div>

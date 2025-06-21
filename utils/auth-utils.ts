@@ -1,7 +1,7 @@
+import type { User } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import type { User } from '@supabase/supabase-js';
 
 import type { AuthContext, AuthResult } from '@/types/auth.types';
 import { createClient } from '@/utils/supabase/server';
@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/server';
  * Core authentication function used by all auth utilities
  * Handles both user and admin authentication in one place
  */
-export async function authenticate(requireAdmin: boolean = false): Promise<AuthResult> {
+export async function authenticate(requireAdmin = false): Promise<AuthResult> {
   try {
     const supabase = await createClient();
 
@@ -46,6 +46,7 @@ export async function authenticate(requireAdmin: boolean = false): Promise<AuthR
 
     if (adminError) {
       console.error('Error checking admin status:', adminError);
+
       return {
         success: false,
         user,
@@ -80,6 +81,7 @@ export async function authenticate(requireAdmin: boolean = false): Promise<AuthR
     };
   } catch (error) {
     console.error('Authentication error:', error);
+
     return {
       success: false,
       user: null,
@@ -104,6 +106,7 @@ export function requireAuth(
       if (!authResult.response) {
         return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
       }
+
       return authResult.response;
     }
 
@@ -134,6 +137,7 @@ export function requireAdmin(
       if (!authResult.response) {
         return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
       }
+
       return authResult.response;
     }
 
@@ -154,7 +158,7 @@ export function requireAdmin(
  * Utility function for non-HOF usage in API routes
  * Returns auth context or throws with appropriate response
  */
-export async function getAuthContext(requireAdmin: boolean = false): Promise<AuthContext> {
+export async function getAuthContext(requireAdmin = false): Promise<AuthContext> {
   const authResult = await authenticate(requireAdmin);
 
   if (!authResult.success) {
@@ -188,12 +192,14 @@ export async function isUserAdmin(user: User | null): Promise<boolean> {
 
     if (adminError) {
       console.error('Error checking admin status:', adminError);
+
       return false;
     }
 
     return Boolean(adminCheck);
   } catch (error) {
     console.error('Error checking admin status:', error);
+
     return false;
   }
 }

@@ -61,6 +61,7 @@ export async function fetchUsageData(
 }> {
   try {
     const params = new URLSearchParams();
+
     if (timeframe) params.append('timeframe', timeframe);
     if (assistantId) params.append('assistantId', assistantId);
     if (plan) params.append('plan', plan);
@@ -71,7 +72,7 @@ export async function fetchUsageData(
       throw new Error(`Failed to fetch usage data: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as {
+    return (await response.json()) as {
       totalStats: {
         interactions: number;
         tokens: number;
@@ -103,9 +104,9 @@ export async function fetchUsageData(
         lastActive: string | null;
       }>;
     };
-    return data;
   } catch (error) {
     console.error('Error in fetchUsageData:', error);
+
     // Return empty data on error
     return {
       totalStats: {
@@ -134,10 +135,10 @@ export async function fetchAllUsers(): Promise<UserWithUsage[]> {
       throw new Error(`Failed to fetch users: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as UserWithUsage[];
-    return data;
+    return (await response.json()) as UserWithUsage[];
   } catch (error) {
     console.error('Error in fetchAllUsers:', error);
+
     return [];
   }
 }
@@ -165,7 +166,7 @@ export async function fetchSystemMetrics(): Promise<{
       throw new Error(`Failed to fetch metrics: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as {
+    return (await response.json()) as {
       activeUsers: number;
       totalRequests: number;
       totalTokens: number;
@@ -178,9 +179,9 @@ export async function fetchSystemMetrics(): Promise<{
         avgLatency: number;
       }>;
     };
-    return data;
   } catch (error) {
     console.error('Error in fetchSystemMetrics:', error);
+
     // Return empty data on error
     return {
       activeUsers: 0,

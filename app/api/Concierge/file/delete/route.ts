@@ -1,10 +1,8 @@
-import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { getPineconeClient } from '@/lib/pinecone';
 import type { DeleteFileRequest } from '@/types/api.types';
-// Import Database type
-
 import type { Database } from '@/types/db.types';
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
@@ -35,15 +33,20 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
 
     if (!assistantPineconeName) {
       const { data: assistantData, error: assistantError } = await supabase
-
         .from('assistants')
-        .select('id, assistant_configs!inner(*)') // Fetch all columns from assistant_configs
+        .select(
+          `
+          *,
+          assistant_configs!inner(pinecone_name)
+        `
+        )
         .eq('id', assistantId)
-        .single<TypedAssistantWithSpecificConfig>(); // Use the new type
+        .single<TypedAssistantWithSpecificConfig>();
 
       if (assistantError) {
         console.error('Error fetching assistant data or configuration:', assistantError);
         const errorCode = assistantError.code;
+
         return NextResponse.json(
           { error: 'Failed to fetch assistant configuration', details: assistantError.message },
           { status: errorCode === 'PGRST116' ? 404 : 500 }
@@ -78,18 +81,21 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       const pinecone = getPineconeClient();
 
       const assistant = pinecone.Assistant(assistantPineconeName);
+
       await assistant.deleteFile(fileId);
 
       return NextResponse.json({
         message: 'File deletion initiated',
-        fileId: fileId,
+        fileId,
       });
     } catch (error: unknown) {
       console.error('Error deleting file:', error);
       let errorMessage = 'An unknown error occurred';
+
       if (error instanceof Error) {
         errorMessage = error.message;
       }
+
       return NextResponse.json(
         { error: `Failed to delete file: ${errorMessage}` },
         { status: 500 }
@@ -98,9 +104,11 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
   } catch (error: unknown) {
     console.error('Unexpected error:', error);
     let errorMessage = 'An internal server error occurred';
+
     if (error instanceof Error) {
       errorMessage = error.message;
     }
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 });

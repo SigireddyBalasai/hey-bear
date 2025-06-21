@@ -1,3 +1,17 @@
+import type { Database } from '@/types/db.types';
+
+// Use database types only
+export type Assistant = Pick<Database['public']['Tables']['assistants']['Row'], 'id' | 'name'> & {
+  activity?: Pick<
+    Database['public']['Tables']['assistant_activity']['Row'],
+    'total_messages' | 'total_tokens'
+  >;
+  limits?: Pick<
+    Database['public']['Tables']['assistant_usage_limits']['Row'],
+    'message_limit' | 'token_limit'
+  >;
+};
+
 export interface UsageMetric {
   used: number;
   total: number;
@@ -13,12 +27,6 @@ export interface UsageData {
 export interface AssistantPlan {
   messages: UsageData;
   tokens: UsageData;
-}
-
-export interface Assistant {
-  id: string;
-  name: string;
-  plan: AssistantPlan;
 }
 
 export interface PlanUsageProps {
@@ -37,10 +45,8 @@ export const defaultUsageMetric: UsageMetric = {
   percentage: 0,
 };
 
-export const createUsageMetric = (current: number, limit: number): UsageMetric => {
-  return {
-    used: current,
-    total: limit,
-    percentage: limit > 0 ? Math.round((current / limit) * 100) : 0,
-  };
-};
+export const createUsageMetric = (current: number, limit: number): UsageMetric => ({
+  used: current,
+  total: limit,
+  percentage: limit > 0 ? Math.round((current / limit) * 100) : 0,
+});

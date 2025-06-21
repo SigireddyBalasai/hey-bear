@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import type { InteractionWebhookPayload } from '@/types/api.types';
-// Re-added Supabase client
-
 import type { Database } from '@/types/db.types';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server-admin';
 
 // Types for DB operations
 type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];
@@ -47,11 +45,12 @@ export async function POST(req: Request) {
     const { data, error } = await supabase
       .from('interactions')
       .insert(interactionData)
-      .select()
+      .select('*')
       .single();
 
     if (error) {
       console.error('Error inserting interaction into Supabase:', error);
+
       return NextResponse.json(
         { message: `Error saving interaction: ${error.message}` },
         { status: 500 }
@@ -59,12 +58,14 @@ export async function POST(req: Request) {
     }
 
     console.log('Interaction successfully recorded:', data);
+
     return NextResponse.json(
       { message: 'Interaction recorded successfully', data },
       { status: 201 }
     );
   } catch (error: unknown) {
     let errorMessage = 'An unknown error occurred processing the webhook';
+
     if (error instanceof Error) {
       errorMessage = error.message;
     }
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Invalid JSON payload' }, { status: 400 });
     }
     console.error('Webhook processing error:', errorMessage);
+
     return NextResponse.json(
       { message: `Webhook Error: ${errorMessage}` },
       { status: 400 } // Or 500 depending on the nature of the error

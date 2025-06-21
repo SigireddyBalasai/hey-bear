@@ -1,7 +1,7 @@
 // Authentication-related interfaces and types
+import type { User } from '@supabase/supabase-js';
 import type { NextResponse } from 'next/server';
 
-import type { User } from '@supabase/supabase-js';
 
 // Auth context interface
 export interface AuthContext {
@@ -28,10 +28,10 @@ export interface UseAdminAuthResult {
 // Admin header props
 export interface AdminHeaderProps {
   user: {
-    email: string;
-    user_metadata: {
-      full_name: string;
-      avatar_url: string;
+    email?: string;
+    user_metadata?: {
+      full_name?: string;
+      avatar_url?: string;
     };
   };
 }

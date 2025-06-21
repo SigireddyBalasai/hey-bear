@@ -1,263 +1,288 @@
+'use cache';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
-import type { AuthContext } from '@/types/auth.types';
+
+import type { Database } from '@/types/db.types';
 import { requireAdmin } from '@/utils/auth-utils';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server-admin';
 
-// Force runtime rendering to prevent build-time Supabase initialization
-export const runtime = 'nodejs';
+type Interaction = Database['public']['Tables']['interactions']['Row'];
+type Assistant = Database['public']['Tables']['assistants']['Row'];
 
-/**
- * API route for fetching admin usage data
- */
-export const GET = requireAdmin(async (context: AuthContext, request: NextRequest) => {
-  try {
-    const { searchParams } = new URL(request.url);
-    const timeframe = searchParams.get('timeframe') || '30d';
-    const assistantId = searchParams.get('assistantId') || undefined;
+interface UserUsageStats {
+  user_id: string;
+  interactions_count: number;
+  token_usage: number;
+  cost_estimate: number;
+  assistants_count: number;
+  first_interaction: string | null;
+  last_interaction: string | null;
+}
 
-    const supabase = await createClient();
+interface UsageOverview {
+  total_users: number;
+  total_interactions: number;
+  total_tokens: number;
+  total_cost: number;
+  total_assistants: number;
+  active_users_24h: number;
+  active_users_7d: number;
+  avg_interactions_per_user: number;
+  avg_tokens_per_interaction: number;
+}
 
-    // Calculate date filter based on timeframe
-    const now = new Date();
-    let startDate: Date;
+interface UsageAnalytics {
+  overview: UsageOverview;
+  user_stats: UserUsageStats[];
+  daily_stats: Array<{
+    date: string;
+    interactions: number;
+    tokens: number;
+    cost: number;
+    unique_users: number;
+  }>;
+  top_users: UserUsageStats[];
+}
 
-    switch (timeframe) {
-      case '7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90d':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
+// Cached function to fetch all interactions data
+async function fetchAllInteractions(): Promise<Interaction[]> {
+  'use cache';
 
-    // Build base query for interactions
-    let baseQuery = supabase
+  const supabase: SupabaseClient<Database> = await createClient();
 
-      .from('interactions')
-      .select(
-        `
-        id,
-        token_usage,
-        input_tokens,
-        output_tokens,
-        cost_estimate,
-        is_error,
-        user_id
-      `
-      )
-      .gte('interaction_time', startDate.toISOString());
+  const { data, error } = await supabase
+    .from('interactions')
+    .select('*')
+    .order('interaction_time', { ascending: false });
 
-    // Apply assistant filter if provided
-    if (assistantId) {
-      baseQuery = baseQuery.eq('assistant_id', assistantId);
-    }
+  if (error) {
+    console.error('Error fetching interactions:', error);
+    throw new Error('Failed to fetch interactions data');
+  }
 
-    // Get total stats
-    const { data: statsData, error: statsError } = await baseQuery;
+  return data || [];
+}
 
-    if (statsError) {
-      console.error('Error fetching stats:', statsError);
-      return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
-    }
+// Cached function to fetch all assistants data
+async function fetchAllAssistants(): Promise<Assistant[]> {
+  'use cache';
 
-    // Calculate aggregated stats
-    const uniqueUsers = new Set(statsData?.map(row => row.user_id).filter(Boolean) || []);
-    const totalStats = {
-      interactions: statsData?.length || 0,
-      tokens: statsData?.reduce((sum: number, row) => sum + (row.token_usage || 0), 0) || 0,
-      inputTokens: statsData?.reduce((sum: number, row) => sum + (row.input_tokens || 0), 0) || 0,
-      outputTokens: statsData?.reduce((sum: number, row) => sum + (row.output_tokens || 0), 0) || 0,
-      costs: statsData?.reduce((sum: number, row) => sum + (row.cost_estimate || 0), 0) || 0,
-      errors: statsData?.filter(row => row.is_error).length || 0,
-      activeUsers: uniqueUsers.size,
+  const supabase: SupabaseClient<Database> = await createClient();
+
+  const { data, error } = await supabase.from('assistants').select('*');
+
+  if (error) {
+    console.error('Error fetching assistants:', error);
+    throw new Error('Failed to fetch assistants data');
+  }
+
+  return data || [];
+}
+
+// Cached function to get unique user count
+async function fetchTotalUsers(): Promise<number> {
+  'use cache';
+
+  const supabase: SupabaseClient<Database> = await createClient();
+
+  const { data, error } = await supabase.auth.admin.listUsers();
+
+  if (error) {
+    console.error('Error fetching user count:', error);
+
+    return 0;
+  }
+
+  return data?.users?.length || 0;
+}
+
+// Process usage analytics from raw data
+function processUsageAnalytics(
+  interactions: Interaction[],
+  assistants: Assistant[],
+  totalUsers: number
+): UsageAnalytics {
+  const now = new Date();
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Filter interactions for time periods
+  const interactions24h = interactions.filter(
+    i => i.interaction_time && new Date(i.interaction_time) >= twentyFourHoursAgo
+  );
+  const interactions7d = interactions.filter(
+    i => i.interaction_time && new Date(i.interaction_time) >= sevenDaysAgo
+  );
+  const interactions30d = interactions.filter(
+    i => i.interaction_time && new Date(i.interaction_time) >= thirtyDaysAgo
+  );
+
+  // Calculate user stats
+  const userStatsMap = new Map<string, UserUsageStats>();
+
+  for (const interaction of interactions) {
+    if (!interaction.user_id) continue;
+
+    const existing = userStatsMap.get(interaction.user_id) || {
+      user_id: interaction.user_id,
+      interactions_count: 0,
+      token_usage: 0,
+      cost_estimate: 0,
+      assistants_count: 0,
+      first_interaction: null,
+      last_interaction: null,
     };
 
-    // Get time series data (daily aggregation)
-    const { data: timeSeriesRaw, error: timeSeriesError } = await supabase
+    existing.interactions_count++;
+    existing.token_usage += interaction.token_usage || 0;
+    existing.cost_estimate += interaction.cost_estimate || 0;
 
-      .from('interactions')
-      .select(
-        `
-        interaction_time,
-        token_usage,
-        input_tokens,
-        output_tokens,
-        cost_estimate,
-        is_error,
-        user_id
-      `
-      )
-      .gte('interaction_time', startDate.toISOString())
-      .order('interaction_time', { ascending: true });
-
-    if (timeSeriesError) {
-      console.error('Error fetching time series:', timeSeriesError);
-      return NextResponse.json({ error: 'Failed to fetch time series data' }, { status: 500 });
-    }
-
-    // Group by date for time series
-    const dailyData = new Map<
-      string,
-      {
-        interactions: number;
-        tokens: number;
-        inputTokens: number;
-        outputTokens: number;
-        costs: number;
-        errors: number;
-        users: Set<string>;
+    if (interaction.interaction_time) {
+      if (
+        !existing.first_interaction ||
+        interaction.interaction_time < existing.first_interaction
+      ) {
+        existing.first_interaction = interaction.interaction_time;
       }
-    >();
-
-    timeSeriesRaw?.forEach(row => {
-      const date = new Date(row.interaction_time || '').toISOString().split('T')[0];
-
-      if (!dailyData.has(date)) {
-        dailyData.set(date, {
-          interactions: 0,
-          tokens: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          costs: 0,
-          errors: 0,
-          users: new Set(),
-        });
-      }
-
-      const dayData = dailyData.get(date)!;
-      dayData.interactions += 1;
-      dayData.tokens += row.token_usage || 0;
-      dayData.inputTokens += row.input_tokens || 0;
-      dayData.outputTokens += row.output_tokens || 0;
-      dayData.costs += row.cost_estimate || 0;
-      if (row.is_error) dayData.errors += 1;
-      if (row.user_id) dayData.users.add(row.user_id);
-    });
-
-    const timeSeriesData = Array.from(dailyData.entries()).map(([date, data]) => ({
-      date,
-      interactions: data.interactions,
-      tokens: data.tokens,
-      inputTokens: data.inputTokens,
-      outputTokens: data.outputTokens,
-      costs: data.costs,
-      errors: data.errors,
-      activeUsers: data.users.size,
-    }));
-
-    // Get user stats
-    const { data: userStatsRaw, error: userStatsError } = await supabase
-
-      .from('interactions')
-      .select(
-        `
-        user_id,
-        token_usage,
-        input_tokens,
-        output_tokens,
-        cost_estimate,
-        interaction_time
-      `
-      )
-      .gte('interaction_time', startDate.toISOString())
-      .not('user_id', 'is', null);
-
-    if (userStatsError) {
-      console.error('Error fetching user stats:', userStatsError);
-      return NextResponse.json({ error: 'Failed to fetch user stats' }, { status: 500 });
-    }
-
-    // Get auth user data using admin API
-    const { data: authUsersData, error: authUsersError } = await supabase.auth.admin.listUsers();
-
-    if (authUsersError) {
-      console.error('Error fetching auth users:', authUsersError);
-    }
-
-    // Group user stats by user_id
-    const userStatsMap = new Map<
-      string,
-      {
-        interactions: number;
-        tokens: number;
-        inputTokens: number;
-        outputTokens: number;
-        costs: number;
-        lastInteraction: string;
-      }
-    >();
-
-    userStatsRaw?.forEach(row => {
-      if (!row.user_id) return;
-
-      if (!userStatsMap.has(row.user_id)) {
-        userStatsMap.set(row.user_id, {
-          interactions: 0,
-          tokens: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          costs: 0,
-          lastInteraction: row.interaction_time || '',
-        });
-      }
-
-      const userStat = userStatsMap.get(row.user_id)!;
-      userStat.interactions += 1;
-      userStat.tokens += row.token_usage || 0;
-      userStat.inputTokens += row.input_tokens || 0;
-      userStat.outputTokens += row.output_tokens || 0;
-      userStat.costs += row.cost_estimate || 0;
-
-      // Keep the latest interaction time
-      if (row.interaction_time && row.interaction_time > userStat.lastInteraction) {
-        userStat.lastInteraction = row.interaction_time;
-      }
-    });
-
-    // Create user stats array
-    const userStats = Array.from(userStatsMap.entries()).map(([userId, stats]) => {
-      const authUser = authUsersData?.users?.find(u => u.id === userId);
-      const userMetadata = authUser?.user_metadata as
-        | { full_name?: string; name?: string }
-        | undefined;
-
-      return {
-        userId,
-        email: authUser?.email,
-        fullName: userMetadata?.full_name || userMetadata?.name,
-        interactions: stats.interactions,
-        tokens: stats.tokens,
-        inputTokens: stats.inputTokens,
-        outputTokens: stats.outputTokens,
-        costs: stats.costs,
-        lastActive: stats.lastInteraction, // Use last interaction time since we don't have users table
-      };
-    });
-
-    return NextResponse.json({
-      totalStats,
-      timeSeriesData,
-      userStats,
-    });
-  } catch (error) {
-    console.error('Error in admin usage API:', error);
-
-    if (error instanceof Error) {
-      if (error.message === 'Unauthorized') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      if (error.message === 'Forbidden - Admin access required') {
-        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      if (!existing.last_interaction || interaction.interaction_time > existing.last_interaction) {
+        existing.last_interaction = interaction.interaction_time;
       }
     }
 
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    userStatsMap.set(interaction.user_id, existing);
   }
-});
+
+  // Add assistant counts to user stats
+  for (const assistant of assistants) {
+    if (!assistant.user_id) continue;
+
+    const existing = userStatsMap.get(assistant.user_id);
+
+    if (existing) {
+      existing.assistants_count++;
+    } else {
+      userStatsMap.set(assistant.user_id, {
+        user_id: assistant.user_id,
+        interactions_count: 0,
+        token_usage: 0,
+        cost_estimate: 0,
+        assistants_count: 1,
+        first_interaction: null,
+        last_interaction: null,
+      });
+    }
+  }
+
+  const userStats = [...userStatsMap.values()];
+
+  // Calculate overview
+  const overview: UsageOverview = {
+    total_users: totalUsers,
+    total_interactions: interactions.length,
+    total_tokens: interactions.reduce((sum, i) => sum + (i.token_usage || 0), 0),
+    total_cost: interactions.reduce((sum, i) => sum + (i.cost_estimate || 0), 0),
+    total_assistants: assistants.length,
+    active_users_24h: new Set(interactions24h.map(i => i.user_id).filter(Boolean)).size,
+    active_users_7d: new Set(interactions7d.map(i => i.user_id).filter(Boolean)).size,
+    avg_interactions_per_user: totalUsers > 0 ? interactions.length / totalUsers : 0,
+    avg_tokens_per_interaction:
+      interactions.length > 0
+        ? interactions.reduce((sum, i) => sum + (i.token_usage || 0), 0) / interactions.length
+        : 0,
+  };
+
+  // Calculate daily stats for the last 30 days
+  const dailyStatsMap = new Map<
+    string,
+    {
+      date: string;
+      interactions: number;
+      tokens: number;
+      cost: number;
+      users: Set<string>;
+    }
+  >();
+
+  // Initialize all days in the last 30 days
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const [dateKey] = date.toISOString().split('T');
+
+    dailyStatsMap.set(dateKey, {
+      date: dateKey,
+      interactions: 0,
+      tokens: 0,
+      cost: 0,
+      users: new Set(),
+    });
+  }
+
+  // Populate daily stats from interactions
+  for (const interaction of interactions30d) {
+    if (!interaction.interaction_time) continue;
+
+    const [dateKey] = interaction.interaction_time.split('T');
+    const dailyStat = dailyStatsMap.get(dateKey);
+
+    if (dailyStat) {
+      dailyStat.interactions++;
+      dailyStat.tokens += interaction.token_usage || 0;
+      dailyStat.cost += interaction.cost_estimate || 0;
+      if (interaction.user_id) {
+        dailyStat.users.add(interaction.user_id);
+      }
+    }
+  }
+
+  const dailyStats = [...dailyStatsMap.values()]
+    .map(stat => ({
+      date: stat.date,
+      interactions: stat.interactions,
+      tokens: stat.tokens,
+      cost: stat.cost,
+      unique_users: stat.users.size,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Get top users by interactions
+  const topUsers = userStats
+    .sort((a, b) => b.interactions_count - a.interactions_count)
+    .slice(0, 10);
+
+  return {
+    overview,
+    user_stats: userStats,
+    daily_stats: dailyStats,
+    top_users: topUsers,
+  };
+}
+
+/**
+ * GET /api/admin/usage
+ *
+ * Returns comprehensive usage analytics for admin dashboard
+ */
+export const GET = requireAdmin(
+  async (): Promise<NextResponse<UsageAnalytics | { error: string }>> => {
+    try {
+      // Fetch all data using cached functions
+      const [interactions, assistants, totalUsers] = await Promise.all([
+        fetchAllInteractions(),
+        fetchAllAssistants(),
+        fetchTotalUsers(),
+      ]);
+
+      // Process the analytics
+      const analytics = processUsageAnalytics(interactions, assistants, totalUsers);
+
+      return NextResponse.json(analytics);
+    } catch (error: unknown) {
+      console.error('Error in admin usage API:', error);
+
+      return NextResponse.json({ error: 'Failed to fetch usage analytics' }, { status: 500 });
+    }
+  }
+);

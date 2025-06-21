@@ -1,8 +1,8 @@
 'use client';
 
+import { Bot, FileText, Loader2, Phone, Upload, X } from 'lucide-react';
 import React from 'react';
 
-import { Bot, FileText, Loader2, Phone, Upload, X } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -232,7 +232,7 @@ export function FilesInterface({
               <div className="mt-2 space-y-2">
                 {fileList.files.map(file => {
                   const status = getFileStatus(file, deletingFileIds, processingFileIds);
-                  const isDeleting = status === 'processing' && deletingFileIds.includes(file.id);
+                  const isDeleting = deletingFileIds.includes(file.id);
                   const isProcessing = status === 'processing' && !isDeleting;
 
                   return (

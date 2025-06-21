@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 
 export default async function ResetPassword(props: { searchParams: Promise<Message> }) {
   const searchParams = await props.searchParams;
+
   return (
     <form className="flex w-full max-w-md flex-col gap-2 p-4 [&>input]:mb-4">
       <h1 className="text-2xl font-medium">Reset password</h1>

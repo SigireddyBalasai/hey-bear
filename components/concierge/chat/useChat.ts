@@ -2,9 +2,10 @@
 
 import { useCallback, useState } from 'react';
 
+import type { ChatMessage } from './types';
+
 import { handleError } from '@/utils/error-handling';
 
-import type { ChatMessage } from './types';
 
 interface UseChatProps {
   assistantId: string;
@@ -21,6 +22,7 @@ export function useChat({ assistantId, isChatDisabled }: UseChatProps) {
   const handleChat = useCallback(
     async (currentMessage?: string) => {
       const messageToSend = currentMessage || message;
+
       if (isChatDisabled || !messageToSend.trim() || isSending) return;
 
       try {
@@ -32,15 +34,17 @@ export function useChat({ assistantId, isChatDisabled }: UseChatProps) {
         };
 
         const newChatHistory = [...chatHistory, userMessage];
+
         setChatHistory(newChatHistory);
         setMessage('');
 
-        const response = await fetch(`/api/Concierge/${assistantId}/chat`, {
+        const response = await fetch('/api/Concierge/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            assistantId,
             message: messageToSend,
             chatHistory: newChatHistory,
           }),

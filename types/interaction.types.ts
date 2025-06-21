@@ -28,22 +28,9 @@ export interface FilterValues {
   dateRange: string;
 }
 
-// Transformed interaction interface
-export interface TransformedInteraction {
-  id: string;
-  interaction_time: string;
-  type: string;
-  status: string;
-  assistant_name: string;
-  assistant_id: string;
-  phone_number: string;
-  request: string;
-  response: string;
-}
-
 // Interaction log props
 export interface InteractionLogProps {
-  interactions: TransformedInteraction[];
+  interactions: InteractionRow[];
   loading: boolean;
   error: string;
   currentPage: number;
@@ -57,6 +44,7 @@ export interface InteractionLogProps {
   onPageChange: (page: number) => void;
   onTabChange: (tab: string) => void;
   setActiveTab: (tab: string) => void;
+  onShowFilters?: () => void; // Optional prop for showing filters
 }
 
 // Usage chart item interface

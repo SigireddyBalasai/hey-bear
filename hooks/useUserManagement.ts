@@ -29,7 +29,7 @@ export function useUserManagement() {
             (authUser.user_metadata?.full_name as string) ||
             (authUser.user_metadata?.name as string) ||
             '',
-          is_admin: Boolean(authUser.user_metadata?.is_admin),
+          is_admin: false, // Admin status should be checked via is_admin() RPC for current user only
           last_sign_in: authUser.last_sign_in_at || '',
           created_at: authUser.created_at,
           updated_at: authUser.updated_at || '',

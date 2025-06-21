@@ -1,5 +1,3 @@
-import type { Database, Json } from '@/types/db.types';
-
 import type { Assistant, UsageData, UsageMetric } from './usage.types';
 
 export interface AssistantSelectorProps {
@@ -7,26 +5,6 @@ export interface AssistantSelectorProps {
   selectedAssistant: string;
   onAssistantChange: (value: string) => void;
   isLoading: boolean;
-}
-
-// Database types - Re-export for convenience
-export type InteractionRow = Database['public']['Tables']['interactions']['Row'];
-
-export interface TransformedInteraction {
-  id: string;
-  date: string; // Formatted date
-  phoneNumber: string; // Derived from assistant_id or other source in API
-  message: string; // Request content
-  response: string; // Response content
-  type: string; // e.g., 'Inbound, Outbound', 'Inbound', 'Outbound'
-  responseTime: string; // Formatted duration
-  assistant_id: string;
-  user_id: string;
-  duration: number; // Raw duration in ms
-  interaction_time: string; // Raw interaction time string
-  chat: Json; // chat log if available
-  assistant_name: string; // Name of the assistant
-  status: string; // Interaction status (e.g., 'Completed', 'Pending', 'Failed') - needs a source or default
 }
 
 // Dashboard component interfaces

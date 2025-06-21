@@ -1,12 +1,11 @@
 'use client';
 
-import React from 'react';
-
 import { motion } from 'framer-motion';
+
+import { AssistantCard } from './conciergeCard';
 
 import type { AssistantWithNonNullableFields } from '@/types/concierge.types';
 
-import { AssistantCard } from './conciergeCard';
 
 interface AssistantGridProps {
   assistants: AssistantWithNonNullableFields[];
@@ -20,23 +19,23 @@ const filterAssistants = (
   assistants: AssistantWithNonNullableFields[],
   selectedTab: string,
   searchQuery: string
-) => {
-  return assistants.filter(assistant => {
+) =>
+  assistants.filter(assistant => {
     // Filter by tab
     if (selectedTab === 'starred' && !assistant.assistant.is_starred) return false;
-    if (selectedTab === 'recent' && !assistant.last_interaction_at) return false;
+    if (selectedTab === 'recent' && !assistant.activity?.last_used_at) return false;
 
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const name = assistant.assistant.name.toLowerCase();
       const description = assistant.config?.description?.toLowerCase() || '';
+
       return name.includes(query) || description.includes(query);
     }
 
     return true;
   });
-};
 
 export function AssistantGrid({
   assistants,
@@ -87,13 +86,11 @@ export function AssistantGrid({
               name: assistant.assistant.name || '',
               is_starred: assistant.assistant.is_starred ?? false,
               created_at: assistant.assistant.created_at,
-              description: assistant.config.description || '',
-              has_phone_number: !!(
-                assistant.assistant.assigned_phone_number ?? assistant.config?.business_phone
-              ),
-              subscription_plan: 'personal' as 'personal' | 'business',
-              total_messages: assistant.interactions_count,
-              last_used_at: assistant.last_interaction_at || '',
+              assigned_phone_number: assistant.assistant.assigned_phone_number,
+              description: assistant.config.description,
+              total_messages: assistant.activity?.total_messages || 0,
+              last_used_at: assistant.activity?.last_used_at ?? null,
+              plan_name: assistant.subscription?.plan_name ?? null,
             }}
             isLoading={false}
             isActionInProgress={false}

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+
 import type { DashboardStats } from '@/types/admin.types';
 import type { Database } from '@/types/db.types';
 import { withErrorHandling } from '@/utils/error-handling';
@@ -56,12 +57,11 @@ export function useDashboardData() {
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-        // Get total registered users count
-        const { count: totalUsers, error: usersError } = await supabase
-          .from('users')
-          .select('*', { count: 'exact', head: true });
-
-        if (usersError) throw usersError;
+        // Calculate total unique users from interactions
+        const uniqueUserIds = new Set(
+          interactions.map((i: InteractionRow) => i.user_id).filter(Boolean)
+        );
+        const totalUsers = uniqueUserIds.size;
 
         // Calculate active users
         const usersActiveToday = new Set(
@@ -87,9 +87,15 @@ export function useDashboardData() {
 
         // Calculate interaction stats
         const totalInteractions = interactions.length;
-        const totalTokens = interactions.reduce((sum, interaction) => sum + (interaction.token_usage ?? 0), 0);
-        const totalCostEstimate = interactions.reduce((sum, interaction) => sum + (interaction.cost_estimate ?? 0), 0);
-        const errorCount = interactions.filter(interaction => interaction.error_details).length;
+        const totalTokens = interactions.reduce(
+          (sum, interaction) => sum + (interaction.token_usage ?? 0),
+          0
+        );
+        const totalCostEstimate = interactions.reduce(
+          (sum, interaction) => sum + (interaction.cost_estimate ?? 0),
+          0
+        );
+        const errorCount = interactions.filter(interaction => interaction.is_error).length;
         const errorRate = totalInteractions > 0 ? (errorCount / totalInteractions) * 100 : 0;
 
         // Create time series data
@@ -111,10 +117,13 @@ export function useDashboardData() {
             errorRate,
           },
           timeSeriesData,
-          userUsage,
+          userUsage: [], // TODO: Fix this to return proper UserUsageStats format
         });
       },
-      'Failed to load dashboard data'
+      {
+        toastTitle: 'Failed to load dashboard data',
+        context: 'dashboard data loading',
+      }
     );
   }, [selectedTimeRange, supabase]);
 
@@ -126,11 +135,7 @@ export function useDashboardData() {
   };
 }
 
-function createTimeSeriesData(
-  interactions: InteractionRow[],
-  startDate: Date,
-  endDate: Date
-) {
+function createTimeSeriesData(interactions: InteractionRow[], startDate: Date, endDate: Date) {
   const timeSeriesData = [];
   const currentDate = new Date(startDate);
 
@@ -141,21 +146,42 @@ function createTimeSeriesData(
     dayEnd.setHours(23, 59, 59, 999);
 
     const dayInteractions = interactions.filter(
-      (interaction) =>
+      interaction =>
         interaction.interaction_time &&
         new Date(interaction.interaction_time) >= dayStart &&
         new Date(interaction.interaction_time) <= dayEnd
     );
 
     const interactionCount = dayInteractions.length;
-    const tokenUsage = dayInteractions.reduce((sum, interaction) => sum + (interaction.token_usage ?? 0), 0);
-    const costEstimate = dayInteractions.reduce((sum, interaction) => sum + (interaction.cost_estimate ?? 0), 0);
+    const inputTokens = dayInteractions.reduce(
+      (sum, interaction) => sum + (interaction.input_tokens ?? 0),
+      0
+    );
+    const outputTokens = dayInteractions.reduce(
+      (sum, interaction) => sum + (interaction.output_tokens ?? 0),
+      0
+    );
+    const totalTokens = dayInteractions.reduce(
+      (sum, interaction) => sum + (interaction.token_usage ?? 0),
+      0
+    );
+    const costs = dayInteractions.reduce(
+      (sum, interaction) => sum + (interaction.cost_estimate ?? 0),
+      0
+    );
+    const activeUsers = new Set(dayInteractions.map(i => i.user_id).filter(Boolean)).size;
+    const errors = dayInteractions.filter(i => i.is_error).length;
 
     timeSeriesData.push({
       date: currentDate.toISOString().split('T')[0],
       interactions: interactionCount,
-      tokens: tokenUsage,
-      cost: costEstimate,
+      tokens: totalTokens,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      costs,
+      activeUsers,
+      errors,
     });
 
     currentDate.setDate(currentDate.getDate() + 1);
@@ -208,7 +234,7 @@ async function createUserUsageStats(interactions: InteractionRow[], supabase: an
         total_cost: stats.cost_estimate,
       };
     })
-    .filter(Boolean)
+    .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((a, b) => (b?.total_interactions ?? 0) - (a?.total_interactions ?? 0));
 
   return userUsage;

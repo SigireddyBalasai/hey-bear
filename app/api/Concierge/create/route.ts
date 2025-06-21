@@ -1,7 +1,6 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';
@@ -17,8 +16,10 @@ type AssistantUsageLimitsInsert = Database['public']['Tables']['assistant_usage_
 
 function generatePineconeName(base: string): string {
   let prefix = base.toLowerCase().replaceAll(/[^a-z0-9]/g, '-');
+
   prefix = prefix.slice(0, 40);
   const timestamp = Date.now().toString().slice(-6); // Use timestamp for uniqueness
+
   return `${prefix}-${timestamp}`;
 }
 
@@ -27,34 +28,32 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
     const body = (await req.json()) as CreateAssistantRequest;
 
     const {
-      assistantName,
+      name,
       description,
-      params = {},
+      concierge_name,
+      business_name,
+      business_phone,
       plan = 'personal', // Default plan
       stripeCheckoutSessionId, // Added for payment verification
       paymentSessionId, // Added for linking to payment session
     } = body;
 
-    if (!assistantName) {
+    if (!name) {
       return NextResponse.json({ error: 'Assistant name is required' }, { status: 400 });
     }
 
     let verifiedPlanId = plan;
     let subscriptionStatus: Database['public']['Tables']['assistant_subscriptions']['Insert']['status'] =
-      'pending'; // Default status
+      'trialing'; // Default status for new subscriptions
 
     // If a plan other than personal is selected, verify payment
     if (plan !== 'personal' && stripeCheckoutSessionId) {
       try {
         // Payment verification would be implemented here
         // For now, proceeding with plan creation
-        console.log(
-          `Simulating Stripe payment verification for session: ${stripeCheckoutSessionId} and plan: ${plan}`
-        );
         verifiedPlanId = plan; // Assume plan from request is the one paid for after verification
         subscriptionStatus = 'active'; // Set status to active if payment is "verified"
       } catch (verificationError: unknown) {
-        console.error('Stripe verification error:', verificationError);
         return NextResponse.json(
           {
             error: 'Failed to verify payment',
@@ -75,29 +74,28 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
     }
 
     // Check if this is a webhook call (has paymentSessionId and stripeCheckoutSessionId)
-    const isWebhookCall = !!(paymentSessionId && stripeCheckoutSessionId);
+    const isWebhookCall = Boolean(paymentSessionId && stripeCheckoutSessionId);
     let userId: string;
     let dbClient: SupabaseClient<Database>;
 
     if (isWebhookCall) {
       // For webhook calls, use admin client and get user from payment session
-      console.log(
-        'Webhook call detected, using admin client to fetch user_id from payment_sessions table.'
-      );
       dbClient = await createAdminClient();
+
+      if (!paymentSessionId) {
+        return NextResponse.json(
+          { error: 'Payment session ID is required for webhook calls' },
+          { status: 400 }
+        );
+      }
 
       const { data: paymentSessionData, error: paymentSessionError } = await dbClient
         .from('payment_sessions')
-        .select('user_id') // This user_id references public.users.id
+        .select('*')
         .eq('id', paymentSessionId)
         .single();
 
       if (paymentSessionError || !paymentSessionData || !paymentSessionData.user_id) {
-        console.error(
-          'Error fetching user_id from payment_sessions for webhook:',
-          paymentSessionError,
-          'or user_id is null.'
-        );
         return NextResponse.json(
           { error: 'Valid payment session with user_id not found' },
           { status: 404 }
@@ -105,7 +103,6 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       }
 
       userId = paymentSessionData.user_id; // This is the correct application user ID (public.users.id)
-      console.log('Retrieved application user_id from payment_sessions:', userId);
 
       // The previous lookup for userData using auth_user_id is removed as it was incorrect.
       // We now directly use the user_id from payment_sessions.
@@ -120,9 +117,6 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
     const planDetails = getSubscriptionPlanDetails(verifiedPlanId);
 
     if (!planDetails) {
-      console.error(
-        `Invalid plan specified by client: ${verifiedPlanId}. Plan not found in local configuration.`
-      );
       return NextResponse.json(
         { error: `Invalid plan specified: ${verifiedPlanId}. Plan not found in configuration.` },
         { status: 400 }
@@ -131,16 +125,12 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
 
     // Use the ID from the local configuration (e.g., "personal", "business")
     const actualPlanIdForDb = planDetails.id;
-    console.log(
-      `Using plan ID from local config: ${actualPlanIdForDb} for plan: ${verifiedPlanId}`
-    );
 
     // The database query for plan UUID is removed as we now use the local config.
 
     // Ensure planDetails is not null (already checked before, but good for safety here)
     if (!planDetails) {
       // This case should ideally be caught earlier, but as a safeguard:
-      console.error('Plan details are unexpectedly null before database operations.');
       return NextResponse.json(
         { error: 'Internal server error: Plan details missing.' },
         { status: 500 }
@@ -150,13 +140,12 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
     const pendingAssistantId = uuidv4(); // Define pendingAssistantId outside the try block for wider scope in catch
 
     try {
-      const pinecone_name = generatePineconeName(assistantName);
-      console.log(`Generated Pinecone name: ${pinecone_name}`);
+      const pinecone_name = generatePineconeName(name);
 
       const pendingAssistantData: Database['public']['Tables']['assistants']['Insert'] = {
         id: pendingAssistantId,
         user_id: userId,
-        name: assistantName,
+        name,
         created_at: new Date().toISOString(),
         pending: true,
       };
@@ -166,7 +155,6 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         .insert([pendingAssistantData]);
 
       if (insertError) {
-        console.error('Error saving pending assistant to Supabase:', insertError);
         return NextResponse.json(
           { error: 'Failed to save pending assistant to database' },
           { status: 500 }
@@ -177,18 +165,19 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       const configData: Database['public']['Tables']['assistant_configs']['Insert'] = {
         id: pendingAssistantId,
         description: description ?? null,
-        display_name: params.conciergeName ?? assistantName,
-        business_name: params.businessName ?? null,
-        business_phone: params.phoneNumber ?? null,
+        display_name: concierge_name ?? name,
+        business_name: business_name ?? null,
+        business_phone: business_phone ?? null,
+        pinecone_name,
       };
       const { error: configInsertError } = await dbClient
         .from('assistant_configs')
         .insert([configData]);
 
       if (configInsertError) {
-        console.error('Error inserting assistant config:', configInsertError);
         // Attempt to delete the pending assistant if config insertion fails
         await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+
         return NextResponse.json(
           { error: 'Failed to save assistant configuration' },
           { status: 500 }
@@ -202,6 +191,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         status: subscriptionStatus,
         plan_id: actualPlanIdForDb, // Use the ID from lib/subscription-plans.ts
         payment_session_id: paymentSessionId || null,
+        stripe_subscription_id: null, // Will be updated by webhook when payment is processed
         created_at: new Date().toISOString(),
       };
 
@@ -210,10 +200,10 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         .insert([subscriptionData]);
 
       if (subscriptionInsertError) {
-        console.error('Error saving subscription data with plan_id UUID:', subscriptionInsertError);
         // Attempt to clean up assistant and config if subscription fails
         await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
         await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+
         return NextResponse.json({ error: 'Failed to save subscription data.' }, { status: 500 });
       }
 
@@ -238,7 +228,6 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         .insert([activityData]);
 
       if (activityInsertError) {
-        console.error('Error inserting into assistant_activity:', activityInsertError);
         // Rollback previous inserts
         await dbClient
           .from('assistant_subscriptions')
@@ -246,6 +235,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
           .eq('assistant_id', pendingAssistantId);
         await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
         await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+
         return NextResponse.json(
           { error: 'Failed to save assistant activity data.' },
           { status: 500 }
@@ -268,7 +258,6 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         .insert([limitsData]);
 
       if (limitsInsertError) {
-        console.error('Error inserting into assistant_usage_limits:', limitsInsertError);
         // Rollback previous inserts
         await dbClient.from('assistant_activity').delete().eq('assistant_id', pendingAssistantId);
         await dbClient
@@ -277,6 +266,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
           .eq('assistant_id', pendingAssistantId);
         await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
         await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
+
         return NextResponse.json(
           { error: 'Failed to save assistant usage limits.' },
           { status: 500 }
@@ -284,18 +274,16 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       }
 
       return NextResponse.json({
-        message: `Assistant ${assistantName} created successfully with activity and limits initialized`,
+        message: `Assistant ${name} created successfully with activity and limits initialized`,
         assistantId: pendingAssistantId,
-        pendingAssistantId: pendingAssistantId,
+        pendingAssistantId,
       });
     } catch (apiError: unknown) {
-      console.error('API error during assistant creation steps:', apiError);
+      const UNKNOWN_ERROR = 'Unknown error';
       // General rollback for any error during the assistant creation process
       // Ensure pendingAssistantId is valid before attempting cleanup
+
       if (pendingAssistantId) {
-        console.log(
-          `Attempting cleanup for assistant ID: ${pendingAssistantId} due to error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`
-        );
         try {
           await dbClient.from('assistant_activity').delete().eq('assistant_id', pendingAssistantId);
           await dbClient
@@ -308,18 +296,15 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
             .eq('assistant_id', pendingAssistantId);
           await dbClient.from('assistant_configs').delete().eq('id', pendingAssistantId);
           await dbClient.from('assistants').delete().eq('id', pendingAssistantId);
-          console.log(`Cleanup successful for assistant ID: ${pendingAssistantId}`);
-        } catch (cleanupError) {
-          console.error(
-            `Error during cleanup for assistant ID: ${pendingAssistantId}:`,
-            cleanupError
-          );
+        } catch {
+          // Cleanup failed, but we don't want to throw another error
         }
       }
+
       return NextResponse.json(
         {
           error: 'Failed to create assistant',
-          details: apiError instanceof Error ? apiError.message : 'Unknown error',
+          details: apiError instanceof Error ? apiError.message : UNKNOWN_ERROR,
         },
         { status: 500 }
       );
@@ -327,11 +312,12 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
   } catch (error: unknown) {
     // This is the outermost catch block. Errors here are likely before pendingAssistantId is defined
     // or are issues with the request/response objects themselves.
-    console.error('Unexpected error in POST /api/Concierge/create (outermost catch):', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     return NextResponse.json(
       {
         error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage,
       },
       { status: 500 }
     );

@@ -1,8 +1,8 @@
 'use client';
 
+import { Calendar, Filter } from 'lucide-react';
 import React from 'react';
 
-import { Calendar, Filter } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,11 +23,13 @@ export function DashboardControls({
 }: DashboardControlsProps) {
   const today = new Date();
   const oneMonthAgo = new Date();
+
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
   const handleApplyDateRange = () => {
     const startDate = (document.querySelector('#start-date') as HTMLInputElement).value;
     const endDate = (document.querySelector('#end-date') as HTMLInputElement).value;
+
     onDateRangeChange(startDate, endDate);
   };
 

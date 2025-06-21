@@ -23,6 +23,7 @@ export const GET = requireAuth(async context => {
         userId,
         assistantsError
       );
+
       return NextResponse.json({ error: 'Failed to retrieve assistants' }, { status: 500 });
     }
 
@@ -35,6 +36,7 @@ export const GET = requireAuth(async context => {
     console.error('Unexpected error in GET /api/Concierge/list:', error);
     // Check if error is an instance of Error to access message property safely
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+
     return NextResponse.json(
       { error: 'An unexpected error occurred', details: errorMessage },
       { status: 500 }

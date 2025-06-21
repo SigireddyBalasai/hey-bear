@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { fetchUsageData } from '@/components/admin/utils/adminUtils';
 import type { AnalyticsUserStat, TimeSeriesDataPoint } from '@/types/admin.types';
@@ -112,7 +112,7 @@ export function useUsageAnalytics() {
       async () => {
         const { data: assistantData } = await supabase
           .from('assistants')
-          .select('id, name')
+          .select('*')
           .eq('pending', false);
 
         setAssistants(assistantData ?? []);

@@ -1,10 +1,9 @@
+import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import Link from 'next/link';
 
-import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
-
-import { signOutAction } from '@/app/actions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,19 +19,28 @@ import { createClient } from '@/utils/supabase/client';
 
 export function Header({ user }: HeaderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (user) {
-        // Check admin status from auth user metadata instead of users table
-        const userMetadata = user.user_metadata as { is_admin?: boolean } | undefined;
-        setIsAdmin(Boolean(userMetadata?.is_admin));
+        // Check admin status using the database role via RPC
+        const { data: adminCheck, error } = await supabase.rpc('is_admin');
+
+        if (!error) {
+          setIsAdmin(Boolean(adminCheck));
+        }
       }
     };
 
     checkAdminStatus();
   }, [user, supabase]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/sign-in');
+  };
 
   // Get user initials for avatar
   const userInitials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'U';
@@ -80,15 +88,13 @@ export function Header({ user }: HeaderProps) {
 
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <form action={signOutAction} className="w-full">
-              <button
-                type="submit"
-                className="flex w-full cursor-pointer items-center px-2 py-1.5 text-sm text-red-600 hover:bg-accent hover:text-red-600 focus:text-red-600"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </button>
-            </form>
+            <button
+              onClick={handleSignOut}
+              className="flex w-full cursor-pointer items-center px-2 py-1.5 text-sm text-red-600 hover:bg-accent hover:text-red-600 focus:text-red-600"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </button>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

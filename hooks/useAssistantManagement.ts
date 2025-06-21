@@ -20,12 +20,11 @@ export function useAssistantManagement() {
   const [formData, setFormData] = useState<ConciergeFormData>({
     name: '',
     description: '',
-    conciergeName: '',
+    concierge_name: '',
     personality: 'Business Casual',
-    businessName: '',
-    sharePhoneNumber: false,
-    phoneNumber: '',
-    selectedPlan: 'personal',
+    business_name: '',
+    share_phone_number: false,
+    business_phone: '',
   });
 
   const router = useRouter();
@@ -48,13 +47,21 @@ export function useAssistantManagement() {
           throw new Error('Assistant not found');
         }
 
-        const supabase = createClient();
+        // Call the proper delete API endpoint instead of direct Supabase deletion
+        const response = await fetch('/api/Concierge/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            assistantName: assistantToDelete.assistant.name,
+          }),
+        });
 
-        // Delete from Supabase
-        const { error } = await supabase.from('assistants').delete().eq('id', assistantId);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
 
-        if (error) {
-          throw new Error('Failed to delete assistant from server');
+          throw new Error(errorData.error || 'Failed to delete assistant');
         }
 
         // Update local state after successful deletion
@@ -77,12 +84,11 @@ export function useAssistantManagement() {
     setFormData({
       name: '',
       description: '',
-      conciergeName: '',
+      concierge_name: '',
       personality: 'Business Casual',
-      businessName: '',
-      sharePhoneNumber: false,
-      phoneNumber: '',
-      selectedPlan: 'personal',
+      business_name: '',
+      share_phone_number: false,
+      business_phone: '',
     });
 
     // Show placeholder message
@@ -102,8 +108,10 @@ export function useAssistantManagement() {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser();
+
         if (userError || !user) {
           router.push('/sign-in');
+
           return;
         }
 
@@ -132,7 +140,6 @@ export function useAssistantManagement() {
 
         // Transform the real data from the database
         if (!assistantsData || assistantsData.length === 0) {
-          console.log('User has 0 assistants');
           setNormalizedAssistants([]);
         } else {
           const transformedAssistants = assistantsData

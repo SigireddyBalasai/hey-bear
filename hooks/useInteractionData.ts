@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Database } from '@/types/db.types';
-import type { TransformedInteraction } from '@/types/interaction.types';
-import { createClient } from '@/utils/supabase/client';
-import { withErrorHandling } from '@/utils/error-handling';
-import { transformInteractionData } from '@/utils/interaction-formatting';
 
-type InteractionRow = Database['public']['Tables']['interactions']['Row'];
+import type { Database } from '@/types/db.types';
+import type { InteractionRow } from '@/types/interaction.types';
+import { withErrorHandling } from '@/utils/error-handling';
+import { createClient } from '@/utils/supabase/client';
+
+type DatabaseInteractionRow = Database['public']['Tables']['interactions']['Row'];
 
 interface UseInteractionDataProps {
   dateRange?: { from: Date; to: Date } | null;
@@ -28,7 +28,7 @@ export function useInteractionData({
   initialSortBy = 'interaction_time',
   initialSortDirection = 'desc',
 }: UseInteractionDataProps) {
-  const [interactions, setInteractions] = useState<TransformedInteraction[]>([]);
+  const [interactions, setInteractions] = useState<InteractionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
@@ -46,9 +46,7 @@ export function useInteractionData({
         setError(null);
 
         // Build query
-        let query = supabase
-          .from('interactions')
-          .select('*', { count: 'exact' });
+        let query = supabase.from('interactions').select('*', { count: 'exact' });
 
         // Apply filters
         if (dateRange?.from && dateRange?.to) {
@@ -90,17 +88,17 @@ export function useInteractionData({
           throw queryError;
         }
 
-        const transformedData = transformInteractionData(data || []);
-        setInteractions(transformedData);
+        setInteractions(data || []);
         setTotalItems(count || 0);
         setTotalPages(Math.ceil((count || 0) / pageSize));
       },
-      'Failed to fetch interactions',
-      (errorMessage) => {
-        setError(errorMessage);
-        setInteractions([]);
-        setTotalItems(0);
-        setTotalPages(1);
+      {
+        fallbackMessage: 'Failed to fetch interactions',
+        onError: () => {
+          setInteractions([]);
+          setTotalItems(0);
+          setTotalPages(1);
+        },
       }
     );
 
@@ -121,13 +119,14 @@ export function useInteractionData({
     fetchInteractions();
   }, [fetchInteractions]);
 
-  const handleSortChange = useCallback((column: string) => {
-    setSortBy(column);
-    setSortDirection(prev => 
-      column === sortBy ? (prev === 'asc' ? 'desc' : 'asc') : 'desc'
-    );
-    setCurrentPage(1); // Reset to first page when sorting changes
-  }, [sortBy]);
+  const handleSortChange = useCallback(
+    (column: string) => {
+      setSortBy(column);
+      setSortDirection(prev => (column === sortBy ? (prev === 'asc' ? 'desc' : 'asc') : 'desc'));
+      setCurrentPage(1); // Reset to first page when sorting changes
+    },
+    [sortBy]
+  );
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);

@@ -8,24 +8,23 @@ interface UsageCostChartProps {
 }
 
 export function UsageCostChart({ timeSeriesData }: UsageCostChartProps) {
-  const generateTimeSeriesData = () => {
-    return {
-      labels: timeSeriesData.map(entry => {
-        const date = new Date(entry.date);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      }),
-      datasets: [
-        {
-          label: 'Daily Cost ($)',
-          data: timeSeriesData.map(entry => entry.costs),
-          borderColor: 'rgb(59, 130, 246)',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          tension: 0.3,
-          fill: true,
-        },
-      ],
-    };
-  };
+  const generateTimeSeriesData = () => ({
+    labels: timeSeriesData.map(entry => {
+      const date = new Date(entry.date);
+
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }),
+    datasets: [
+      {
+        label: 'Daily Cost ($)',
+        data: timeSeriesData.map(entry => entry.costs),
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.3,
+        fill: true,
+      },
+    ],
+  });
 
   return (
     <Card className="md:col-span-2">
@@ -44,8 +43,8 @@ export function UsageCostChart({ timeSeriesData }: UsageCostChartProps) {
                 y: {
                   beginAtZero: true,
                   ticks: {
-                    callback: function (value) {
-                      return '$' + String(value);
+                    callback(value) {
+                      return `$${String(value)}`;
                     },
                   },
                 },
@@ -53,9 +52,10 @@ export function UsageCostChart({ timeSeriesData }: UsageCostChartProps) {
               plugins: {
                 tooltip: {
                   callbacks: {
-                    label: function (context) {
-                      const dataIndex = context.dataIndex;
+                    label(context) {
+                      const { dataIndex } = context;
                       const day = timeSeriesData[dataIndex] || { tokens: 0, interactions: 0 };
+
                       return [
                         `Cost: $${Number(context.raw).toFixed(2)}`,
                         `Tokens: ${day.tokens.toLocaleString()}`,

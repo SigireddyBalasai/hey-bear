@@ -1,8 +1,8 @@
 'use client';
 
+import { AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
-import { AnimatePresence } from 'framer-motion';
 
 import { AssistantGrid } from '@/components/concierge/AssistantGrid';
 import { AssistantListWrapper } from '@/components/concierge/AssistantListWrapper';
@@ -57,11 +57,12 @@ export default function AssistantsPage() {
 
   // Filter assistants based on search query and selected tab
   const filteredAssistants = normalizedAssistants.filter(assistantData => {
-    const assistant = assistantData.assistant;
-    const config = assistantData.config;
+    const { assistant } = assistantData;
+    const { config } = assistantData;
 
     // Check if the assistant has pending status - if so, exclude it
     const isPending = assistant.pending === true;
+
     if (isPending) return false;
 
     const matchesSearch =
@@ -71,6 +72,7 @@ export default function AssistantsPage() {
     // Filter based on selected tab
     if (selectedTab === 'all') return matchesSearch;
     if (selectedTab === 'favorites') return matchesSearch && assistant.is_starred === true;
+
     return matchesSearch;
   });
 
@@ -83,7 +85,7 @@ export default function AssistantsPage() {
           searchQuery=""
           onClearSearch={() => {}}
           onCreateNew={() => setCreateDialogOpen(true)}
-          noAssistantsYet={true}
+          noAssistantsYet
         />
       ) : (
         <>

@@ -24,24 +24,36 @@ export function validatePaymentSession(session: Stripe.Checkout.Session) {
  * Parses client reference ID to extract user ID and payment session ID
  */
 export function parseClientReferenceId(clientRefId: string) {
-  const match = clientRefId.match(/^user-([a-f0-9A-F-]+)(?:-session-([a-f0-9A-F-]+))?$/);
-  
-  if (!match) {
+  // Use a safer regex pattern by breaking it down
+  const userPattern =
+    /^user-([a-f0-9A-F]{8}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{12})/;
+  const sessionPattern =
+    /-session-([a-f0-9A-F]{8}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{12})$/;
+
+  const userMatch = clientRefId.match(userPattern);
+
+  if (!userMatch) {
     throw new Error(`Invalid client_reference_id format: ${clientRefId}`);
   }
 
+  const authUserId = userMatch[1];
+
+  const sessionMatch = clientRefId.match(sessionPattern);
+  const internalPaymentSessionId = sessionMatch?.[1] || null;
+
   return {
-    authUserId: match[1],
-    internalPaymentSessionId: match[2] || null,
+    authUserId,
+    internalPaymentSessionId,
   };
 }
 
 /**
  * Validates webhook payload structure
  */
-export function validateWebhookPayload(body: any): body is { data: { object: Stripe.Checkout.Session } } {
-  return (
-    body?.data?.object &&
-    body.data.object.object === 'checkout.session'
-  );
+export function validateWebhookPayload(
+  body: unknown
+): body is { data: { object: Stripe.Checkout.Session } } {
+  const typedBody = body as { data?: { object?: { object?: string } } };
+
+  return Boolean(typedBody?.data?.object && typedBody.data.object.object === 'checkout.session');
 }

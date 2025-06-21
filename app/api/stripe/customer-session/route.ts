@@ -70,6 +70,7 @@ export const POST = requireAuth(async context => {
 
       if (errorMessage.includes('invalid api key') || errorMessage.includes('unauthorized')) {
         console.error('Stripe API key configuration error');
+
         return NextResponse.json(
           {
             error: 'Payment system configuration error',

@@ -77,6 +77,7 @@ export async function getSessionData(sessionId: string): Promise<SessionData | n
     return sessionData;
   } catch (error) {
     console.error('Error retrieving Stripe session:', error);
+
     return null;
   }
 }

@@ -35,13 +35,15 @@ export function UserDetailModal({ isOpen, onClose, userData }: UserDetailModalPr
             <User className="h-5 w-5" />
             User Details
           </DialogTitle>
-          <DialogDescription>Detailed information about this user's activity</DialogDescription>
+          <DialogDescription>
+            Detailed information about this user&apos;s activity
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground">User Information</h3>
-            <div className="grid grid-cols-[20px_1fr] items-center gap-x-2 gap-y-1"></div>
+            <div className="grid grid-cols-[20px_1fr] items-center gap-x-2 gap-y-1" />
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{userData.users?.full_name ?? 'Unknown'}</span>
 

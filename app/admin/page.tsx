@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 
 import {
   BarElement,
@@ -14,18 +13,19 @@ import {
   Title,
   Tooltip,
 } from 'chart.js';
+import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
+import { useEffect } from 'react';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { UserUsageTable } from '@/components/admin/UserUsageTable';
 import { DashboardCharts } from '@/components/admin/dashboard/DashboardCharts';
+import { UserUsageTable } from '@/components/admin/UserUsageTable';
 import { Loading } from '@/components/concierge/Loading';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminAuth } from '@/hooks/useClientAuth';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
 
 // Prevent static generation for admin pages - they require authentication
 export const dynamic = 'force-dynamic';
@@ -44,7 +44,8 @@ ChartJS.register(
 
 function Dashboard() {
   const { user, isAdmin, isLoading } = useAdminAuth();
-  const { selectedTimeRange, setSelectedTimeRange, dashboardStats, loadDashboardData } = useDashboardData();
+  const { selectedTimeRange, setSelectedTimeRange, dashboardStats, loadDashboardData } =
+    useDashboardData();
 
   useEffect(() => {
     if (isAdmin) {
@@ -56,6 +57,17 @@ function Dashboard() {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loading />
+      </div>
+    );
+  }
+
+  if (!isAdmin || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600">You don&apos;t have permission to access this page.</p>
+        </div>
       </div>
     );
   }
@@ -78,17 +90,17 @@ function Dashboard() {
     if (num >= 1000) {
       return `${(num / 1000).toFixed(1)}K`;
     }
+
     return num.toString();
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
-  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -130,7 +142,9 @@ function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Users</p>
-                    <p className="text-3xl font-bold text-gray-900">{formatNumber(dashboardStats.users.total)}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {formatNumber(dashboardStats.users.total)}
+                    </p>
                     <p className="text-sm text-gray-500 mt-1">
                       {dashboardStats.users.activeToday} active today
                     </p>
@@ -145,7 +159,9 @@ function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Interactions</p>
-                    <p className="text-3xl font-bold text-gray-900">{formatNumber(dashboardStats.interactions.total)}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {formatNumber(dashboardStats.interactions.total)}
+                    </p>
                     <p className="text-sm text-gray-500 mt-1">
                       {dashboardStats.interactions.errorRate.toFixed(1)}% error rate
                     </p>
@@ -160,7 +176,9 @@ function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Token Usage</p>
-                    <p className="text-3xl font-bold text-gray-900">{formatNumber(dashboardStats.interactions.totalTokens)}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {formatNumber(dashboardStats.interactions.totalTokens)}
+                    </p>
                     <p className="text-sm text-gray-500 mt-1">
                       {dashboardStats.users.activeThisWeek} users this week
                     </p>
@@ -179,7 +197,11 @@ function Dashboard() {
                       {formatCurrency(dashboardStats.interactions.costEstimate)}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {formatCurrency(dashboardStats.interactions.costEstimate / Math.max(dashboardStats.interactions.total, 1))} per interaction
+                      {formatCurrency(
+                        dashboardStats.interactions.costEstimate /
+                          Math.max(dashboardStats.interactions.total, 1)
+                      )}{' '}
+                      per interaction
                     </p>
                   </div>
                   <div className="p-3 bg-red-100 rounded-full">
@@ -204,7 +226,7 @@ function Dashboard() {
               <TabsContent value="users" className="space-y-4">
                 <Card className="p-6">
                   <h2 className="text-xl font-semibold mb-4">User Usage Statistics</h2>
-                  <UserUsageTable userUsage={dashboardStats.userUsage} />
+                  <UserUsageTable usageData={dashboardStats.userUsage} />
                 </Card>
               </TabsContent>
             </Tabs>

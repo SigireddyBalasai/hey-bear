@@ -38,11 +38,12 @@ export const POST = requireAuth(async (context, request: NextRequest) => {
         },
         status: 'pending',
       })
-      .select('id')
+      .select('*')
       .single();
 
     if (error) {
       console.error('Error storing payment session:', error);
+
       return NextResponse.json({ error: 'Failed to store payment session' }, { status: 500 });
     }
 
@@ -53,6 +54,7 @@ export const POST = requireAuth(async (context, request: NextRequest) => {
     });
   } catch (error) {
     console.error('Error in payment session storage:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });
@@ -80,6 +82,7 @@ export const GET = requireAuth(async (context, request: NextRequest) => {
 
     if (error || !data) {
       console.error('Error retrieving payment session:', error);
+
       return NextResponse.json({ error: 'Payment session not found' }, { status: 404 });
     }
 
@@ -89,6 +92,7 @@ export const GET = requireAuth(async (context, request: NextRequest) => {
     });
   } catch (error) {
     console.error('Error in payment session retrieval:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });

@@ -26,6 +26,7 @@ const UsageDisplayComponent: React.FC<UsageDisplayProps> = ({
     if (!usage) return 0;
     // Check if it's UsageMetric (has 'used' property)
     if ('used' in usage) return usage.used;
+
     // Otherwise assume it's UsageData (has 'current' property)
     return usage.current;
   };
@@ -35,6 +36,7 @@ const UsageDisplayComponent: React.FC<UsageDisplayProps> = ({
     if (!usage) return 0;
     // Check if it's UsageMetric (has 'total' property)
     if ('total' in usage) return usage.total;
+
     // Otherwise assume it's UsageData (has 'limit' property)
     return usage.limit;
   };
@@ -42,9 +44,11 @@ const UsageDisplayComponent: React.FC<UsageDisplayProps> = ({
   // Function to get appropriate color class based on percentage
   const getColorClass = () => {
     if (!usage) return '';
-    const percentage = usage.percentage;
+    const { percentage } = usage;
+
     if (percentage >= dangerThreshold) return 'bg-red-500';
     if (percentage >= dangerThreshold * 0.8) return 'bg-amber-500';
+
     return '';
   };
 

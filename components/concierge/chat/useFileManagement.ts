@@ -2,9 +2,10 @@
 
 import { useCallback, useState } from 'react';
 
+import type { FileWithStatus } from './types';
+
 import { handleError, showSuccess } from '@/utils/error-handling';
 
-import type { FileWithStatus } from './types';
 
 interface UseFileManagementProps {
   assistantId: string;
@@ -40,11 +41,12 @@ export function useFileManagement({
 
         if (!response.ok) {
           const errorData = (await response.json()) as { error?: string };
-          console.error('Error fetching files:', errorData);
+
           handleError(new Error(errorData.error ?? 'Failed to load assistant files'), {
             toastTitle: 'Error loading files',
             fallbackMessage: 'Failed to load assistant files. Please try again.',
           });
+
           return { files: [] };
         }
 
@@ -57,7 +59,10 @@ export function useFileManagement({
           }>;
         };
 
-        const fileArray: FileWithStatus[] = (responseData.files ?? []).map(file => ({
+        // Ensure we have a valid array before calling map
+        const filesArray = Array.isArray(responseData.files) ? responseData.files : [];
+
+        const fileArray: FileWithStatus[] = filesArray.map(file => ({
           id: file.id,
           name: file.name,
           created_at: file.created_at,
@@ -66,13 +71,14 @@ export function useFileManagement({
         }));
 
         setProcessingFileIds([]);
+
         return { files: fileArray };
       } catch (error) {
-        console.error('Failed to fetch files:', error);
         handleError(error as Error, {
           toastTitle: 'Connection error',
           fallbackMessage: 'Failed to connect to the server. Please try again.',
         });
+
         return { files: [] };
       }
     },
@@ -84,6 +90,7 @@ export function useFileManagement({
 
     try {
       const formData = new FormData();
+
       formData.append('file', file);
       formData.append('assistantId', assistantId);
 
@@ -94,14 +101,15 @@ export function useFileManagement({
 
       if (!response.ok) {
         const errorData = (await response.json()) as { error?: string };
+
         throw new Error(errorData.error || 'Failed to upload file');
       }
 
       onFilesUpdated();
       showSuccess('File uploaded successfully!', `${file.name} has been added to the assistant`);
+
       return true;
     } catch (error) {
-      console.error('File upload error:', error);
       throw error;
     }
   };
@@ -118,29 +126,34 @@ export function useFileManagement({
         body: JSON.stringify({
           url,
           assistantId,
+          pinecone_name: pineconeName,
         }),
       });
 
       if (!response.ok) {
         const errorData = (await response.json()) as { error?: string };
+
         throw new Error(errorData.error || 'Failed to add URL');
       }
 
       onFilesUpdated();
       showSuccess('URL added successfully!', `${url} has been added to the assistant`);
+
       return true;
     } catch (error) {
-      console.error('URL addition error:', error);
       throw error;
     }
   };
 
   const handleDeleteFile = async (fileId: string) => {
+    if (deletingFileIds.includes(fileId)) {
+      return;
+    }
     setDeletingFileIds(prev => [...prev, fileId]);
 
     try {
       const response = await fetch('/api/Concierge/file/delete', {
-        method: 'DELETE',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -151,14 +164,37 @@ export function useFileManagement({
       });
 
       if (!response.ok) {
-        const errorData = (await response.json()) as { error?: string };
-        throw new Error(errorData.error || 'Failed to delete file');
+        let errorMessage = 'Failed to delete file';
+
+        try {
+          const errorData = (await response.json()) as { error?: string };
+
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, use the status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        if (errorMessage.includes('File deletion already started')) {
+          showSuccess('File deletion in progress', 'The file is being removed from your assistant');
+          onFilesUpdated();
+
+          return;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      // Try to parse the success response
+      try {
+        await response.json(); // Parse but don't need to use the result
+      } catch {
+        // If JSON parsing fails, that's okay for a successful delete
+        // Silent fail - the delete operation succeeded even if response isn't JSON
       }
 
       onFilesUpdated();
       showSuccess('File deleted successfully', 'The file has been removed from your assistant');
     } catch (error) {
-      console.error('Error deleting file:', error);
       handleError(error as Error, {
         toastTitle: 'Error deleting file',
         fallbackMessage: 'Failed to delete file',

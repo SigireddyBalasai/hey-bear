@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type Stripe from 'stripe';
+
 import type { Database } from '@/types/db.types';
 
 /**
@@ -8,25 +8,41 @@ import type { Database } from '@/types/db.types';
 export async function createAssistantSubscription(
   supabase: SupabaseClient<Database>,
   assistantId: string,
-  subscriptionId: string,
-  customerId: string
+  subscriptionId: string
 ): Promise<boolean> {
   try {
-    // Check if subscription already exists
+    // Check if subscription already exists for this assistant
     const { data: existingSubscription, error: subscriptionError } = await supabase
       .from('assistant_subscriptions')
-      .select('id')
+      .select('*')
       .eq('assistant_id', assistantId)
-      .eq('stripe_subscription_id', subscriptionId)
       .single();
 
     if (subscriptionError && subscriptionError.code !== 'PGRST116') {
       console.error('Error checking for existing subscription:', subscriptionError);
+
       return false;
     }
 
     if (existingSubscription) {
-      console.log('Subscription already exists for assistant:', assistantId);
+      // Update existing subscription with Stripe subscription ID
+      const { error: updateError } = await supabase
+        .from('assistant_subscriptions')
+        .update({
+          stripe_subscription_id: subscriptionId,
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingSubscription.id);
+
+      if (updateError) {
+        console.error('Error updating assistant subscription with Stripe ID:', updateError);
+
+        return false;
+      }
+
+      console.log('Successfully updated assistant subscription with Stripe ID for:', assistantId);
+
       return true;
     }
 
@@ -34,19 +50,22 @@ export async function createAssistantSubscription(
     const { error: createError } = await supabase.from('assistant_subscriptions').insert({
       assistant_id: assistantId,
       stripe_subscription_id: subscriptionId,
-      stripe_customer_id: customerId,
+      plan_id: 'business', // Default plan or get from context
       status: 'active',
     });
 
     if (createError) {
       console.error('Error creating assistant subscription:', createError);
+
       return false;
     }
 
     console.log('Successfully created assistant subscription for:', assistantId);
+
     return true;
   } catch (error) {
     console.error('Error in createAssistantSubscription:', error);
+
     return false;
   }
 }
@@ -67,11 +86,13 @@ export async function updateSubscriptionForPaymentSuccess(
 
     if (subscriptionError) {
       console.error('Error finding assistant subscription for payment success:', subscriptionError);
+
       return false;
     }
 
     if (!assistantSubscription) {
       console.log('No assistant subscription found for successful payment');
+
       return false;
     }
 
@@ -86,13 +107,16 @@ export async function updateSubscriptionForPaymentSuccess(
 
     if (updateError) {
       console.error('Error updating assistant subscription for successful payment:', updateError);
+
       return false;
     }
 
     console.log('Successfully updated assistant subscription for successful payment');
+
     return true;
   } catch (error) {
     console.error('Error in updateSubscriptionForPaymentSuccess:', error);
+
     return false;
   }
 }
@@ -113,11 +137,13 @@ export async function updateSubscriptionForPaymentFailure(
 
     if (subscriptionError) {
       console.error('Error finding assistant subscription for payment failure:', subscriptionError);
+
       return false;
     }
 
     if (!assistantSubscription) {
       console.log('No assistant subscription found for failed payment');
+
       return false;
     }
 
@@ -132,13 +158,16 @@ export async function updateSubscriptionForPaymentFailure(
 
     if (updateError) {
       console.error('Error updating assistant subscription for failed payment:', updateError);
+
       return false;
     }
 
     console.log('Successfully updated assistant subscription for failed payment');
+
     return true;
   } catch (error) {
     console.error('Error in updateSubscriptionForPaymentFailure:', error);
+
     return false;
   }
 }
@@ -159,11 +188,13 @@ export async function handleSubscriptionDeletion(
 
     if (subscriptionError) {
       console.error('Error finding assistant subscription for deletion:', subscriptionError);
+
       return false;
     }
 
     if (!assistantSubscription) {
       console.log('No assistant subscription found for deletion');
+
       return false;
     }
 
@@ -171,7 +202,7 @@ export async function handleSubscriptionDeletion(
     const { error: updateError } = await supabase
       .from('assistant_subscriptions')
       .update({
-        status: 'cancelled',
+        status: 'canceled',
         stripe_subscription_id: null,
         updated_at: new Date().toISOString(),
       })
@@ -179,13 +210,16 @@ export async function handleSubscriptionDeletion(
 
     if (updateError) {
       console.error('Error updating assistant subscription for deletion:', updateError);
+
       return false;
     }
 
     console.log('Successfully updated assistant subscription for deletion');
+
     return true;
   } catch (error) {
     console.error('Error in handleSubscriptionDeletion:', error);
+
     return false;
   }
 }

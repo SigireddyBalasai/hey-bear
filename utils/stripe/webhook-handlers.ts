@@ -1,9 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
-import type { Database } from '@/types/db.types';
+
+
+import {
+  createAssistantWithConfig,
+  getAssistantDataFromPaymentSession,
+} from './assistant-management';
 import { extractUserIdFromSession } from './session-parsing';
-import { getAssistantDataFromPaymentSession, createAssistantWithConfig } from './assistant-management';
-import { createAssistantSubscription, updateSubscriptionForPaymentSuccess, updateSubscriptionForPaymentFailure, handleSubscriptionDeletion } from './subscription-management';
+import {
+  createAssistantSubscription,
+  handleSubscriptionDeletion,
+  updateSubscriptionForPaymentFailure,
+  updateSubscriptionForPaymentSuccess,
+} from './subscription-management';
+
+import type { Database } from '@/types/db.types';
 
 /**
  * Handles checkout session completed events
@@ -27,13 +38,13 @@ export async function handleCheckoutSessionCompleted(
     // Fallback to metadata extraction
     assistantData = {
       name: assistantName,
-      description: session.metadata.assistant_description || undefined,
-      concierge_name: session.metadata.concierge_name || undefined,
-      personality: session.metadata.personality || undefined,
-      business_name: session.metadata.business_name || undefined,
-      business_phone: session.metadata.business_phone || undefined,
+      description: session.metadata.assistant_description || null,
+      concierge_name: session.metadata.concierge_name || null,
+      personality: session.metadata.personality || null,
+      business_name: session.metadata.business_name || null,
+      business_phone: session.metadata.business_phone || null,
       share_phone_number: session.metadata.share_phone_number === 'true',
-      display_name: session.metadata.display_name || undefined,
+      display_name: session.metadata.display_name || null,
     };
   }
 
@@ -53,8 +64,8 @@ export async function handleCheckoutSessionCompleted(
     userId &&
     (assistantName || assistantData?.name)
   ) {
-    const customerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
-    const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
+    const subscriptionId =
+      typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
 
     try {
       let assistantId = null;
@@ -64,8 +75,8 @@ export async function handleCheckoutSessionCompleted(
       }
 
       if (assistantId) {
-        // Create subscription record
-        const success = await createAssistantSubscription(supabase, assistantId, subscriptionId, customerId);
+        const success = await createAssistantSubscription(supabase, assistantId, subscriptionId);
+
         if (success) {
           console.log('Successfully processed checkout session completed');
         }
@@ -87,14 +98,16 @@ export async function handleInvoicePaymentSucceeded(
 ) {
   console.log('Processing invoice payment succeeded:', invoice.id);
 
-  if (!invoice.subscription) {
+  // Check if invoice has subscription data
+  const subscriptionRef = (invoice as any).subscription;
+
+  if (!subscriptionRef) {
     console.log('Invoice has no subscription, skipping');
+
     return;
   }
 
-  const subscriptionId = typeof invoice.subscription === 'string' 
-    ? invoice.subscription 
-    : invoice.subscription.id;
+  const subscriptionId = typeof subscriptionRef === 'string' ? subscriptionRef : subscriptionRef.id;
 
   await updateSubscriptionForPaymentSuccess(supabase, subscriptionId);
 }
@@ -108,14 +121,16 @@ export async function handleInvoicePaymentFailed(
 ) {
   console.log('Processing invoice payment failed:', invoice.id);
 
-  if (!invoice.subscription) {
+  // Check if invoice has subscription data
+  const subscriptionRef = (invoice as any).subscription;
+
+  if (!subscriptionRef) {
     console.log('Invoice has no subscription, skipping');
+
     return;
   }
 
-  const subscriptionId = typeof invoice.subscription === 'string' 
-    ? invoice.subscription 
-    : invoice.subscription.id;
+  const subscriptionId = typeof subscriptionRef === 'string' ? subscriptionRef : subscriptionRef.id;
 
   await updateSubscriptionForPaymentFailure(supabase, subscriptionId);
 }

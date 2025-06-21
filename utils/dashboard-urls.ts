@@ -1,11 +1,9 @@
 /**
  * Utility functions for generating dashboard URLs with assistant-specific parameters
  */
+import type { Database } from '@/types/db.types';
 
-interface Assistant {
-  id: string;
-  name: string;
-}
+type Assistant = Pick<Database['public']['Tables']['assistants']['Row'], 'id' | 'name'>;
 
 /**
  * Generate a dashboard URL with optional assistant parameter
@@ -30,6 +28,7 @@ export function getDashboardUrl(assistantNameOrId?: string): string {
 export function getAssistantDashboardUrl(assistant: Assistant): string {
   // Prefer using the assistant name for cleaner URLs, fallback to ID
   const identifier = assistant.name || assistant.id;
+
   return getDashboardUrl(identifier);
 }
 
@@ -41,6 +40,7 @@ export function getAssistantDashboardUrl(assistant: Assistant): string {
 export function getAssistantFromDashboardUrl(url: string): string | null {
   try {
     const urlObj = new URL(url, window.location.origin);
+
     return urlObj.searchParams.get('concierge');
   } catch {
     return null;

@@ -51,12 +51,11 @@ export function useUrlParameters({
       const botData: ConciergeFormData = {
         name: getUrlParameter('name') || '',
         description: getUrlParameter('description') || '',
-        conciergeName: getUrlParameter('conciergeName') || '',
+        concierge_name: getUrlParameter('concierge_name') || '',
         personality: getUrlParameter('personality') || '',
-        businessName: getUrlParameter('businessName') || '',
-        sharePhoneNumber: getUrlParameter('sharePhoneNumber') === 'true',
-        phoneNumber: getUrlParameter('phoneNumber') || '',
-        selectedPlan: getUrlParameter('selectedPlan') || 'personal',
+        business_name: getUrlParameter('business_name') || '',
+        share_phone_number: getUrlParameter('share_phone_number') === 'true',
+        business_phone: getUrlParameter('business_phone') || '',
       };
 
       // Populate form data with bot data

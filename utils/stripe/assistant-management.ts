@@ -1,27 +1,49 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+
 import type { Database } from '@/types/db.types';
 
-export interface AssistantConfigData {
-  display_name?: string;
-  name?: string;
-  description?: string;
-  concierge_name?: string;
-  personality?: string;
-  business_name?: string;
-  business_phone?: string;
-  share_phone_number?: boolean;
+// Database types for assistant management
+type AssistantRow = Database['public']['Tables']['assistants']['Row'];
+type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
+
+// Helper function to generate a valid Pinecone name
+function generatePineconeName(name: string): string {
+  // Replace spaces and special characters with underscores, ensure lowercase
+  let safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+  // Ensure it's not longer than 45 chars (leaving room for the random suffix)
+  safeName = safeName.substring(0, 45);
+
+  // Add a random suffix for uniqueness
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+
+  return `${safeName}_${randomSuffix}`;
 }
 
-export interface AssistantData {
-  name: string;
-  description?: string;
-  concierge_name?: string;
-  personality?: string;
-  business_name?: string;
-  business_phone?: string;
-  share_phone_number?: boolean;
-  display_name?: string;
-}
+export type AssistantConfigData = Pick<
+  AssistantConfigRow,
+  | 'display_name'
+  | 'description'
+  | 'concierge_name'
+  | 'personality'
+  | 'business_name'
+  | 'business_phone'
+  | 'share_phone_number'
+> & {
+  name?: string; // from assistants table
+};
+
+export type AssistantData = Pick<AssistantRow, 'name'> &
+  Pick<
+    AssistantConfigRow,
+    | 'description'
+    | 'concierge_name'
+    | 'personality'
+    | 'business_name'
+    | 'business_phone'
+    | 'share_phone_number'
+    | 'display_name'
+  >;
 
 /**
  * Fetches assistant configuration from payment session
@@ -32,7 +54,7 @@ export async function getAssistantDataFromPaymentSession(
   userId: string
 ): Promise<AssistantData | null> {
   console.log('Looking up assistant data from payment_sessions table with sessionId:', sessionId);
-  
+
   try {
     const { data: paymentSession, error: paymentSessionError } = await supabase
       .from('payment_sessions')
@@ -43,11 +65,13 @@ export async function getAssistantDataFromPaymentSession(
 
     if (paymentSessionError) {
       console.error('Error fetching payment session:', paymentSessionError);
+
       return null;
     }
 
     if (!paymentSession?.assistant_config_data) {
       console.log('No assistant config data found in payment session');
+
       return null;
     }
 
@@ -73,6 +97,7 @@ export async function getAssistantDataFromPaymentSession(
     return assistantData;
   } catch (error) {
     console.error('Error retrieving assistant data from payment session:', error);
+
     return null;
   }
 }
@@ -91,18 +116,20 @@ export async function createAssistantWithConfig(
     // Check if assistant already exists
     const { data: existingAssistant, error: assistantError } = await supabase
       .from('assistants')
-      .select('id')
+      .select('*')
       .eq('user_id', userId)
       .eq('name', assistantData.name)
       .single();
 
     if (assistantError && assistantError.code !== 'PGRST116') {
       console.error('Error checking for existing assistant:', assistantError);
+
       return null;
     }
 
     if (existingAssistant) {
       console.log('Assistant already exists:', existingAssistant.id);
+
       return existingAssistant.id;
     }
 
@@ -113,16 +140,18 @@ export async function createAssistantWithConfig(
         user_id: userId,
         name: assistantData.name,
       })
-      .select('id')
+      .select('*')
       .single();
 
     if (createError) {
       console.error('Error creating assistant in webhook:', createError);
+
       return null;
     }
 
     if (!newAssistant) {
       console.error('No assistant data returned from insert');
+
       return null;
     }
 
@@ -132,6 +161,7 @@ export async function createAssistantWithConfig(
     const conciergeName = assistantData.concierge_name || assistantData.name || 'Assistant';
     const businessName = assistantData.business_name || '';
     const systemPrompt = `You are ${conciergeName}, a helpful assistant for ${businessName || 'the user'}. Your personality is ${(assistantData.personality || 'Business Casual').toLowerCase()}. ${assistantData.description || ''}`;
+    const pineconeName = generatePineconeName(assistantData.name);
 
     const { error: configError } = await supabase.from('assistant_configs').insert({
       id: newAssistant.id,
@@ -143,6 +173,7 @@ export async function createAssistantWithConfig(
       business_phone: assistantData.business_phone,
       share_phone_number: assistantData.share_phone_number,
       system_prompt: systemPrompt,
+      pinecone_name: pineconeName,
     });
 
     if (configError) {
@@ -155,6 +186,7 @@ export async function createAssistantWithConfig(
     return newAssistant.id;
   } catch (error) {
     console.error('Error in createAssistantWithConfig:', error);
+
     return null;
   }
 }

@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
+import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 
 import type { DirectSMSRequest } from '@/types/api.types';
@@ -33,7 +32,7 @@ export const POST = requireAuth(async (_context, request: NextRequest) => {
         const { data: assistant } = await supabase
 
           .from('assistants')
-          .select('id, name, assigned_phone_number')
+          .select('*')
           .eq('id', assistantId)
           .single();
 
@@ -58,8 +57,8 @@ export const POST = requireAuth(async (_context, request: NextRequest) => {
       // Send message using real Twilio client
       const result = await twilioClient.messages.create({
         body: message,
-        from: from,
-        to: to,
+        from,
+        to,
       });
 
       console.log(`SMS sent with SID: ${result.sid}, status: ${result.status}`);
@@ -75,6 +74,7 @@ export const POST = requireAuth(async (_context, request: NextRequest) => {
     } catch (error: unknown) {
       console.error('Mock Twilio error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
       return NextResponse.json(
         {
           error: `Error sending SMS: ${errorMessage}`,
@@ -85,6 +85,7 @@ export const POST = requireAuth(async (_context, request: NextRequest) => {
   } catch (error: unknown) {
     console.error('Error in direct SMS endpoint:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     return NextResponse.json(
       {
         error: `Server error: ${errorMessage}`,
@@ -120,6 +121,7 @@ export const GET = requireAuth(async (_context, request: NextRequest) => {
   } catch (error: unknown) {
     console.error('Error checking message status:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     return NextResponse.json(
       {
         error: `Server error: ${errorMessage}`,

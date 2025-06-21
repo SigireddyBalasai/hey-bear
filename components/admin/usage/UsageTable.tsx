@@ -27,17 +27,14 @@ interface UsageTableProps {
 }
 
 export function UsageTable({ filteredRecords, totalRecords }: UsageTableProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 4,
     }).format(amount);
-  };
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
-  };
+  const formatNumber = (num: number) => new Intl.NumberFormat('en-US').format(num);
 
   return (
     <Card>

@@ -28,19 +28,17 @@ export function TokenDistributionChart({
   tokenDistribution,
   totalStats,
 }: TokenDistributionChartProps) {
-  const generateTokenDistributionData = () => {
-    return {
-      labels: tokenDistribution.map(item => item.type),
-      datasets: [
-        {
-          data: tokenDistribution.map(item => item.tokens),
-          backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(16, 185, 129, 0.7)'],
-          borderColor: ['rgba(59, 130, 246, 1)', 'rgba(16, 185, 129, 1)'],
-          borderWidth: 1,
-        },
-      ],
-    };
-  };
+  const generateTokenDistributionData = () => ({
+    labels: tokenDistribution.map(item => item.type),
+    datasets: [
+      {
+        data: tokenDistribution.map(item => item.tokens),
+        backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(16, 185, 129, 0.7)'],
+        borderColor: ['rgba(59, 130, 246, 1)', 'rgba(16, 185, 129, 1)'],
+        borderWidth: 1,
+      },
+    ],
+  });
 
   return (
     <Card>
@@ -61,8 +59,9 @@ export function TokenDistributionChart({
                 },
                 tooltip: {
                   callbacks: {
-                    label: function (context) {
+                    label(context) {
                       const dataPoint = tokenDistribution[context.dataIndex];
+
                       return `${dataPoint.type}: ${String(dataPoint.tokens.toLocaleString())} (${String(dataPoint.percentage)}%)`;
                     },
                   },

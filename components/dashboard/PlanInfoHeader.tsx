@@ -1,6 +1,6 @@
+import { CreditCard } from 'lucide-react';
 import React from 'react';
 
-import { CreditCard } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,9 +21,11 @@ export const PlanInfoHeader: React.FC<PlanInfoHeaderProps> = ({
   // Function to determine badge variant based on plan type
   const getPlanBadgeVariant = () => {
     const normalized = planType?.toLowerCase() || '';
+
     if (normalized.includes('pro')) return 'default';
     if (normalized.includes('business')) return 'default';
     if (normalized.includes('enterprise')) return 'default';
+
     return 'secondary'; // free plan
   };
 
@@ -32,6 +34,7 @@ export const PlanInfoHeader: React.FC<PlanInfoHeaderProps> = ({
     if (isLoading) {
       return <Skeleton className="h-6 w-16" />;
     }
+
     return <Badge variant={getPlanBadgeVariant()}>{planType}</Badge>;
   }
 
@@ -68,7 +71,7 @@ export const PlanInfoHeader: React.FC<PlanInfoHeaderProps> = ({
             size="sm"
             className="h-7 text-xs"
             onClick={onUpgrade}
-            asChild={!!upgradePath}
+            asChild={Boolean(upgradePath)}
           >
             {upgradePath ? (
               <a href={upgradePath}>

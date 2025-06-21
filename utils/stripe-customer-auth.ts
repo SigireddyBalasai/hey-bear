@@ -1,11 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-/**
- * Get or create a Stripe customer for a user, using auth.users user_metadata
- * @param supabase - Supabase client (must be admin client for user updates)
- * @param user - Authenticated user object from supabase.auth.getUser()
- * @returns Promise with success flag and customer ID
- */
-import type { User } from '@supabase/supabase-js';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
 
 import { getStripeInstance } from '@/lib/stripe';
@@ -24,6 +17,7 @@ export async function getOrCreateStripeCustomerFromAuth(
 ): Promise<StripeCustomerResult> {
   try {
     const stripe = await getStripeInstance();
+
     if (!stripe) {
       return {
         success: false,
@@ -36,6 +30,7 @@ export async function getOrCreateStripeCustomerFromAuth(
 
     if (existingCustomerId) {
       const isValid = await validateStripeCustomer(stripe, existingCustomerId as string);
+
       if (isValid) {
         return {
           success: true,
@@ -69,6 +64,7 @@ export async function getOrCreateStripeCustomerFromAuth(
 
     if (updateError) {
       console.error('Error updating user metadata with Stripe customer ID:', updateError);
+
       return {
         success: false,
         error: 'Failed to update user with Stripe customer ID',
@@ -82,6 +78,7 @@ export async function getOrCreateStripeCustomerFromAuth(
     };
   } catch (error) {
     console.error('Error in getOrCreateStripeCustomerFromAuth:', error);
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get or create Stripe customer',
@@ -95,9 +92,11 @@ export async function getOrCreateStripeCustomerFromAuth(
 export async function validateStripeCustomer(stripe: Stripe, customerId: string): Promise<boolean> {
   try {
     const customer = await stripe.customers.retrieve(customerId);
+
     return customer && !customer.deleted;
   } catch (error) {
     console.warn(`Stripe customer ${customerId} validation failed:`, error);
+
     return false;
   }
 }
@@ -119,6 +118,7 @@ export async function createStripeCustomer(
 
     // Prepare customer name
     let customerName = fullName || email || 'User';
+
     if (company) {
       customerName = `${customerName} (${company})`;
     }
@@ -142,6 +142,7 @@ export async function createStripeCustomer(
     };
   } catch (error) {
     console.error('Error creating Stripe customer:', error);
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create customer',
@@ -170,6 +171,7 @@ export async function createCustomerSession(
 ): Promise<{ success: boolean; clientSecret?: string; error?: string }> {
   try {
     const stripe = await getStripeInstance();
+
     if (!stripe) {
       return {
         success: false,
@@ -207,6 +209,7 @@ export async function createCustomerSession(
     };
   } catch (error) {
     console.error('Error creating customer session:', error);
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create session',

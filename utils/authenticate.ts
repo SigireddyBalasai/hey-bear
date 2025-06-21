@@ -7,7 +7,7 @@ import { createClient } from '@/utils/supabase/server';
  * Core authentication function used by all auth utilities
  * Handles both user and admin authentication in one place
  */
-export async function authenticate(requireAdmin: boolean = false): Promise<AuthResult> {
+export async function authenticate(requireAdmin = false): Promise<AuthResult> {
   try {
     const supabase = await createClient();
 
@@ -43,6 +43,7 @@ export async function authenticate(requireAdmin: boolean = false): Promise<AuthR
 
     if (adminError !== null) {
       console.error('Error checking admin status:', adminError);
+
       return {
         success: false,
         user,
@@ -77,6 +78,7 @@ export async function authenticate(requireAdmin: boolean = false): Promise<AuthR
     };
   } catch (error) {
     console.error('Authentication error:', error);
+
     return {
       success: false,
       user: null,

@@ -1,17 +1,26 @@
 import type Stripe from 'stripe';
-import type { CreateAssistantResult } from '@/types/api.types';
+
 import { createDefaultAssistant } from './assistant-creation';
 
-interface AssistantMetadata {
-  name: string;
-  description: string;
-  concierge_name: string;
-  personality: string;
-  business_name: string;
-  business_phone: string;
-  share_phone_number: boolean;
-  display_name: string;
-}
+import type { CreateAssistantResult } from '@/types/api.types';
+import type { Database } from '@/types/db.types';
+
+
+// Database types for assistant metadata
+type AssistantRow = Database['public']['Tables']['assistants']['Row'];
+type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
+
+type AssistantMetadata = Pick<AssistantRow, 'name'> &
+  Pick<
+    AssistantConfigRow,
+    | 'description'
+    | 'concierge_name'
+    | 'personality'
+    | 'business_name'
+    | 'business_phone'
+    | 'share_phone_number'
+    | 'display_name'
+  >;
 
 /**
  * Extracts assistant data from Stripe session metadata
@@ -41,6 +50,7 @@ export async function createAssistantFromMetadata(
   if (!session.metadata || Object.keys(session.metadata).length === 0) {
     console.warn('[LEGACY FLOW] No metadata found, creating default assistant');
     const customerEmail = session.customer_details?.email || '';
+
     return createDefaultAssistant(customerEmail, sessionId, origin);
   }
 
@@ -83,6 +93,7 @@ export async function createAssistantFromMetadata(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Failed to read error response');
+
     throw new Error(`Assistant creation failed: ${response.status} ${errorText}`);
   }
 

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
  * Creates standardized error responses for payment processing
  */
 export class PaymentErrorHandler {
-  static invalidRequest(message: string = 'Invalid request') {
+  static invalidRequest(message = 'Invalid request') {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
@@ -93,8 +93,9 @@ export class PaymentErrorHandler {
     );
   }
 
-  static success(origin: string, assistantId: string, isDefault: boolean = false) {
+  static success(origin: string, assistantId: string, isDefault = false) {
     const successType = isDefault ? '&type=default' : '';
+
     return NextResponse.json({
       message: 'Assistant created successfully',
       assistantId,

@@ -7,26 +7,39 @@ export type UsageStatisticsRow = Database['public']['Tables']['usage_statistics'
 export type PaymentSessionRow = Database['public']['Tables']['payment_sessions']['Row'];
 export type AuditLogRow = Database['public']['Tables']['audit_logs']['Row'];
 
+// Assistant data types - Union of database types with flexible nullability
+export type AssistantRow = Database['public']['Tables']['assistants']['Row'];
+export type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
+export type AssistantData = Pick<AssistantRow, 'name'> & {
+  description?: string | null | undefined;
+  concierge_name?: string | null | undefined;
+  personality?: string | null | undefined;
+  business_name?: string | null | undefined;
+  business_phone?: string | null | undefined;
+  share_phone_number?: boolean | null | undefined;
+  display_name?: string | null | undefined;
+};
+
 // Database insert types
 export type InteractionInsert = Database['public']['Tables']['interactions']['Insert'];
 export type UsageStatisticsInsert = Database['public']['Tables']['usage_statistics']['Insert'];
 export type PaymentSessionInsert = Database['public']['Tables']['payment_sessions']['Insert'];
 export type AuditLogInsert = Database['public']['Tables']['audit_logs']['Insert'];
 
-// User usage statistics interface
+// User usage statistics interface - joined data from multiple tables (usage_statistics + auth.users)
 export interface UserUsageStats {
-  id: string;
-  user_id: string;
+  id: string; // from usage_statistics
+  user_id: string; // from usage_statistics
   users: {
-    full_name: string;
-    email: string;
-    created_at: string;
-    last_active: string;
+    full_name: string; // from auth.users metadata
+    email: string; // from auth.users
+    created_at: string; // from auth.users
+    last_active: string; // computed/derived
   };
-  date: string;
-  message_count: number;
-  token_usage: number;
-  cost_estimate: number;
+  date: string; // from usage_statistics period
+  message_count: number; // from usage_statistics messages_count
+  token_usage: number; // from usage_statistics token_usage
+  cost_estimate: number; // from usage_statistics cost_estimate
 }
 
 // User usage table props
@@ -140,18 +153,6 @@ export type InteractionCache = Map<string, CacheEntry>;
 
 // Interaction type from database
 export type Interaction = Database['public']['Tables']['interactions']['Row'];
-
-// Assistant data interface
-export interface AssistantData {
-  name: string;
-  description: string;
-  concierge_name: string;
-  personality: string;
-  business_name: string;
-  business_phone: string;
-  share_phone_number: boolean;
-  display_name: string;
-}
 
 // Session data interface
 export interface SessionData {

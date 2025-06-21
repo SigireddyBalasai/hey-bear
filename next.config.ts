@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
     tsconfigPath: './tsconfig.json',
   },
+  experimental: {
+    useCache: true,
+  },
   async headers() {
     return [
       {

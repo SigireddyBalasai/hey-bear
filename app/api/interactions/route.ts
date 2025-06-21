@@ -23,6 +23,7 @@ export const POST = requireAuth(async (context, request: NextRequest) => {
       duration,
       isError,
     } = requestBody;
+
     if (!assistantId || !userRequest || !response) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -46,8 +47,10 @@ export const POST = requireAuth(async (context, request: NextRequest) => {
       .then(({ error }) => {
         if (error) {
           console.error('Error recording interaction:', error);
+
           return false;
         }
+
         return true;
       });
 
@@ -58,6 +61,7 @@ export const POST = requireAuth(async (context, request: NextRequest) => {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in interactions API:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });

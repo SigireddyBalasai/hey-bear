@@ -1,10 +1,15 @@
 // UI component interfaces and types
+import type { VariantProps } from 'class-variance-authority';
 import type { DateRange } from 'react-day-picker';
 
-import type { VariantProps } from 'class-variance-authority';
 
 import type { badgeVariants } from '@/components/ui/badge';
 import type { buttonVariants } from '@/components/ui/button';
+import type { Database } from '@/types/db.types';
+
+// Database types for UI usage
+type AssistantRow = Database['public']['Tables']['assistants']['Row'];
+type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
 
 // Badge component interfaces
 export interface BadgeProps
@@ -59,16 +64,16 @@ export interface HeaderProps {
 export interface CreateAssistantDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  formData: {
-    name: string;
-    description: string;
-    conciergeName: string;
-    personality: string;
-    businessName: string;
-    sharePhoneNumber: boolean;
-    phoneNumber: string;
-    selectedPlan?: string;
-  };
+  formData: Pick<AssistantRow, 'name'> &
+    Pick<
+      AssistantConfigRow,
+      | 'description'
+      | 'personality'
+      | 'business_name'
+      | 'share_phone_number'
+      | 'business_phone'
+      | 'concierge_name'
+    >;
   onInputChange: (field: string, value: string | boolean) => void;
 }
 

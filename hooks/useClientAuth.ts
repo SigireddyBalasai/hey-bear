@@ -35,6 +35,71 @@ import { createClient } from '@/utils/supabase/client';
  */
 
 /**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
+ * Client-side authentication hooks
+ * Uses client-side Supabase for browser components
+ */
+
+/**
  * Client-side admin authentication hook
  * Uses client-side Supabase for admin checking
  */

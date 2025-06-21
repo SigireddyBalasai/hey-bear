@@ -1,8 +1,8 @@
 'use client';
 
+import { BarChart3, Download, FileSpreadsheet, Filter, Scroll, Users, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { BarChart3, Download, FileSpreadsheet, Filter, Scroll, Users, Zap } from 'lucide-react';
 
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
@@ -15,9 +15,6 @@ import { useAdminAuth } from '@/hooks/useClientAuth';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-// Prevent prerendering during build
-export const dynamic = 'force-dynamic';
-
 const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
   const result = await withErrorHandling(
     async () => {
@@ -26,7 +23,7 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
       // Get usage data directly from interactions table
       const { data: interactions, error } = await supabase
         .from('interactions')
-        .select('user_id, token_usage, cost_estimate')
+        .select('*')
         .gte('interaction_time', startDate.toISOString())
         .lte('interaction_time', endDate.toISOString());
 
@@ -45,31 +42,32 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
         }
       >();
 
-      interactions.forEach(
-        (interaction: {
-          user_id: string | null;
-          token_usage: number | null;
-          cost_estimate: number | null;
-        }) => {
-          if (!interaction.user_id) return;
+      for (const interaction of interactions) {
+        const {
+          user_id: userId,
+          token_usage: tokenUsage,
+          cost_estimate: costEstimate,
+        } = interaction;
 
-          if (!userStatsMap.has(interaction.user_id)) {
-            userStatsMap.set(interaction.user_id, {
-              user_id: interaction.user_id,
-              interactions_count: 0,
-              token_usage: 0,
-              cost_estimate: 0,
-            });
-          }
+        if (!userId) continue;
 
-          const stats = userStatsMap.get(interaction.user_id);
-          if (stats) {
-            stats.interactions_count += 1;
-            stats.token_usage += interaction.token_usage ?? 0;
-            stats.cost_estimate += interaction.cost_estimate ?? 0;
-          }
+        if (!userStatsMap.has(userId)) {
+          userStatsMap.set(userId, {
+            user_id: userId,
+            interactions_count: 0,
+            token_usage: 0,
+            cost_estimate: 0,
+          });
         }
-      );
+
+        const stats = userStatsMap.get(userId);
+
+        if (stats) {
+          stats.interactions_count += 1;
+          stats.token_usage += tokenUsage ?? 0;
+          stats.cost_estimate += costEstimate ?? 0;
+        }
+      }
 
       const data = [...userStatsMap.values()]
         .sort((a, b) => b.token_usage - a.token_usage)
@@ -91,6 +89,7 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
       toastTitle: 'Failed to fetch user usage data',
     }
   );
+
   return result || [];
 };
 
@@ -119,8 +118,10 @@ export default function UserUsagePage() {
     if (!isLoading && isAdmin && user) {
       const loadData = async () => {
         const realData = await fetchUserUsageData(dateRange.from, dateRange.to);
+
         setUsageData(realData);
       };
+
       void loadData();
     }
   }, [isLoading, isAdmin, user, dateRange.from, dateRange.to]);
@@ -132,8 +133,10 @@ export default function UserUsagePage() {
         from: range.from,
         to: range.to ?? new Date(),
       };
+
       setDateRange(newRange);
       const realData = await fetchUserUsageData(newRange.from, newRange.to);
+
       setUsageData(realData);
     }
   };
@@ -147,7 +150,7 @@ export default function UserUsagePage() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
-          <p className="mb-6">You don't have permission to access this page.</p>
+          <p className="mb-6">You don&apos;t have permission to access this page.</p>
           <Button
             onClick={() => {
               window.location.href = '/';

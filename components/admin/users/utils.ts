@@ -1,21 +1,21 @@
 // Utility functions and helpers for admin users UI
+import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import * as React from 'react';
 import type { ReactNode } from 'react';
 
-import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
-export const getInitials = (name: string = ''): string => {
-  return name
+export const getInitials = (name = ''): string =>
+  name
     .split(' ')
     .map(part => part[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
-};
 
 export const getStatusBadgeVariant = (status: string): string => {
   if (status === 'active') return 'default';
   if (status === 'inactive') return 'secondary';
+
   return 'outline';
 };
 
@@ -36,6 +36,7 @@ export const getStatusBadgeContent = (status: string): ReactNode => {
       ' Inactive'
     );
   }
+
   return React.createElement(
     React.Fragment,
     null,

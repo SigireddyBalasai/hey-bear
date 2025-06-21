@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 
 import { format } from 'date-fns';
 import {
@@ -13,6 +12,7 @@ import {
   Star,
   Trash,
 } from 'lucide-react';
+import Link from 'next/link';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,7 @@ export function AssistantList({
   const handleToggleStar = async (id: string, isStarred: boolean) => {
     if (onToggleStar) {
       onToggleStar(id, isStarred);
+
       return;
     }
 
@@ -71,20 +72,32 @@ export function AssistantList({
   const handleDelete = async (id: string) => {
     if (onDelete) {
       onDelete(id);
+
       return;
     }
 
     const confirmed = globalThis.confirm('Are you sure you want to delete this assistant?');
+
     if (!confirmed) return;
 
     setIsActionInProgressState(true);
     await withErrorHandling(
       async () => {
-        const supabase = createClient();
-        const { error } = await supabase.from('assistants').delete().eq('id', id);
+        // Call the proper delete API endpoint instead of direct Supabase deletion
+        const response = await fetch('/api/Concierge/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            assistantName: assistant.name,
+          }),
+        });
 
-        if (error) {
-          throw error;
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+
+          throw new Error(errorData.error || 'Failed to delete assistant');
         }
 
         showSuccess('Assistant deleted', `${assistant.name} has been removed`);
@@ -97,14 +110,13 @@ export function AssistantList({
   };
 
   // Get initials from name (e.g. "John Doe" -> "JD")
-  const getInitials = (name: string): string => {
-    return name
+  const getInitials = (name: string): string =>
+    name
       .split(' ')
       .map(n => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
 
   // Get a consistent color based on the name
   const getAvatarColor = (name: string): string => {
@@ -120,26 +132,28 @@ export function AssistantList({
     ];
 
     let hash = 0;
+
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
 
     const index = Math.abs(hash) % colors.length;
-    return colors[index];
+
+    return colors[index] || colors[0]; // Safe fallback to first color
   };
 
   if (isLoading) {
     return (
       <Card className="w-full p-4">
         <div className="flex items-center gap-4">
-          <div className="h-10 w-10 animate-pulse rounded-full bg-muted"></div>
+          <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
           <div className="flex-1 space-y-2">
-            <div className="h-5 w-1/4 animate-pulse rounded bg-muted"></div>
-            <div className="h-4 w-3/4 animate-pulse rounded bg-muted"></div>
+            <div className="h-5 w-1/4 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
           </div>
           <div className="flex gap-2">
-            <div className="h-8 w-8 animate-pulse rounded bg-muted"></div>
-            <div className="h-8 w-8 animate-pulse rounded bg-muted"></div>
+            <div className="h-8 w-8 animate-pulse rounded bg-muted" />
+            <div className="h-8 w-8 animate-pulse rounded bg-muted" />
           </div>
         </div>
       </Card>
@@ -214,25 +228,23 @@ export function AssistantList({
             <Bot className="mr-1 h-3 w-3" /> Concierge
           </Badge>
 
-          {assistant.has_phone_number && (
+          {assistant.assigned_phone_number && (
             <Badge variant="outline" className="hidden items-center gap-1 md:flex">
               <Phone className="h-3 w-3" />
               SMS
             </Badge>
           )}
 
-          {assistant.subscription_plan && (
+          {assistant.plan_name && (
             <Badge
               variant="outline"
               className={cn(
                 'hidden items-center gap-1 md:flex',
-                assistant.subscription_plan === 'business'
-                  ? 'text-amber-600 dark:text-amber-400'
-                  : ''
+                assistant.plan_name === 'business' ? 'text-amber-600 dark:text-amber-400' : ''
               )}
             >
               <CreditCard className="h-3 w-3" />
-              {assistant.subscription_plan === 'business' ? 'Business' : 'Personal'}
+              {assistant.plan_name === 'business' ? 'Business' : 'Personal'}
             </Badge>
           )}
 

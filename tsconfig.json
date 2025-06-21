@@ -36,7 +36,10 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "stripe.d.ts",
-    "eslint.config.js"
+    "eslint.config.mjs",
+    "postcss.config.cjs",
+    "next.config.ts",
+    "tailwind.config.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", ".next", "out", "dist"]
 }

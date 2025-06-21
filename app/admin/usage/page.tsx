@@ -69,7 +69,7 @@ export default function UsagePage() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
-          <p className="mb-6">You don't have permission to access this page.</p>
+          <p className="mb-6">You don&apos;t have permission to access this page.</p>
           <Button
             onClick={() => {
               window.location.href = '/';

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 
 import { format } from 'date-fns';
 import {
@@ -14,6 +13,7 @@ import {
   Star,
   Trash,
 } from 'lucide-react';
+import Link from 'next/link';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,7 @@ export function AssistantCard({
   const handleToggleStar = async (id: string, isStarred: boolean) => {
     if (onToggleStar) {
       onToggleStar(id, isStarred);
+
       return;
     }
 
@@ -83,21 +84,33 @@ export function AssistantCard({
   const handleDelete = async (id: string) => {
     if (onDelete) {
       onDelete(id);
+
       return;
     }
 
     const confirmed = globalThis.confirm('Are you sure you want to delete this assistant?');
+
     if (!confirmed) return;
 
     setIsActionInProgressState(true);
 
     await withErrorHandling(
       async () => {
-        const supabase = createClient();
-        const { error } = await supabase.from('assistants').delete().eq('id', id);
+        // Call the proper delete API endpoint instead of direct Supabase deletion
+        const response = await fetch('/api/Concierge/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            assistantName: assistant.name,
+          }),
+        });
 
-        if (error) {
-          throw error;
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+
+          throw new Error(errorData.error || 'Failed to delete assistant');
         }
 
         showSuccess('Assistant deleted', `${assistant.name} has been removed`);
@@ -114,6 +127,7 @@ export function AssistantCard({
   const handleUpgrade = async (id: string) => {
     if (onUpgrade) {
       onUpgrade(id);
+
       return;
     }
 
@@ -215,20 +229,20 @@ export function AssistantCard({
             Concierge
           </Badge>
 
-          {assistant.has_phone_number && (
+          {(assistant.assigned_phone_number || assistant.description) && (
             <Badge variant="outline" className="flex items-center gap-1">
               <Phone className="h-3 w-3" />
               SMS
             </Badge>
           )}
 
-          {assistant.subscription_plan && (
+          {assistant.plan_name && (
             <Badge
-              variant={assistant.subscription_plan === 'business' ? 'default' : 'outline'}
+              variant={assistant.plan_name === 'business' ? 'default' : 'outline'}
               className="flex items-center gap-1"
             >
               <CreditCard className="h-3 w-3" />
-              {assistant.subscription_plan === 'business' ? 'Business' : 'Personal'}
+              {assistant.plan_name === 'business' ? 'Business' : 'Personal'}
             </Badge>
           )}
         </div>
@@ -247,7 +261,7 @@ export function AssistantCard({
           )}
         </div>
 
-        {assistant.subscription_plan === 'personal' && (
+        {assistant.plan_name === 'personal' && (
           <div className="mt-2">
             <Button
               variant="outline"

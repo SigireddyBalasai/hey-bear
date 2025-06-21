@@ -5,7 +5,7 @@ import type { PlanLimits } from '@/types/interaction.types';
  * @param planType The plan type (free, pro, business, enterprise)
  * @returns Object with limits for the specified plan
  */
-export const getPlanLimits = (planType: string = 'free'): PlanLimits => {
+export const getPlanLimits = (planType = 'free'): PlanLimits => {
   switch (planType.toLowerCase()) {
     case 'pro':
       return {

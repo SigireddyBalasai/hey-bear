@@ -1,6 +1,6 @@
+import type { Metadata } from 'next';
 import React from 'react';
 
-import type { Metadata } from 'next';
 
 // Force dynamic rendering for all admin pages
 export const dynamic = 'force-dynamic';

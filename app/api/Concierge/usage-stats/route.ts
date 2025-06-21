@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
@@ -22,12 +22,13 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
     // Verify the user has access to this assistant
     const { data: assistantData, error: assistantError } = await supabase
       .from('assistants')
-      .select('user_id')
+      .select('*')
       .eq('id', assistantId)
       .single();
 
     if (assistantError) {
       console.error('Error fetching assistant:', assistantError);
+
       return NextResponse.json({ error: 'Error fetching assistant data' }, { status: 500 });
     }
 
@@ -57,6 +58,7 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
     });
   } catch (error) {
     console.error('Unexpected error:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });

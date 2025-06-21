@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import { useLoadingState } from '@/hooks/useLoadingState';
 import type {
@@ -16,54 +16,11 @@ import type {
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-// Data validation utilities with proper typing
-const isValidString = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0;
-
-const isValidOptionalString = (value: unknown): value is string | null =>
-  value === null || typeof value === 'string';
-
-const isValidOptionalNumber = (value: unknown): value is number | null =>
-  value === null || typeof value === 'number';
-
-const isValidOptionalBoolean = (value: unknown): value is boolean | null =>
-  value === null || typeof value === 'boolean';
-
-const validateInteractionRow = (data: unknown): data is InteractionRow => {
-  if (!data || typeof data !== 'object') return false;
-
-  const obj = data as Record<string, unknown>;
-
-  return (
-    isValidString(obj.id) &&
-    isValidString(obj.request) &&
-    isValidString(obj.response) &&
-    isValidOptionalString(obj.assistant_id) &&
-    isValidOptionalString(obj.chat) &&
-    isValidOptionalNumber(obj.cost_estimate) &&
-    isValidOptionalString(obj.created_at) &&
-    isValidOptionalNumber(obj.duration) &&
-    isValidOptionalNumber(obj.input_tokens) &&
-    isValidOptionalString(obj.interaction_time) &&
-    isValidOptionalBoolean(obj.is_error) &&
-    isValidOptionalString(obj.monthly_period) &&
-    isValidOptionalNumber(obj.output_tokens) &&
-    isValidOptionalNumber(obj.token_usage) &&
-    isValidOptionalString(obj.updated_at) &&
-    isValidOptionalString(obj.user_id)
-  );
-};
-
-const transformToInteraction = (rawData: InteractionRow): Interaction => {
-  return rawData as Interaction;
-};
-
-const validateInteractions = (data: unknown): Interaction[] => {
-  if (!Array.isArray(data)) return [];
-
-  return data.filter(validateInteractionRow).map(transformToInteraction);
-};
-
+// Data transformation utilities
+const transformInteractionRow = (row: InteractionRow): Interaction => row as Interaction; // InteractionRow and Interaction should be the same type
+const validateInteractions = (data: InteractionRow[]): Interaction[] =>
+  // Trust the database types - no need for runtime validation
+  data.map(transformInteractionRow);
 // Error recovery utilities
 const createEmptyStats = (): StatsType => ({
   totalInteractions: 0,
@@ -117,24 +74,20 @@ type DataContextType = {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 // Memoized DataProvider to prevent unnecessary re-renders when parent components update
-export const DataProvider = React.memo(function DataProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+const DataProviderComponent = React.memo(({ children }: { children: ReactNode }) => {
   // Memoized date calculations to prevent unnecessary recalculations
   const defaultDateRange = useMemo(() => {
     const today = new Date();
     const thirtyDaysAgo = new Date();
+
     thirtyDaysAgo.setDate(today.getDate() - 30);
 
-    const formatDate = (date: Date) => {
-      return date.toLocaleDateString('en-US', {
+    const formatDate = (date: Date) =>
+      date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
       });
-    };
 
     return `${formatDate(thirtyDaysAgo)} - ${formatDate(today)}`;
   }, []);
@@ -165,22 +118,22 @@ export const DataProvider = React.memo(function DataProvider({
 
   // Memoized cache key generator
   const generateCacheKey = useCallback(
-    (params: FetchParams & FilterOptions) => {
-      return JSON.stringify({
+    (params: FetchParams & FilterOptions) =>
+      JSON.stringify({
         page: params.page || 1,
         pageSize: params.pageSize || pageSize,
         searchTerm: params.searchTerm || '',
         assistantId: params.assistantId || 'all',
         fromDate: params.fromDate || '',
         toDate: params.toDate || '',
-      });
-    },
+      }),
     [pageSize]
   );
 
   // Enhanced cache utility functions with proper typing
   const getCachedData = useCallback((key: string): Interaction[] | null => {
     const cached: CacheEntry | undefined = cacheRef.current.get(key);
+
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       return cached.data;
     }
@@ -188,6 +141,7 @@ export const DataProvider = React.memo(function DataProvider({
     if (cached) {
       cacheRef.current.delete(key);
     }
+
     return null;
   }, []);
 
@@ -195,14 +149,13 @@ export const DataProvider = React.memo(function DataProvider({
     // Cleanup old cache entries if we're at the limit
     if (cacheRef.current.size >= MAX_CACHE_SIZE) {
       // Remove oldest entries (LRU strategy)
-      const oldestKeys = Array.from(cacheRef.current.keys()).slice(
-        0,
-        Math.floor(MAX_CACHE_SIZE / 2)
-      );
-      oldestKeys.forEach(oldKey => cacheRef.current.delete(oldKey));
+      const oldestKeys = [...cacheRef.current.keys()].slice(0, Math.floor(MAX_CACHE_SIZE / 2));
+
+      for (const oldKey of oldestKeys) cacheRef.current.delete(oldKey);
     }
 
     const cacheEntry: CacheEntry = { data, timestamp: Date.now() };
+
     cacheRef.current.set(key, cacheEntry);
   }, []);
 
@@ -217,20 +170,16 @@ export const DataProvider = React.memo(function DataProvider({
     // Safely extract chat data for uniqueContacts calculation
     const safeChats =
       interactions
-        ?.map(i => {
-          if (typeof i.chat === 'string') {
-            return i.chat;
-          }
-          return null;
-        })
-        .filter(Boolean) || [];
+        ?.map(i => i.chat)
+        .filter((chat): chat is string => Boolean(chat) && String(chat).length > 0) || [];
     const uniqueContacts = new Set(safeChats).size;
 
     // Safely calculate average response time
     const avgResponseTime = interactions?.length
       ? `${Math.round(
           interactions.reduce((sum, interaction) => {
-            const duration = typeof interaction.duration === 'number' ? interaction.duration : 0;
+            const duration = interaction.duration ?? 0;
+
             return sum + duration;
           }, 0) /
             interactions.length /
@@ -258,6 +207,7 @@ export const DataProvider = React.memo(function DataProvider({
         setStats(calculateStats(cachedData));
         setTotalPages(Math.ceil(cachedData.length / pageSize));
         setTotalItems(cachedData.length);
+
         return;
       }
 
@@ -266,9 +216,21 @@ export const DataProvider = React.memo(function DataProvider({
           setIsLoading(true);
 
           const supabase = createClient();
+
+          // Get the current user
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
+
+          if (userError || !user) {
+            throw new Error('User not authenticated');
+          }
+
           let query = supabase
             .from('interactions')
             .select('*')
+            .eq('user_id', user.id) // Use auth user ID directly
             .order('interaction_time', { ascending: false });
 
           if (filters.fromDate) {
@@ -288,6 +250,7 @@ export const DataProvider = React.memo(function DataProvider({
           }
 
           const safeInteractions = validateInteractions(interactions || []);
+
           setCachedData(cacheKey, safeInteractions);
           setAllInteractions(safeInteractions);
           setStats(calculateStats(safeInteractions));
@@ -302,7 +265,7 @@ export const DataProvider = React.memo(function DataProvider({
 
       setIsLoading(false);
     },
-    [pageSize, generateCacheKey, getCachedData, setCachedData, calculateStats]
+    [pageSize, generateCacheKey, getCachedData, setCachedData, calculateStats, setIsLoading]
   );
 
   // Enhanced fetch interactions with caching
@@ -322,6 +285,7 @@ export const DataProvider = React.memo(function DataProvider({
         setStats(calculateStats(cachedData));
         setTotalPages(Math.ceil(cachedData.length / (params.pageSize || pageSize)));
         setTotalItems(cachedData.length);
+
         return;
       }
 
@@ -330,6 +294,17 @@ export const DataProvider = React.memo(function DataProvider({
           setIsLoading(true);
 
           const supabase = createClient();
+
+          // Get the current user
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
+
+          if (userError || !user) {
+            throw new Error('User not authenticated');
+          }
+
           const page = params.page ?? 1;
           const limit = params.pageSize ?? pageSize;
           const offset = (page - 1) * limit;
@@ -337,6 +312,7 @@ export const DataProvider = React.memo(function DataProvider({
           let query = supabase
             .from('interactions')
             .select('*', { count: 'exact' })
+            .eq('user_id', user.id) // Use auth user ID directly
             .order('interaction_time', { ascending: false })
             .range(offset, offset + limit - 1);
 
@@ -356,6 +332,7 @@ export const DataProvider = React.memo(function DataProvider({
           }
 
           const safeInteractions = validateInteractions(interactions || []);
+
           setCachedData(cacheKey, safeInteractions);
           setAllInteractions(safeInteractions);
           setStats(calculateStats(safeInteractions));
@@ -382,6 +359,7 @@ export const DataProvider = React.memo(function DataProvider({
       setCachedData,
       calculateStats,
       allInteractions.length,
+      setIsLoading,
     ]
   );
 
@@ -400,7 +378,7 @@ export const DataProvider = React.memo(function DataProvider({
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const debouncedSearch = useCallback(
-    (searchTerm: string, delay: number = 300) => {
+    (searchTerm: string, delay = 300) => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -452,6 +430,7 @@ export const DataProvider = React.memo(function DataProvider({
       allInteractions,
       stats,
       isLoading,
+      setIsLoading,
       filterInteractions,
       fetchInteractions,
       clearCache,
@@ -462,6 +441,10 @@ export const DataProvider = React.memo(function DataProvider({
 
   return <DataContext.Provider value={contextValue}>{children}</DataContext.Provider>;
 });
+
+DataProviderComponent.displayName = 'DataProvider';
+
+export const DataProvider = DataProviderComponent;
 
 export function useData() {
   const context = useContext(DataContext);

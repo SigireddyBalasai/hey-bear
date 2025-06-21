@@ -1,5 +1,17 @@
 {
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  "mcp": {
+    "inputs": [],
+    "servers": {
+      "gradiocodeassist": {
+        "command": "npx",
+        "args": [
+          "mcp-remote",
+          "https://agents-mcp-hackathon-shallowcoderesearch.hf.space/gradio_api/mcp/sse"
+        ]
+      }
+    }
+  },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
     "**/node_modules/**": true
@@ -7,7 +19,41 @@
   "terminal.integrated.profiles.linux": {
     "devbox": {
       "path": "devbox",
-      "args": ["shell"],
+      "args": [
+        "shell"
+      ],
     }
   },
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.run": "onType",
+  "eslint.format.enable": true,
+  "eslint.codeActionsOnSave.mode": "problems",
+  "eslint.enable": true,
+  "eslint.useESLintClass": true,
+  "eslint.useFlatConfig": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "typescript.preferences.organizeImportsIgnoreCase": "auto",
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.suggest.autoImports": true,
+  "editor.formatOnSave": true,
+  "files.associations": {
+    "*.ts": "typescript",
+    "*.tsx": "typescriptreact"
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/out": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.d.ts": true
+  }
 }

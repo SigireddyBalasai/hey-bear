@@ -1,8 +1,9 @@
 import type { ChatAPIResponse } from '@/types/api.types';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server-admin';
 
 export async function POST(req: Request) {
   const timestamp = new Date().toISOString();
+
   console.log(`[${timestamp}] Twilio voice transcription webhook received`);
 
   try {
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
       // Validate required parameters
       if (!assistantId) {
         console.error('[VoiceTranscription]', 'Missing No-show parameter for initial voice call');
+
         return generateBasicVoiceResponse(
           "I'm sorry, but this call is not properly configured. Please try again later."
         );
@@ -39,10 +41,12 @@ export async function POST(req: Request) {
 
       // Initialize Supabase with error handling
       let supabase;
+
       try {
         supabase = await createClient();
       } catch (dbError) {
         console.error('[VoiceTranscription]', 'Failed to initialize Supabase client', dbError);
+
         return generateBasicVoiceResponse(
           "I'm sorry, we're experiencing technical difficulties. Please try again later."
         );
@@ -50,21 +54,14 @@ export async function POST(req: Request) {
 
       // Get assistant details
       const { data: assistant, error } = await supabase
-        // Added schema
         .from('assistants')
-        .select(
-          `
-          id,
-          name,
-          user_id,
-          assigned_phone_number
-        `
-        )
+        .select('*')
         .eq('id', assistantId)
         .single();
 
       if (error) {
         console.error('[VoiceTranscription]', 'Failed to fetch assistant details', error);
+
         return generateBasicVoiceResponse(
           "I'm sorry, I couldn't find the assistant you're trying to reach."
         );
@@ -81,16 +78,19 @@ export async function POST(req: Request) {
 
       if (!assistantId || !from || !to) {
         console.error('Missing required parameters', { assistantId, from, to });
+
         return generateVoiceResponse("I'm sorry, there was an error processing your request.");
       }
 
       // Initialize Supabase with error handling
       let supabase;
+
       try {
         supabase = await createClient();
         console.log('Supabase client initialized for voice transcription');
       } catch (dbError) {
         console.error('Failed to initialize Supabase client:', dbError);
+
         return generateVoiceResponse(
           "I'm sorry, we're experiencing database issues. Please try again later."
         );
@@ -100,21 +100,14 @@ export async function POST(req: Request) {
       console.log(`Fetching assistant with ID: ${assistantId}`);
 
       const { data: assistant, error } = await supabase
-        // Added schema
         .from('assistants')
-        .select(
-          `
-          id,
-          name,
-          user_id,
-          assigned_phone_number
-        `
-        )
+        .select('*')
         .eq('id', assistantId)
         .single();
 
       if (error) {
         console.error('Error fetching assistant by ID:', error);
+
         return generateVoiceResponse(
           "I'm sorry, I couldn't find the assistant you're looking for."
         );
@@ -162,7 +155,9 @@ export async function POST(req: Request) {
 
         if (!chatResponse.ok) {
           const errorText = await chatResponse.text().catch(() => 'No error details');
+
           console.error(`Chat API error response: ${errorText}`);
+
           return generateVoiceResponse(
             "I'm sorry, I couldn't process your request right now. Please try again later."
           );
@@ -170,11 +165,13 @@ export async function POST(req: Request) {
 
         // Try to parse the response as JSON with error handling
         let responseData: ChatAPIResponse;
+
         try {
           responseData = (await chatResponse.json()) as ChatAPIResponse;
           console.log(`Chat API response data: ${JSON.stringify(responseData)}`);
         } catch (parseError) {
           console.error('Failed to parse chat API response as JSON:', parseError);
+
           return generateVoiceResponse(
             "I'm sorry, I received an invalid response format. Please try again later."
           );
@@ -182,6 +179,7 @@ export async function POST(req: Request) {
 
         // Get the AI response with fallback
         const aiResponse = responseData.response ?? "I'm sorry, I couldn't generate a response.";
+
         console.log(
           `AI response for voice: "${aiResponse.slice(0, 100)}${aiResponse.length > 100 ? '...' : ''}"`
         );
@@ -224,6 +222,7 @@ export async function POST(req: Request) {
         return generateVoiceResponseWithSimpleGather(truncatedResponse);
       } catch (error) {
         console.error('Error processing voice transcription:', error);
+
         return generateVoiceResponse("I'm sorry, I encountered an error. Please try again later.");
       }
     } else {
@@ -231,6 +230,7 @@ export async function POST(req: Request) {
       console.log('No speech transcription received');
       // Check for specific speech recognition errors
       const speechError = formData.get('SpeechError') as string;
+
       if (speechError) {
         console.error(`Speech error reported by Twilio: ${speechError}`);
         console.error('[VoiceTranscription]', `Speech error reported by Twilio: ${speechError}`);
@@ -242,6 +242,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Error in voice transcription webhook:', error);
     console.error('[VoiceTranscription]', 'Error in webhook handler', error);
+
     return generateVoiceResponse("I'm sorry, something went wrong. Please try again.");
   }
 }
@@ -284,6 +285,7 @@ function generateVoiceResponseWithSimpleGather(message: string) {
 </Response>`;
 
     console.log('[TwilioTwiML]', twimlResponse);
+
     return new Response(twimlResponse, {
       headers: { 'Content-Type': 'text/xml' },
     });
@@ -307,6 +309,7 @@ function generateRepromptResponse() {
 </Response>`;
 
   console.log('[TwilioTwiML]', twimlResponse);
+
   return new Response(twimlResponse, {
     headers: { 'Content-Type': 'text/xml' },
   });
@@ -321,8 +324,10 @@ function truncateForVoice(message: string): string {
       '[VoiceTranscription]',
       `Truncating long response from ${message.length} to 1000 chars`
     );
-    return message.slice(0, 997) + '...';
+
+    return `${message.slice(0, 997)}...`;
   }
+
   return message;
 }
 
@@ -387,6 +392,7 @@ function sanitizeMessage(message: string): string {
     ); // Only allow safe characters
   } catch (error) {
     console.error('Error sanitizing message:', error);
+
     return "I'm sorry, there was an error processing the response.";
   }
 }

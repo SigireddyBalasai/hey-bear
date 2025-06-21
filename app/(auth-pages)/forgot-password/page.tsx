@@ -1,22 +1,15 @@
-'use client';
-
-import React from 'react';
-
 import Link from 'next/link';
 
 import { forgotPasswordAction } from '@/app/actions';
-import { FormMessage } from '@/components/form-message';
 import type { Message } from '@/components/form-message';
+import { FormMessage } from '@/components/form-message';
 import { SubmitButton } from '@/components/submit-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function ForgotPassword(props: Readonly<{ searchParams: Promise<Message> }>) {
-  const [searchParams, setSearchParams] = React.useState<Message | null>(null);
+export default async function ForgotPassword(props: Readonly<{ searchParams: Promise<Message> }>) {
+  const searchParams = await props.searchParams;
 
-  React.useEffect(() => {
-    void props.searchParams.then(setSearchParams);
-  }, [props.searchParams]);
   return (
     <>
       <form className="mx-auto flex w-full min-w-64 max-w-64 flex-1 flex-col gap-2 text-foreground [&>input]:mb-6">

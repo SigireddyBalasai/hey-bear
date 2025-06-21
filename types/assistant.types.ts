@@ -1,6 +1,14 @@
 // Assistant-related interfaces and types
 import type { Database } from '@/types/db.types';
 
+// Assistant card data - union of database types only
+export type AssistantCardData = Pick<
+  AssistantRow,
+  'id' | 'name' | 'is_starred' | 'created_at' | 'assigned_phone_number'
+> &
+  Pick<AssistantConfig, 'description'> &
+  Pick<AssistantActivity, 'total_messages' | 'last_used_at'> &
+  Pick<AssistantSubscription, 'plan_name'>;
 // Database types - Re-export for convenience
 export type AssistantRow = Database['public']['Tables']['assistants']['Row'];
 export type AssistantConfig = Database['public']['Tables']['assistant_configs']['Row'];
@@ -20,60 +28,25 @@ export type AssistantConfigUpdate = Database['public']['Tables']['assistant_conf
 export type AssistantUsageLimitsUpdate =
   Database['public']['Tables']['assistant_usage_limits']['Update'];
 
-// Assistant data interface
-export interface AssistantData {
-  id: string;
-  name: string;
-  is_starred: boolean;
-  created_at: string;
-  description: string;
-  has_phone_number: boolean;
-  subscription_plan: string;
-  total_messages: number;
-  last_used_at: string;
-}
+// Use database types directly instead of custom interfaces
+export type AssistantData = AssistantRow;
+export type DashboardAssistant = Pick<AssistantRow, 'id' | 'name' | 'created_at'>;
+export type Assistant = Pick<AssistantRow, 'id' | 'name'>;
 
-// Assistant list props
+// Assistant list props - using AssistantCardData which is based on db.types
 export interface AssistantListProps {
-  assistant: AssistantData;
+  assistant: AssistantCardData;
   isLoading: boolean;
   isActionInProgress: boolean;
   onToggleStar: (id: string, isStarred: boolean) => void;
   onDelete: (id: string) => void;
 }
 
-// Full assistant data with joins
+// Full assistant data with joins - using db.types for all components
 export interface AssistantWithRelations {
   assistant: AssistantRow;
   config: AssistantConfig;
   usageLimits: AssistantUsageLimits;
-}
-
-// Dashboard assistant interface
-export interface DashboardAssistant {
-  id: string;
-  name: string;
-  created_at: string;
-}
-
-// Assistant selector props
-// Assistant for dashboard URL interface
-export interface Assistant {
-  id: string;
-  name: string;
-}
-
-// Assistant card interfaces (moved from shared-interfaces.ts)
-export interface AssistantCardData {
-  id: string;
-  name: string;
-  is_starred: boolean;
-  created_at: string;
-  description: string;
-  has_phone_number: boolean;
-  subscription_plan: 'personal' | 'business';
-  total_messages: number;
-  last_used_at: string;
 }
 
 export interface AssistantCardProps {
@@ -94,27 +67,17 @@ export interface PlanInfoHeaderProps {
   variant: 'default' | 'compact' | 'badge';
 }
 
-export interface NormalizedAssistantData {
-  assistant: {
-    id: string;
-    name: string;
-    is_starred: boolean;
-    created_at: string;
-    assigned_phone_number: string;
-    pending: boolean;
-  };
-  config: {
-    description: string;
-    business_phone: string;
-  };
-  subscription: unknown;
-  usageLimits: unknown;
-  activity: unknown;
-  interactions_count: number;
-}
+// Normalized assistant data using database types only
+export type NormalizedAssistantData = {
+  assistant: Pick<
+    AssistantRow,
+    'id' | 'name' | 'is_starred' | 'created_at' | 'assigned_phone_number' | 'pending'
+  >;
+  config: Pick<AssistantConfig, 'description' | 'business_phone'>;
+  subscription: AssistantSubscription | null;
+  usageLimits: AssistantUsageLimits | null;
+  activity: AssistantActivity | null;
+};
 
 // Simple assistant config type
-export type SimpleAssistantConfig = {
-  description: string;
-  business_phone: string;
-};
+export type SimpleAssistantConfig = Pick<AssistantConfig, 'description' | 'business_phone'>;

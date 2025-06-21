@@ -2,22 +2,22 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { getPineconeClient } from '@/lib/pinecone';
-import type { ChatRequest } from '@/types/api.types';
-import type { PineconeResponse } from '@/types/api.types';
+import type { ChatRequest, PineconeResponse } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
+import { requireAuth } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 type InteractionsInsert = Database['public']['Tables']['interactions']['Insert'];
 
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (context, req: NextRequest) => {
   try {
     const requestTimestamp = new Date();
     const body = (await req.json()) as ChatRequest;
     const { assistantId, message } = body;
 
-    // Type guard to ensure we have valid strings
-    const validAssistantId = typeof assistantId === 'string' ? assistantId : '';
-    const validMessage = typeof message === 'string' ? message : '';
+    // Ensure we have valid strings
+    const validAssistantId = assistantId || '';
+    const validMessage = message || '';
 
     if (!validAssistantId || !validMessage) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       response: response.message.content ?? '',
       duration: responseDuration,
       interaction_time: requestTimestamp.toISOString(),
-      user_id: null,
+      user_id: context.user.id,
       cost_estimate: costEstimate,
       is_error: false,
       token_usage: tokenCount,
@@ -77,6 +77,20 @@ export async function POST(req: NextRequest) {
     };
 
     await supabase.from('interactions').insert([interactionData]);
+
+    const { data: existingActivity } = await supabase
+      .from('assistant_activity')
+      .select('total_messages, total_tokens')
+      .eq('assistant_id', validAssistantId)
+      .single();
+
+    await supabase.from('assistant_activity').upsert({
+      assistant_id: validAssistantId,
+      total_messages: (existingActivity?.total_messages || 0) + 1,
+      total_tokens: (existingActivity?.total_tokens || 0) + tokenCount,
+      last_message_at: requestTimestamp.toISOString(),
+      last_used_at: requestTimestamp.toISOString(),
+    });
 
     await supabase
 
@@ -95,11 +109,10 @@ export async function POST(req: NextRequest) {
       timing: {
         requestTimestamp: requestTimestamp.toISOString(),
         responseTimestamp: responseTimestamp.toISOString(),
-        responseDuration: responseDuration,
+        responseDuration,
       },
     });
-  } catch (error) {
-    console.error('Error:', error);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

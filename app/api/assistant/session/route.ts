@@ -69,6 +69,7 @@ export const POST = requireAuth(async (context, request: NextRequest) => {
     return NextResponse.json({ sessionId });
   } catch (error) {
     console.error('Error in session creation:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });
@@ -95,6 +96,7 @@ export const GET = requireAuth(async (context, request: NextRequest) => {
     });
   } catch (error) {
     console.error('Error in session retrieval:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });
@@ -121,6 +123,7 @@ export const DELETE = requireAuth(async (context, request: NextRequest) => {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in session delete:', error);
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });

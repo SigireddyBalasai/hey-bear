@@ -3,9 +3,9 @@
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { DeleteUserDialog } from '@/components/admin/users/DeleteUserDialog';
-import { UserTable } from '@/components/admin/users/UserTable';
 import { UsersHeader } from '@/components/admin/users/UsersHeader';
 import { UsersSearchAndFilter } from '@/components/admin/users/UsersSearchAndFilter';
+import { UserTable } from '@/components/admin/users/UserTable';
 import { Loading } from '@/components/concierge/Loading';
 import { useAdminAuth } from '@/hooks/useClientAuth';
 import { useUserManagement } from '@/hooks/useUserManagement';
@@ -38,7 +38,7 @@ export default function UsersPage() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold">Access Denied</h1>
-          <p className="mb-6">You don't have permission to access this page.</p>
+          <p className="mb-6">You don&apos;t have permission to access this page.</p>
           <button
             className="btn"
             onClick={() => {

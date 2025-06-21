@@ -19,15 +19,8 @@ export function handleError(error: unknown, options: Partial<ErrorHandlerOptions
     onError,
   } = options;
 
-  let errorMessage: string;
-
-  if (error instanceof Error) {
-    errorMessage = error.message;
-  } else if (typeof error === 'string') {
-    errorMessage = error;
-  } else {
-    errorMessage = fallbackMessage;
-  }
+  const errorMessage: string =
+    error instanceof Error ? error.message : String(error) || fallbackMessage;
 
   if (logError) {
     console.error(`${context ? `[${context}]` : ''} Error:`, error);

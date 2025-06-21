@@ -7,33 +7,25 @@ export type AssistantSubscription = Database['public']['Tables']['assistant_subs
 export type AssistantUsageLimits = Database['public']['Tables']['assistant_usage_limits']['Row'];
 export type AssistantActivity = Database['public']['Tables']['assistant_activity']['Row'];
 
-export interface AssistantWithNonNullableFields {
-  assistant: {
-    id: string;
-    name: string;
-    is_starred?: boolean;
-    created_at: string;
-    assigned_phone_number?: string | null;
-    pending?: boolean;
-  };
-  config: {
-    description?: string;
-    business_phone?: string;
-  };
+export type AssistantWithNonNullableFields = {
+  assistant: Pick<
+    AssistantRow,
+    'id' | 'name' | 'created_at' | 'is_starred' | 'assigned_phone_number' | 'pending'
+  >;
+  config: Pick<AssistantConfig, 'description' | 'business_phone'>;
   subscription?: AssistantSubscription;
   usageLimits?: AssistantUsageLimits;
   activity?: AssistantActivity;
-  interactions_count: number;
-  last_interaction_at: string | null;
-}
+};
 
-export interface ConciergeFormData {
-  name: string;
-  description: string;
-  conciergeName: string;
-  personality: string;
-  businessName: string;
-  sharePhoneNumber: boolean;
-  phoneNumber: string;
-  selectedPlan: string;
-}
+// Concierge form data - union of database types only
+export type ConciergeFormData = Pick<AssistantRow, 'name'> &
+  Pick<
+    AssistantConfig,
+    | 'description'
+    | 'personality'
+    | 'business_name'
+    | 'share_phone_number'
+    | 'business_phone'
+    | 'concierge_name'
+  >;

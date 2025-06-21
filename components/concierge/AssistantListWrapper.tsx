@@ -1,12 +1,11 @@
 'use client';
 
-import React from 'react';
-
 import { motion } from 'framer-motion';
+
+import { AssistantList } from './AssistantList';
 
 import type { AssistantWithNonNullableFields } from '@/types/concierge.types';
 
-import { AssistantList } from './AssistantList';
 
 interface AssistantListWrapperProps {
   assistants: AssistantWithNonNullableFields[];
@@ -19,23 +18,23 @@ const filterAssistants = (
   assistants: AssistantWithNonNullableFields[],
   selectedTab: string,
   searchQuery: string
-) => {
-  return assistants.filter(assistant => {
+) =>
+  assistants.filter(assistant => {
     // Filter by tab
     if (selectedTab === 'starred' && !assistant.assistant.is_starred) return false;
-    if (selectedTab === 'recent' && !assistant.last_interaction_at) return false;
+    if (selectedTab === 'recent' && !assistant.activity?.last_used_at) return false;
 
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const nameMatch = assistant.assistant.name.toLowerCase().includes(query);
       const descMatch = assistant.config.description?.toLowerCase().includes(query) ?? false;
+
       if (!nameMatch && !descMatch) return false;
     }
 
     return true;
   });
-};
 
 export function AssistantListWrapper({
   assistants,
@@ -67,14 +66,11 @@ export function AssistantListWrapper({
               name: assistantData.assistant.name || '',
               is_starred: assistantData.assistant.is_starred ?? false,
               created_at: assistantData.assistant.created_at,
-              description: assistantData.config.description || '',
-              has_phone_number: !!(
-                assistantData.assistant.assigned_phone_number ??
-                assistantData.config?.business_phone
-              ),
-              subscription_plan: 'personal' as 'personal' | 'business',
-              total_messages: assistantData.interactions_count,
-              last_used_at: assistantData.last_interaction_at || '',
+              assigned_phone_number: assistantData.assistant.assigned_phone_number,
+              description: assistantData.config.description,
+              total_messages: assistantData.activity?.total_messages || 0,
+              last_used_at: assistantData.activity?.last_used_at ?? null,
+              plan_name: assistantData.subscription?.plan_name ?? null,
             }}
             isLoading={false}
             isActionInProgress={false}

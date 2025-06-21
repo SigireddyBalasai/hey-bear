@@ -1,71 +1,89 @@
 import type { Database } from '@/types/db.types';
-import type { TransformedInteraction } from '@/types/interaction.types';
 
 type InteractionRow = Database['public']['Tables']['interactions']['Row'];
 
 /**
- * Transforms raw interaction data from the database into a format suitable for display
+ * Extracts phone number from interaction data
  */
-export function transformInteractionData(interactionsData: InteractionRow[]): TransformedInteraction[] {
-  return interactionsData.map(interaction => {
-    let phoneNumber = '';
-    let type = 'sms';
+export function extractPhoneNumber(interaction: InteractionRow): string {
+  try {
+    if (interaction.chat && typeof interaction.chat === 'string') {
+      const chatData = JSON.parse(interaction.chat);
+      const data = chatData as { from?: string; to?: string };
 
-    try {
-      const chatData = interaction.chat;
-      if (chatData && typeof chatData === 'object') {
-        // Handle Json type from database
-        const chat = chatData as Record<string, unknown>;
-        const from = 'from' in chat && typeof chat.from === 'string' ? chat.from : '';
-        const to = 'to' in chat && typeof chat.to === 'string' ? chat.to : '';
-        const chatType = 'type' in chat && typeof chat.type === 'string' ? chat.type : 'sms';
-
-        phoneNumber = from || to || '';
-        type = chatType || 'sms';
-      } else if (typeof chatData === 'string' && chatData.trim()) {
-        // Handle string JSON
-        const parsedChat = JSON.parse(chatData) as Record<string, unknown>;
-        const from =
-          'from' in parsedChat && typeof parsedChat.from === 'string' ? parsedChat.from : '';
-        const to = 'to' in parsedChat && typeof parsedChat.to === 'string' ? parsedChat.to : '';
-        const chatType =
-          'type' in parsedChat && typeof parsedChat.type === 'string' ? parsedChat.type : 'sms';
-
-        phoneNumber = from || to || '';
-        type = chatType || 'sms';
-      }
-    } catch (error) {
-      console.warn('Failed to parse chat data:', error);
+      return data.from || data.to || '';
     }
+  } catch (error) {
+    console.warn('Failed to extract phone number:', error);
+  }
 
-    return {
-      id: interaction.id,
-      assistant_id: interaction.assistant_id,
-      user_id: interaction.user_id,
-      user_message: interaction.user_message,
-      assistant_response: interaction.assistant_response,
-      interaction_time: interaction.interaction_time,
-      phone_number: phoneNumber,
-      type: type as 'sms' | 'voice',
-      token_usage: interaction.token_usage,
-      cost_estimate: interaction.cost_estimate,
-      error_details: interaction.error_details,
-      created_at: interaction.created_at,
-      updated_at: interaction.updated_at,
-    };
-  });
+  return '';
+}
+
+/**
+ * Extracts message type from interaction data
+ */
+export function extractMessageType(interaction: InteractionRow): string {
+  try {
+    if (interaction.chat && typeof interaction.chat === 'string') {
+      const chatData = JSON.parse(interaction.chat);
+      const data = chatData as { type?: string };
+
+      return data.type || 'sms';
+    }
+  } catch (error) {
+    console.warn('Failed to extract message type:', error);
+  }
+
+  return 'sms';
+}
+
+/**
+ * Extracts user message from interaction data
+ */
+export function extractUserMessage(interaction: InteractionRow): string {
+  try {
+    if (interaction.chat && typeof interaction.chat === 'string') {
+      const chatData = JSON.parse(interaction.chat);
+      const data = chatData as { user_message?: string; Body?: string };
+
+      return data.user_message || data.Body || '';
+    }
+  } catch (error) {
+    console.warn('Failed to extract user message:', error);
+  }
+
+  return '';
+}
+
+/**
+ * Extracts assistant response from interaction data
+ */
+export function extractAssistantResponse(interaction: InteractionRow): string {
+  try {
+    if (interaction.chat && typeof interaction.chat === 'string') {
+      const chatData = JSON.parse(interaction.chat);
+      const data = chatData as { assistant_response?: string };
+
+      return data.assistant_response || '';
+    }
+  } catch (error) {
+    console.warn('Failed to extract assistant response:', error);
+  }
+
+  return '';
 }
 
 /**
  * Formats a message for display, handling long messages and null values
  */
-export function formatMessage(message: string | null, maxLength: number = 100): string {
+export function formatMessage(message: string | null, maxLength = 100): string {
   if (!message) return 'No message';
-  
+
   if (message.length <= maxLength) {
     return message;
   }
-  
+
   return `${message.slice(0, maxLength)}...`;
 }
 
@@ -74,13 +92,25 @@ export function formatMessage(message: string | null, maxLength: number = 100): 
  */
 export function formatCostEstimate(cost: number | null): string {
   if (cost === null || cost === undefined) return '$0.00';
-  
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 4,
     maximumFractionDigits: 4,
   }).format(cost);
+}
+
+/**
+ * Formats duration for display
+ */
+export function formatDuration(duration: number | null): string {
+  if (!duration) return '0s';
+  if (duration < 60) return `${duration}s`;
+  const minutes = Math.floor(duration / 60);
+  const seconds = duration % 60;
+
+  return `${minutes}m ${seconds}s`;
 }
 
 /**
@@ -93,7 +123,9 @@ export function getInteractionTypeIcon(type: string) {
 /**
  * Gets the appropriate badge variant for interaction type
  */
-export function getInteractionTypeBadgeVariant(type: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+export function getInteractionTypeBadgeVariant(
+  type: string
+): 'default' | 'secondary' | 'destructive' | 'outline' {
   return type === 'voice' ? 'default' : 'secondary';
 }
 
@@ -102,29 +134,32 @@ export function getInteractionTypeBadgeVariant(type: string): 'default' | 'secon
  */
 export function formatRelativeTime(date: string | null): string {
   if (!date) return 'Unknown';
-  
+
   const now = new Date();
   const interactionTime = new Date(date);
   const diffInSeconds = Math.floor((now.getTime() - interactionTime.getTime()) / 1000);
-  
+
   if (diffInSeconds < 60) {
     return 'Just now';
   }
-  
+
   const diffInMinutes = Math.floor(diffInSeconds / 60);
+
   if (diffInMinutes < 60) {
     return `${diffInMinutes}m ago`;
   }
-  
+
   const diffInHours = Math.floor(diffInMinutes / 60);
+
   if (diffInHours < 24) {
     return `${diffInHours}h ago`;
   }
-  
+
   const diffInDays = Math.floor(diffInHours / 24);
+
   if (diffInDays < 7) {
     return `${diffInDays}d ago`;
   }
-  
+
   return interactionTime.toLocaleDateString();
 }

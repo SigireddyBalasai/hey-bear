@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
-// Added import
-import type { UploadFileOptions } from '@pinecone-database/pinecone';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+import type { UploadFileOptions } from '@pinecone-database/pinecone';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 import { getPineconeClient } from '@/lib/pinecone';
 import type { Database } from '@/types/db.types';
@@ -62,15 +62,20 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
 
     if (!pinecone_name) {
       const { data: assistantData, error: assistantError } = await supabase
-
         .from('assistants')
-        .select('id, assistant_configs!inner(pinecone_name)') // Ensure inner join and select only needed fields
+        .select(
+          `
+          *,
+          assistant_configs!inner(pinecone_name)
+        `
+        )
         .eq('id', assistantId)
-        .single<TypedAssistantWithSpecificConfig>(); // Use the new type
+        .single<TypedAssistantWithSpecificConfig>();
 
       if (assistantError) {
         console.error('Error fetching assistant data or configuration:', assistantError);
         const errorCode = assistantError.code;
+
         return NextResponse.json(
           { error: 'Failed to fetch assistant configuration', details: assistantError.message },
           { status: errorCode === 'PGRST116' ? 404 : 500 }
@@ -79,7 +84,9 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
 
       // Access pinecone_name safely
       if (assistantData.assistant_configs?.pinecone_name) {
-        pinecone_name = assistantData.assistant_configs.pinecone_name;
+        const { pinecone_name: configPineconeName } = assistantData.assistant_configs;
+
+        pinecone_name = configPineconeName;
       } else {
         console.warn(
           `pinecone_name could not be determined from assistant_configs for assistant ID: ${assistantId}. Fetched data:`,
@@ -93,6 +100,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
           assistantId,
           '(neither provided nor found in configuration).'
         );
+
         return NextResponse.json(
           {
             error:
@@ -109,6 +117,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       console.error(
         'Critical error: pinecone_name is null or undefined before Pinecone Assistant initialization.'
       );
+
       return NextResponse.json({ error: 'Pinecone configuration error' }, { status: 500 });
     }
 
@@ -116,6 +125,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       const tempDir = os.tmpdir();
       const tempFilePath = path.join(tempDir, file.name); // file is guaranteed to be non-null here
       const buffer = await file.arrayBuffer();
+
       await fs.writeFile(tempFilePath, Buffer.from(buffer));
 
       const pinecone = getPineconeClient();
@@ -157,9 +167,11 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
     } catch (error: unknown) {
       console.error('Error uploading file:', error);
       let errorMessage = 'An unknown error occurred';
+
       if (error instanceof Error) {
         errorMessage = error.message;
       }
+
       return NextResponse.json(
         {
           error: 'Failed to upload file',
@@ -171,9 +183,11 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
   } catch (error: unknown) {
     console.error('Unexpected error:', error);
     let errorMessage = 'An internal server error occurred';
+
     if (error instanceof Error) {
       errorMessage = error.message;
     }
+
     return NextResponse.json(
       {
         error: 'Internal server error',
