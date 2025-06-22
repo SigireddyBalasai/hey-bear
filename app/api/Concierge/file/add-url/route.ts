@@ -93,7 +93,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       message: 'URL content uploaded successfully',
       fileId: uploadResult.id,
       source: url,
-      title: resultData?.metadata?.title || '',
+      title: resultData?.metadata?.title ?? '',
       contentLength: markdownContent.length,
     });
   } catch (error: unknown) {

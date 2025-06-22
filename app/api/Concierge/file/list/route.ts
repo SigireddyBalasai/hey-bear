@@ -91,7 +91,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
 
       // Extract the files array from the Pinecone response
       // The AssistantFilesList might have a structure like { files: [...] } or be an array directly
-      const files = Array.isArray(filesResponse) ? filesResponse : filesResponse.files || [];
+      const files = Array.isArray(filesResponse) ? filesResponse : (filesResponse.files ?? []);
 
       return NextResponse.json({ files });
     } catch (error: unknown) {

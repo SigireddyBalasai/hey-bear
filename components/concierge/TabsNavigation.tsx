@@ -2,10 +2,10 @@
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-type TabsNavigationProps = {
+interface TabsNavigationProps {
   selectedTab: string;
   setSelectedTab: (tab: string) => void;
-};
+}
 
 export function TabsNavigation({ selectedTab, setSelectedTab }: TabsNavigationProps) {
   return (

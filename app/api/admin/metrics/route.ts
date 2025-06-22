@@ -23,7 +23,7 @@ async function fetch24hInteractions() {
     throw new Error('Failed to fetch metrics');
   }
 
-  return data || [];
+  return data ?? [];
 }
 
 // Cached function to fetch active users in the last hour
@@ -45,7 +45,7 @@ async function fetchActiveUsers() {
     return [];
   }
 
-  return data || [];
+  return data ?? [];
 }
 
 /**
@@ -65,7 +65,7 @@ export const GET = requireAdmin(async () => {
 
     // Calculate basic metrics
     const totalRequests = last24hData.length;
-    const totalTokens = last24hData.reduce((sum, row) => sum + (row.token_usage || 0), 0);
+    const totalTokens = last24hData.reduce((sum, row) => sum + (row.token_usage ?? 0), 0);
     const totalErrors = last24hData.filter(row => row.is_error).length;
     const errorRate = totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0;
 
@@ -78,13 +78,13 @@ export const GET = requireAdmin(async () => {
       const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000);
 
       const hourData = last24hData.filter(row => {
-        const interactionTime = new Date(row.interaction_time || '');
+        const interactionTime = new Date(row.interaction_time ?? '');
 
         return interactionTime >= hourStart && interactionTime < hourEnd;
       });
 
       const hourRequests = hourData.length;
-      const hourTokens = hourData.reduce((sum, row) => sum + (row.token_usage || 0), 0);
+      const hourTokens = hourData.reduce((sum, row) => sum + (row.token_usage ?? 0), 0);
       const hourErrors = hourData.filter(row => row.is_error).length;
       const durations = hourData
         .map(row => row.duration)

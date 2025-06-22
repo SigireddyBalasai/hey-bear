@@ -126,7 +126,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
       session_id: sessionId,
       user_id: context.user.id,
       assistant_config_data: assistantConfigData,
-      customer_email: customer_email || context.user.email,
+      customer_email: customer_email ?? context.user.email,
       status: 'pending',
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
     };

@@ -72,8 +72,8 @@ export default function AdminDashboardPage() {
           user={{
             email: user.email ?? '',
             user_metadata: {
-              full_name: user.user_metadata?.full_name ?? '',
-              avatar_url: user.user_metadata?.avatar_url ?? '',
+              full_name: (user.user_metadata?.full_name as string) ?? '',
+              avatar_url: (user.user_metadata?.avatar_url as string) ?? '',
             },
           }}
         />
@@ -85,7 +85,9 @@ export default function AdminDashboardPage() {
             <h2 className="text-2xl font-bold">Usage Overview</h2>
             <TimeRangeSelector
               selectedTimeRange={selectedTimeRange}
-              onTimeRangeChange={fetchTimeframeData}
+              onTimeRangeChange={range => {
+                void fetchTimeframeData(range);
+              }}
             />
           </div>
 

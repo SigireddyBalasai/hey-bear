@@ -48,12 +48,12 @@ export interface InteractionLogProps {
 }
 
 // Usage chart item interface
-export type UsageChartItem = {
+export interface UsageChartItem {
   date: string;
   count: number;
   tokens: number;
   cost: number;
-};
+}
 
 // Dashboard data interface
 export interface DashboardData {

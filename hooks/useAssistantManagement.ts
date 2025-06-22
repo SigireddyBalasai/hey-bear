@@ -29,7 +29,6 @@ export function useAssistantManagement() {
 
   const router = useRouter();
 
-  // Handle input changes for any field in the form
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
@@ -37,7 +36,6 @@ export function useAssistantManagement() {
     }));
   };
 
-  // Handle deleting an assistant
   const handleDeleteAssistant = async (assistantId: string) => {
     await withErrorHandling(
       async () => {
@@ -47,7 +45,6 @@ export function useAssistantManagement() {
           throw new Error('Assistant not found');
         }
 
-        // Call the proper delete API endpoint instead of direct Supabase deletion
         const response = await fetch('/api/Concierge/delete', {
           method: 'POST',
           headers: {
@@ -64,7 +61,6 @@ export function useAssistantManagement() {
           throw new Error(errorData.error || 'Failed to delete assistant');
         }
 
-        // Update local state after successful deletion
         setNormalizedAssistants((prev: AssistantWithNonNullableFields[]) =>
           prev.filter((a: AssistantWithNonNullableFields) => a.assistant.id !== assistantId)
         );
@@ -78,9 +74,7 @@ export function useAssistantManagement() {
     );
   };
 
-  // Placeholder createAssistant handler
   const handleCreateAssistant = async () => {
-    // Reset form
     setFormData({
       name: '',
       description: '',
@@ -91,11 +85,9 @@ export function useAssistantManagement() {
       business_phone: '',
     });
 
-    // Show placeholder message
     showInfo('Creation pending', 'Assistant creation will be implemented elsewhere');
   };
 
-  // Function to fetch assistants with normalized data from Supabase
   const fetchAssistants = useCallback(async () => {
     setIsLoading(true);
 
@@ -103,7 +95,6 @@ export function useAssistantManagement() {
       async () => {
         const supabase = createClient();
 
-        // First get the authenticated user
         const {
           data: { user },
           error: userError,
@@ -115,7 +106,6 @@ export function useAssistantManagement() {
           return;
         }
 
-        // Set user data
         setUser({
           id: user.id,
           user_metadata: {
@@ -124,10 +114,8 @@ export function useAssistantManagement() {
           },
         });
 
-        // Store the auth user ID
         setUserId(user.id);
 
-        // Fetch assistants belonging to this user
         const { data: assistantsData, error: assistantsError } = await supabase
           .from('assistants')
           .select('*')
@@ -138,7 +126,6 @@ export function useAssistantManagement() {
           throw new Error('Failed to fetch assistants from server');
         }
 
-        // Transform the real data from the database
         if (!assistantsData || assistantsData.length === 0) {
           setNormalizedAssistants([]);
         } else {

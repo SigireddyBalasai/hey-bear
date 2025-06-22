@@ -108,9 +108,9 @@ export function AssistantCard({
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = (await response.json().catch(() => ({}))) as { error?: string };
 
-          throw new Error(errorData.error || 'Failed to delete assistant');
+          throw new Error((errorData.error) ?? 'Failed to delete assistant');
         }
 
         showSuccess('Assistant deleted', `${assistant.name} has been removed`);
@@ -195,7 +195,7 @@ export function AssistantCard({
                   size="icon"
                   className="h-8 w-8 p-0"
                   onClick={() => {
-                    handleToggleStar(assistant.id, !assistant.is_starred);
+                    void handleToggleStar(assistant.id, !assistant.is_starred);
                   }}
                   disabled={isActionInProgressState}
                 >
@@ -229,7 +229,7 @@ export function AssistantCard({
             Concierge
           </Badge>
 
-          {(assistant.assigned_phone_number || assistant.description) && (
+          {(assistant.assigned_phone_number ?? assistant.description) && (
             <Badge variant="outline" className="flex items-center gap-1">
               <Phone className="h-3 w-3" />
               SMS
@@ -268,7 +268,7 @@ export function AssistantCard({
               size="sm"
               className="text-xs"
               onClick={() => {
-                handleUpgrade(assistant.id);
+                void handleUpgrade(assistant.id);
               }}
               disabled={isActionInProgressState}
             >
@@ -288,7 +288,7 @@ export function AssistantCard({
                 size="icon"
                 className="text-red-600"
                 onClick={() => {
-                  handleDelete(assistant.id);
+                  void handleDelete(assistant.id);
                 }}
                 disabled={isActionInProgressState}
               >

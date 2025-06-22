@@ -10,10 +10,10 @@ export function useUsageAnalytics() {
   const [selectedModel, setSelectedModel] = useState('all');
   const [selectedAssistant, setSelectedAssistant] = useState('all');
   const [selectedPlan, setSelectedPlan] = useState('all');
-  const [assistants, setAssistants] = useState<Array<{ id: string; name: string }>>([]);
+  const [assistants, setAssistants] = useState<{ id: string; name: string }[]>([]);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesDataPoint[]>([]);
   const [tokenDistribution, setTokenDistribution] = useState<
-    Array<{ type: string; tokens: number; percentage: number }>
+    { type: string; tokens: number; percentage: number }[]
   >([]);
   const [userStats, setUserStats] = useState<AnalyticsUserStat[]>([]);
   const [totalStats, setTotalStats] = useState({
@@ -49,11 +49,11 @@ export function useUsageAnalytics() {
           );
 
           setTotalStats(totalStats);
-          // Add totalTokens property to each time series data point
           const enrichedTimeSeriesData = timeSeriesData.map(point => ({
             ...point,
             totalTokens: point.inputTokens + point.outputTokens,
           }));
+
           setTimeSeriesData(enrichedTimeSeriesData);
 
           // Calculate percentage for each user stat
@@ -63,6 +63,7 @@ export function useUsageAnalytics() {
             fullName: user.fullName || '',
             percentage: totalStats.costs > 0 ? (user.costs / totalStats.costs) * 100 : 0,
           }));
+
           setUserStats(userStatsWithPercentage);
 
           if (timeSeriesData.length > 0) {
@@ -87,12 +88,12 @@ export function useUsageAnalytics() {
             {
               type: 'Input Tokens',
               tokens: totalStats.inputTokens,
-              percentage: Math.round((totalStats.inputTokens / totalStats.tokens) * 100) || 0,
+              percentage: Math.round((totalStats.inputTokens / totalStats.tokens) * 100) ?? 0,
             },
             {
               type: 'Output Tokens',
               tokens: totalStats.outputTokens,
-              percentage: Math.round((totalStats.outputTokens / totalStats.tokens) * 100) || 0,
+              percentage: Math.round((totalStats.outputTokens / totalStats.tokens) * 100) ?? 0,
             },
           ];
 
@@ -146,22 +147,20 @@ export function useUsageAnalytics() {
   };
 
   // Data generation functions for charts
-  const generateTimeSeriesData = useCallback(() => {
-    return timeSeriesData;
-  }, [timeSeriesData]);
+  const generateTimeSeriesData = useCallback(() => timeSeriesData, [timeSeriesData]);
 
-  const generateTokenUsageData = useCallback(() => {
-    return timeSeriesData.map(point => ({
-      date: point.date,
-      inputTokens: point.inputTokens,
-      outputTokens: point.outputTokens,
-      totalTokens: point.totalTokens,
-    }));
-  }, [timeSeriesData]);
+  const generateTokenUsageData = useCallback(
+    () =>
+      timeSeriesData.map(point => ({
+        date: point.date,
+        inputTokens: point.inputTokens,
+        outputTokens: point.outputTokens,
+        totalTokens: point.totalTokens,
+      })),
+    [timeSeriesData]
+  );
 
-  const generateTokenDistributionData = useCallback(() => {
-    return tokenDistribution;
-  }, [tokenDistribution]);
+  const generateTokenDistributionData = useCallback(() => tokenDistribution, [tokenDistribution]);
 
   return {
     selectedTimeframe,

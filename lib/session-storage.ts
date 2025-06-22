@@ -1,8 +1,7 @@
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
 
+import { getStripeInstance } from '@/lib/stripe';
 import type { SessionData } from '@/types/admin.types';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy');
 
 export async function createStripeSessionWithData(
   customerId: string,
@@ -18,13 +17,13 @@ export async function createStripeSessionWithData(
     createdAt: data.createdAt,
     expiresAt: data.expiresAt,
     assistant_name: data.assistantData.name,
-    assistant_description: data.assistantData.description ? data.assistantData.description : '',
-    concierge_name: data.assistantData.concierge_name ? data.assistantData.concierge_name : '',
-    personality: data.assistantData.personality ? data.assistantData.personality : '',
-    business_name: data.assistantData.business_name ? data.assistantData.business_name : '',
-    business_phone: data.assistantData.business_phone ? data.assistantData.business_phone : '',
+    assistant_description: data.assistantData.description ?? '',
+    concierge_name: data.assistantData.concierge_name ?? '',
+    personality: data.assistantData.personality ?? '',
+    business_name: data.assistantData.business_name ?? '',
+    business_phone: data.assistantData.business_phone ?? '',
     share_phone_number: data.assistantData.share_phone_number ? 'true' : 'false',
-    display_name: data.assistantData.display_name ? data.assistantData.display_name : '',
+    display_name: data.assistantData.display_name ?? '',
     // Mark this as a pricing table session
     pricing_table_session: 'true',
   };
@@ -40,7 +39,11 @@ export async function createStripeSessionWithData(
     metadata,
     payment_method_types: ['card'],
   };
+  const stripe = await getStripeInstance();
 
+  if (!stripe) {
+    throw new Error('Stripe instance could not be initialized');
+  }
   const session = await stripe.checkout.sessions.create(sessionParams);
 
   return {
@@ -53,7 +56,7 @@ export async function createStripeSessionWithData(
 export async function getSessionData(sessionId: string): Promise<SessionData | null> {
   try {
     const session: Stripe.Checkout.Session = await stripe.checkout.sessions.retrieve(sessionId);
-    const metadata: Stripe.Metadata = session.metadata || {};
+    const metadata: Stripe.Metadata = session.metadata ?? {};
 
     // Reconstruct the session data from metadata
     const sessionData: SessionData = {

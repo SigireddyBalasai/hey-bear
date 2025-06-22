@@ -88,9 +88,9 @@ export function useInteractionData({
           throw queryError;
         }
 
-        setInteractions(data || []);
-        setTotalItems(count || 0);
-        setTotalPages(Math.ceil((count || 0) / pageSize));
+        setInteractions(data ?? []);
+        setTotalItems(count ?? 0);
+        setTotalPages(Math.ceil((count ?? 0) / pageSize));
       },
       {
         fallbackMessage: 'Failed to fetch interactions',

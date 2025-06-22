@@ -29,7 +29,7 @@ export async function getOrCreateStripeCustomerFromAuth(
     const existingCustomerId = user.user_metadata?.stripe_customer_id as string;
 
     if (existingCustomerId) {
-      const isValid = await validateStripeCustomer(stripe, existingCustomerId as string);
+      const isValid = await validateStripeCustomer(stripe, existingCustomerId);
 
       if (isValid) {
         return {
@@ -42,10 +42,10 @@ export async function getOrCreateStripeCustomerFromAuth(
 
     // Create new Stripe customer
     const createResult = await createStripeCustomer(stripe, {
-      email: user.email || '',
+      email: user.email ?? '',
       fullName:
-        (user.user_metadata?.full_name as string) || (user.user_metadata?.name as string) || null,
-      company: (user.user_metadata?.company as string) || null,
+        ((user.user_metadata?.full_name as string) || (user.user_metadata?.name as string)) ?? null,
+      company: (user.user_metadata?.company as string) ?? null,
       authUserId: user.id,
     });
 
@@ -55,7 +55,7 @@ export async function getOrCreateStripeCustomerFromAuth(
 
     // Update user_metadata with the new Stripe customer ID
     // Note: This requires admin client access
-    const { error: updateError } = await supabase.auth.admin.updateUserById(user.id as string, {
+    const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, {
       user_metadata: {
         ...user.user_metadata,
         stripe_customer_id: createResult.customerId,
@@ -117,7 +117,7 @@ export async function createStripeCustomer(
     const { email, fullName, company, authUserId } = params;
 
     // Prepare customer name
-    let customerName = fullName || email || 'User';
+    let customerName = fullName ?? email;
 
     if (company) {
       customerName = `${customerName} (${company})`;
@@ -154,7 +154,7 @@ export async function createStripeCustomer(
  * Get Stripe customer ID from user metadata
  */
 export function getStripeCustomerIdFromUser(user: User): string | null {
-  return (user.user_metadata?.stripe_customer_id as string) || null;
+  return (user.user_metadata?.stripe_customer_id as string) ?? null;
 }
 
 /**

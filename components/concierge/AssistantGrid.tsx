@@ -29,7 +29,7 @@ const filterAssistants = (
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const name = assistant.assistant.name.toLowerCase();
-      const description = assistant.config?.description?.toLowerCase() || '';
+      const description = assistant.config?.description?.toLowerCase() ?? '';
 
       return name.includes(query) || description.includes(query);
     }
@@ -83,12 +83,12 @@ export function AssistantGrid({
           <AssistantCard
             assistant={{
               id: assistant.assistant.id,
-              name: assistant.assistant.name || '',
+              name: assistant.assistant.name ?? '',
               is_starred: assistant.assistant.is_starred ?? false,
               created_at: assistant.assistant.created_at,
               assigned_phone_number: assistant.assistant.assigned_phone_number,
               description: assistant.config.description,
-              total_messages: assistant.activity?.total_messages || 0,
+              total_messages: assistant.activity?.total_messages ?? 0,
               last_used_at: assistant.activity?.last_used_at ?? null,
               plan_name: assistant.subscription?.plan_name ?? null,
             }}
@@ -99,7 +99,9 @@ export function AssistantGrid({
             }}
             onDelete={onDeleteAssistant}
             onDeleteAssistant={onDeleteAssistant}
-            onUpgrade={() => {}}
+            onUpgrade={() => {
+              // TODO: Implement upgrade functionality
+            }}
           />
         </motion.div>
       ))}

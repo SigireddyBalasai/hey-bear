@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
+import { BarChart3, Bot, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-import { BarChart3, Bot, MessageSquare } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,7 @@ export const AssistantSelection = () => {
 
         if (authError || !user) {
           console.error('User not authenticated:', authError);
+
           return;
         }
 
@@ -46,10 +46,11 @@ export const AssistantSelection = () => {
             toastTitle: 'Failed to load assistants',
             fallbackMessage: 'There was an error loading your assistants.',
           });
+
           return;
         }
 
-        setAssistants(assistantsData || []);
+        setAssistants(assistantsData ?? []);
       } catch (error) {
         console.error('Error in fetchAssistants:', error);
         handleError(error as Error, {
@@ -61,18 +62,19 @@ export const AssistantSelection = () => {
       }
     };
 
-    fetchAssistants();
+    void fetchAssistants();
   }, [supabase]);
 
   const handleAssistantSelect = (assistant: DashboardAssistant) => {
     const url = getDashboardUrl(assistant.name);
+
     router.push(url);
   };
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         <p className="text-gray-500">Loading your assistants...</p>
       </div>
     );
@@ -87,8 +89,8 @@ export const AssistantSelection = () => {
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Assistants Found</h3>
           <p className="text-gray-500 mb-6 max-w-md">
-            You haven't created any assistants yet. Create your first assistant to start analyzing
-            interactions and usage.
+            You haven&apos;t created any assistants yet. Create your first assistant to start
+            analyzing interactions and usage.
           </p>
           <Link href="/Concierge">
             <Button>Create Your First Assistant</Button>

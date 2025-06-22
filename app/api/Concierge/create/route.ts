@@ -95,7 +95,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         .eq('id', paymentSessionId)
         .single();
 
-      if (paymentSessionError || !paymentSessionData || !paymentSessionData.user_id) {
+      if (paymentSessionError || !paymentSessionData?.user_id) {
         return NextResponse.json(
           { error: 'Valid payment session with user_id not found' },
           { status: 404 }
@@ -190,7 +190,7 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
         assistant_id: pendingAssistantId,
         status: subscriptionStatus,
         plan_id: actualPlanIdForDb, // Use the ID from lib/subscription-plans.ts
-        payment_session_id: paymentSessionId || null,
+        payment_session_id: paymentSessionId ?? null,
         stripe_subscription_id: null, // Will be updated by webhook when payment is processed
         created_at: new Date().toISOString(),
       };

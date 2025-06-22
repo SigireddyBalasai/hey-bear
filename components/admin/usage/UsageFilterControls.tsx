@@ -22,7 +22,7 @@ interface UsageFilterControlsProps {
   selectedAssistant: string;
   selectedPlan: string;
   selectedModel: string;
-  assistants: Array<{ id: string; name: string }>;
+  assistants: { id: string; name: string }[];
   onTimeframeChange: (timeframe: string) => void;
   onAssistantChange: (assistant: string) => void;
   onPlanChange: (plan: string) => void;

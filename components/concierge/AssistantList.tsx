@@ -95,9 +95,9 @@ export function AssistantList({
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = (await response.json().catch(() => ({}))) as { error?: string };
 
-          throw new Error(errorData.error || 'Failed to delete assistant');
+          throw new Error((errorData.error as string) ?? 'Failed to delete assistant');
         }
 
         showSuccess('Assistant deleted', `${assistant.name} has been removed`);
@@ -185,7 +185,7 @@ export function AssistantList({
                     className="h-6 w-6 p-0"
                     onClick={(e: React.MouseEvent) => {
                       e.preventDefault();
-                      handleToggleStar(assistant.id, !assistant.is_starred);
+                      void handleToggleStar(assistant.id, !assistant.is_starred);
                     }}
                     disabled={isActionInProgressState}
                   >
@@ -218,7 +218,7 @@ export function AssistantList({
             {/* Show message count or "No messages" if zero */}
             <Badge variant="outline" className="gap-1 text-xs">
               <MessageSquare className="h-3 w-3" />
-              {assistant.total_messages ? assistant.total_messages : 'New'}
+              {assistant.total_messages ?? 'New'}
             </Badge>
           </div>
         </div>
@@ -264,7 +264,7 @@ export function AssistantList({
                   size="icon"
                   className="text-red-600"
                   onClick={() => {
-                    handleDelete(assistant.id);
+                    void handleDelete(assistant.id);
                   }}
                   disabled={isActionInProgressState}
                 >

@@ -1,7 +1,10 @@
+import type { Assistant } from '@pinecone-database/pinecone';
 import { NextResponse } from 'next/server';
+
 
 import type { RequestBody } from './firecrawl-types';
 
+import type { Json } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 
 
@@ -36,7 +39,12 @@ export class PineconeUploadManager {
     url: string,
     assistantId: string,
     userId: string,
-    resultData: unknown
+    resultData: {
+      url?: string;
+      title?: string;
+      content?: string;
+      metadata?: Record<string, Json>;
+    }
   ): Promise<{ id: string }> {
     const pinecone = getPineconeClient();
 
@@ -44,82 +52,135 @@ export class PineconeUploadManager {
       throw new Error('Pinecone client initialization failed');
     }
 
-    let uploadResult = null;
     let lastError = null;
 
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
-        // Create a new Pinecone Assistant instance each time to avoid connection reuse issues
         const pineconeAssistant = pinecone.Assistant(pinecone_name);
 
-        // Validate assistant existence on first attempt
         if (attempt === 0) {
           await this.validateAssistant(pineconeAssistant);
         }
 
-        // Upload the file
-        uploadResult = await pineconeAssistant.uploadFile({
-          path: tempFilePath,
-          metadata: {
-            source: url,
-            type: 'webpage',
-            dateAdded: new Date().toISOString(),
-            assistantId,
-            userId,
-            title:
-              resultData &&
-              typeof resultData === 'object' &&
-              'metadata' in resultData &&
-              resultData.metadata &&
-              typeof resultData.metadata === 'object' &&
-              'title' in resultData.metadata &&
-              typeof resultData.metadata.title === 'string'
-                ? resultData.metadata.title
-                : '',
-            description:
-              resultData &&
-              typeof resultData === 'object' &&
-              'metadata' in resultData &&
-              resultData.metadata &&
-              typeof resultData.metadata === 'object' &&
-              'description' in resultData.metadata &&
-              typeof resultData.metadata.description === 'string'
-                ? resultData.metadata.description
-                : '',
-          },
-        });
-
-        // If we get here, upload was successful
-        return uploadResult;
+        return await this.performUpload(
+          pineconeAssistant,
+          tempFilePath,
+          url,
+          assistantId,
+          userId,
+          resultData
+        );
       } catch (uploadError: unknown) {
         lastError = uploadError;
 
-        // Check error type to determine if we should retry
-        if (
-          (uploadError instanceof PineconeConnectionError ||
-            (uploadError &&
-              typeof uploadError === 'object' &&
-              'code' in uploadError &&
-              uploadError.code === 'UND_ERR_CONNECT_TIMEOUT')) &&
-          attempt < this.maxRetries - 1
-        ) {
-          // Only retry on connection errors, not other types
-          // Exponential backoff
-          await new Promise(r => setTimeout(r, this.initialRetryDelay * Math.pow(2, attempt)));
+        if (this.shouldRetry(uploadError, attempt)) {
+          await this.waitForRetry(attempt);
         } else {
-          // Either not a connection error or last attempt
           throw uploadError;
         }
       }
     }
 
-    throw lastError || new Error('Failed to upload to Pinecone after multiple attempts');
+    throw lastError ?? new Error('Failed to upload to Pinecone after multiple attempts');
+  }
+
+  /**
+   * Performs the actual upload to Pinecone
+   */
+  private async performUpload(
+    pineconeAssistant: Assistant,
+    tempFilePath: string,
+    url: string,
+    assistantId: string,
+    userId: string,
+    resultData: {
+      url?: string;
+      title?: string;
+      content?: string;
+      metadata?: Record<string, Json>;
+    }
+  ): Promise<{ id: string }> {
+    const metadata = this.buildUploadMetadata(url, assistantId, userId, resultData);
+
+    return await pineconeAssistant.uploadFile({
+      path: tempFilePath,
+      metadata,
+    });
+  }
+
+  /**
+   * Builds metadata for upload
+   */
+  private buildUploadMetadata(
+    url: string,
+    assistantId: string,
+    userId: string,
+    resultData: {
+      url?: string;
+      title?: string;
+      content?: string;
+      metadata?: Record<string, Json>;
+    }
+  ): Record<string, string> {
+    return {
+      source: url,
+      type: 'webpage',
+      dateAdded: new Date().toISOString(),
+      assistantId,
+      userId,
+      title: this.extractMetadataField(resultData, 'title'),
+      description: this.extractMetadataField(resultData, 'description'),
+    };
+  }
+
+  /**
+   * Safely extracts metadata field
+   */
+  private extractMetadataField(
+    resultData: {
+      metadata?: Record<string, Json>;
+    },
+    field: string
+  ): string {
+    if (
+      resultData?.metadata &&
+      typeof resultData.metadata === 'object' &&
+      Object.prototype.hasOwnProperty.call(resultData.metadata, field) &&
+      typeof resultData.metadata[field] === 'string'
+    ) {
+      return String(resultData.metadata[field]);
+    }
+
+    return '';
+  }
+
+  /**
+   * Determines if upload should be retried
+   */
+  private shouldRetry(error: unknown, attempt: number): boolean {
+    const isConnectionError =
+      error instanceof PineconeConnectionError ||
+      (error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'UND_ERR_CONNECT_TIMEOUT');
+
+    return Boolean(isConnectionError && attempt < this.maxRetries - 1);
+  }
+
+  /**
+   * Waits before retry with exponential backoff
+   */
+  private async waitForRetry(attempt: number): Promise<void> {
+    const delay = this.initialRetryDelay * Math.pow(2, attempt);
+
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
 
   /**
    * Validates that a Pinecone assistant exists
    */
-  private async validateAssistant(pineconeAssistant: unknown): Promise<void> {
+  private async validateAssistant(pineconeAssistant: Assistant): Promise<void> {
     try {
       if (
         pineconeAssistant &&
@@ -143,6 +204,7 @@ export class PineconeUploadManager {
 /**
  * Request validator for URL crawling requests
  */
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class RequestValidator {
   /**
    * Validates the request body for required fields
@@ -177,47 +239,15 @@ export class RequestValidator {
 /**
  * Error handler for URL crawling operations
  */
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class CrawlErrorHandler {
   /**
    * Creates appropriate error responses based on error type
    */
   static handleError(error: unknown): NextResponse {
-    let errorMessage = 'An error occurred during content upload';
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    } else if (typeof error === 'string') {
-      errorMessage = error;
-    } else if (error && typeof error === 'object' && 'message' in error) {
-      errorMessage = String((error as { message: unknown }).message);
-    }
-
-    const errorDetails = {
-      message: errorMessage,
-      type: error instanceof Error ? error.name || 'Unknown' : 'Unknown',
-      cause: error instanceof Error && error.cause ? String(error.cause) : undefined,
-    };
-
-    // Format user-friendly error message based on error type
-    let userMessage = 'Failed to upload URL content';
-    let statusCode = 500;
-
-    if (error instanceof PineconeConnectionError) {
-      userMessage =
-        'Unable to connect to the Pinecone service. The service might be temporarily unavailable.';
-    } else if (error instanceof PineconeNotFoundError) {
-      userMessage = 'The assistant configuration is invalid. Please contact support.';
-      statusCode = 400;
-    } else if (
-      (error && typeof error === 'object' && 'code' in error && error.code === 'ECONNREFUSED') ||
-      (error &&
-        typeof error === 'object' &&
-        'message' in error &&
-        typeof error.message === 'string' &&
-        error.message.includes('timeout'))
-    ) {
-      userMessage = 'Connection to the knowledge base timed out. Please try again later.';
-    }
+    const errorMessage = this.extractErrorMessage(error);
+    const errorDetails = this.buildErrorDetails(error, errorMessage);
+    const { userMessage, statusCode } = this.determineUserResponse(error);
 
     return NextResponse.json(
       {
@@ -228,5 +258,86 @@ export class CrawlErrorHandler {
       },
       { status: statusCode }
     );
+  }
+
+  /**
+   * Extracts error message from unknown error type
+   */
+  private static extractErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    if (error && typeof error === 'object' && 'message' in error) {
+      return String((error as { message: unknown }).message);
+    }
+
+    return 'An error occurred during content upload';
+  }
+
+  /**
+   * Builds error details object
+   */
+  private static buildErrorDetails(error: unknown, message: string) {
+    return {
+      message,
+      type: error instanceof Error ? (error.name ?? 'UnknownError') : 'UnknownError',
+      cause: error instanceof Error && error.cause ? String(error.cause) : undefined,
+    };
+  }
+
+  /**
+   * Determines user-friendly message and status code
+   */
+  private static determineUserResponse(error: unknown): {
+    userMessage: string;
+    statusCode: number;
+  } {
+    if (error instanceof PineconeConnectionError) {
+      return {
+        userMessage:
+          'Unable to connect to the Pinecone service. The service might be temporarily unavailable.',
+        statusCode: 500,
+      };
+    }
+
+    if (error instanceof PineconeNotFoundError) {
+      return {
+        userMessage: 'The assistant configuration is invalid. Please contact support.',
+        statusCode: 400,
+      };
+    }
+
+    if (this.isTimeoutError(error)) {
+      return {
+        userMessage: 'Connection to the knowledge base timed out. Please try again later.',
+        statusCode: 500,
+      };
+    }
+
+    return {
+      userMessage: 'Failed to upload URL content',
+      statusCode: 500,
+    };
+  }
+
+  /**
+   * Checks if error is a timeout error
+   */
+  private static isTimeoutError(error: unknown): boolean {
+    const isConnRefused =
+      error && typeof error === 'object' && 'code' in error && error.code === 'ECONNREFUSED';
+    const isTimeoutMessage =
+      error &&
+      typeof error === 'object' &&
+      'message' in error &&
+      typeof error.message === 'string' &&
+      error.message.includes('timeout');
+
+    return Boolean(isConnRefused ?? isTimeoutMessage);
   }
 }

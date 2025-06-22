@@ -61,7 +61,7 @@ export const InteractionRow = memo<InteractionRowProps>(({ interaction, onViewDe
         </div>
       </TableCell>
       <TableCell>
-        <div className="text-sm text-gray-500">{interaction.token_usage || 0}</div>
+        <div className="text-sm text-gray-500">{interaction.token_usage ?? 0}</div>
       </TableCell>
       <TableCell>
         <div className="text-sm text-gray-500">{formatCostEstimate(interaction.cost_estimate)}</div>

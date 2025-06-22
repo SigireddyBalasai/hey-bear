@@ -37,17 +37,31 @@ export interface FirecrawlResult {
     fit_html: string;
   };
   media?: {
-    images: unknown[];
-    videos: unknown[];
-    audios: unknown[];
+    images: {
+      url?: string;
+      alt?: string;
+      title?: string;
+    }[];
+    videos: {
+      url?: string;
+      title?: string;
+    }[];
+    audios: {
+      url?: string;
+      title?: string;
+    }[];
   };
   links?: {
-    internal: unknown[];
-    external: Array<{
+    internal: {
+      href?: string;
+      text?: string;
+      title?: string;
+    }[];
+    external: {
       href: string;
       text: string;
       title: string;
-    }>;
+    }[];
   };
   metadata?: {
     title?: string;

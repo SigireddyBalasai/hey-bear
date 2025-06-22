@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useAdminAuth } from '@/hooks/useClientAuth';
+import type { UserUsageData } from '@/types/usage.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
@@ -90,19 +91,7 @@ const fetchUserUsageData = async (startDate: Date, endDate: Date) => {
     }
   );
 
-  return result || [];
-};
-
-type UserUsageData = {
-  id: string;
-  user_id: string;
-  total_interactions: number;
-  total_tokens: number;
-  total_cost: number;
-  users?: {
-    id: string;
-    email?: string;
-  };
+  return result ?? [];
 };
 
 export default function UserUsagePage() {
@@ -164,10 +153,10 @@ export default function UserUsagePage() {
   }
 
   // Calculate summary statistics
-  const totalTokens = usageData.reduce((sum, item) => sum + item.total_tokens, 0);
-  const totalCost = usageData.reduce((sum, item) => sum + item.total_cost, 0);
-  const totalMessages = usageData.reduce((sum, item) => sum + item.total_interactions, 0);
-  const uniqueUserIds = new Set(usageData.map(item => item.user_id));
+  const totalTokens = usageData.reduce((sum, item) => sum + (item.total_tokens ?? 0), 0);
+  const totalCost = usageData.reduce((sum, item) => sum + (item.total_cost ?? 0), 0);
+  const totalMessages = usageData.reduce((sum, item) => sum + (item.total_interactions ?? 0), 0);
+  const uniqueUserIds = new Set(usageData.map(item => item.user_id ?? ''));
   const uniqueUserCount = uniqueUserIds.size;
 
   return (
@@ -176,10 +165,10 @@ export default function UserUsagePage() {
       <div className="max-h-screen flex-1 overflow-y-auto p-8">
         <AdminHeader
           user={{
-            email: user.email || '',
+            email: user.email ?? '',
             user_metadata: {
-              full_name: user.user_metadata?.full_name || '',
-              avatar_url: user.user_metadata?.avatar_url || '',
+              full_name: (user.user_metadata?.full_name as string) ?? '',
+              avatar_url: (user.user_metadata?.avatar_url as string) ?? '',
             },
           }}
         />
@@ -298,14 +287,14 @@ export default function UserUsagePage() {
                   user_id: data.user_id,
                   users: {
                     full_name: '',
-                    email: data.users?.email || '',
+                    email: data.users?.email ?? '',
                     created_at: '',
                     last_active: '',
                   },
                   date: '',
-                  message_count: data.total_interactions,
-                  token_usage: data.total_tokens,
-                  cost_estimate: data.total_cost,
+                  message_count: data.total_interactions ?? 0,
+                  token_usage: data.total_tokens ?? 0,
+                  cost_estimate: data.total_cost ?? 0,
                 }))}
               />
             </CardContent>

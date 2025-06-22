@@ -1,6 +1,6 @@
+import { ChevronLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { ChevronLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -81,26 +81,31 @@ export function CreateAssistantDialog({
       handleError('Please enter an assistant display name', {
         fallbackMessage: 'Please enter an assistant display name',
       });
+
       return false;
     }
-    if (!formData.conciergeName.trim()) {
+    if (!formData.concierge_name?.trim()) {
       handleError('Please enter an assistant name', {
         fallbackMessage: 'Please enter an assistant name',
       });
+
       return false;
     }
     if (!formData.personality) {
       handleError('Please select a personality', {
         fallbackMessage: 'Please select a personality',
       });
+
       return false;
     }
-    if (!formData.businessName.trim()) {
+    if (!formData.business_name?.trim()) {
       handleError('Please enter your name or business name', {
         fallbackMessage: 'Please enter your name or business name',
       });
+
       return false;
     }
+
     return true;
   };
 
@@ -121,19 +126,19 @@ export function CreateAssistantDialog({
           const assistantData = {
             name: formData.name,
             description: formData.description,
-            concierge_name: formData.conciergeName,
+            concierge_name: formData.concierge_name,
             personality: formData.personality,
-            business_name: formData.businessName,
-            business_phone: formData.phoneNumber,
-            share_phone_number: formData.sharePhoneNumber,
+            business_name: formData.business_name,
+            business_phone: formData.business_phone,
+            share_phone_number: formData.share_phone_number,
             display_name: formData.name,
-            plan_id: formData.selectedPlan || 'personal', // Default to personal plan
           };
 
           console.log('🔄 Transformed assistant data:', assistantData);
 
           // Save assistant data to session
           const url = '/api/Concierge/session';
+
           console.log('🌐 Making POST request to:', url);
 
           const response = await fetch(url, {
@@ -149,6 +154,7 @@ export function CreateAssistantDialog({
 
           if (!response.ok) {
             const errorText = await response.text();
+
             throw new Error(`Failed to save assistant data: ${errorText}`);
           }
 
@@ -250,7 +256,6 @@ export function CreateAssistantDialog({
                       onInputChange('name', e.target.value);
                     }}
                     className="w-full"
-                    autoFocus
                   />
                   <p className="text-xs text-muted-foreground">
                     This is what you&apos;ll see in your dashboard.
@@ -262,11 +267,11 @@ export function CreateAssistantDialog({
                     No-show Name *
                   </Label>
                   <Input
-                    id="conciergeName"
+                    id="concierge_name"
                     placeholder="E.g., Alex, Sales Team"
-                    value={formData.conciergeName}
+                    value={formData.concierge_name ?? ''}
                     onChange={e => {
-                      onInputChange('conciergeName', e.target.value);
+                      onInputChange('concierge_name', e.target.value);
                     }}
                     className="w-full"
                   />
@@ -280,7 +285,7 @@ export function CreateAssistantDialog({
                     No-show Personality *
                   </Label>
                   <Select
-                    value={formData.personality}
+                    value={formData.personality ?? ''}
                     onValueChange={value => {
                       onInputChange('personality', value);
                     }}
@@ -306,11 +311,11 @@ export function CreateAssistantDialog({
                     Your Name or Business Name *
                   </Label>
                   <Input
-                    id="businessName"
+                    id="business_name"
                     placeholder="E.g., Acme Inc., John Smith"
-                    value={formData.businessName}
+                    value={formData.business_name ?? ''}
                     onChange={e => {
-                      onInputChange('businessName', e.target.value);
+                      onInputChange('business_name', e.target.value);
                     }}
                     className="w-full"
                   />
@@ -324,7 +329,7 @@ export function CreateAssistantDialog({
                   <Textarea
                     id="description"
                     placeholder="Describe what this No-show does..."
-                    value={formData.description}
+                    value={formData.description ?? ''}
                     onChange={e => {
                       onInputChange('description', e.target.value);
                     }}
@@ -343,23 +348,23 @@ export function CreateAssistantDialog({
                       </p>
                     </div>
                     <Switch
-                      id="sharePhoneNumber"
-                      checked={formData.sharePhoneNumber}
+                      id="share_phone_number"
+                      checked={formData.share_phone_number ?? false}
                       onCheckedChange={checked => {
-                        onInputChange('sharePhoneNumber', checked);
+                        onInputChange('share_phone_number', checked);
                       }}
                     />
                   </div>
 
-                  {formData.sharePhoneNumber && (
+                  {formData.share_phone_number && (
                     <div className="mt-2">
                       <Input
-                        id="phoneNumber"
+                        id="business_phone"
                         type="tel"
                         placeholder="E.g., +1 (555) 123-4567"
-                        value={formData.phoneNumber}
+                        value={formData.business_phone ?? ''}
                         onChange={e => {
-                          onInputChange('phoneNumber', e.target.value);
+                          onInputChange('business_phone', e.target.value);
                         }}
                         className="w-full"
                       />
@@ -388,28 +393,32 @@ export function CreateAssistantDialog({
                       handleError(new Error('Please enter an assistant display name'), {
                         toastTitle: 'Validation Error',
                       });
+
                       return;
                     }
-                    if (!formData.conciergeName.trim()) {
+                    if (!formData.concierge_name?.trim()) {
                       handleError(new Error('Please enter an assistant name'), {
                         toastTitle: 'Validation Error',
                       });
+
                       return;
                     }
                     if (!formData.personality) {
                       handleError(new Error('Please select a personality'), {
                         toastTitle: 'Validation Error',
                       });
+
                       return;
                     }
-                    if (!formData.businessName.trim()) {
+                    if (!formData.business_name?.trim()) {
                       handleError(new Error('Please enter your name or business name'), {
                         toastTitle: 'Validation Error',
                       });
+
                       return;
                     }
                     // Save session and proceed to payment
-                    _handleSaveSessionAndShowPayment();
+                    void _handleSaveSessionAndShowPayment();
                   }}
                   disabled={!formData.name.trim() || isSavingSession}
                 >

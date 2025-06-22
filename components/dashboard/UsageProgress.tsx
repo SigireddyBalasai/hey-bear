@@ -23,7 +23,7 @@ export const UsageProgress: React.FC<UsageProgressProps> = ({
           <Skeleton className="h-4 w-12" />
         ) : (
           <span className="font-medium">
-            {metric?.used || 0}/{metric?.total || 0}
+            {metric?.used ?? 0}/{metric?.total ?? 0}
           </span>
         )}
       </div>
@@ -31,7 +31,7 @@ export const UsageProgress: React.FC<UsageProgressProps> = ({
         <Skeleton className="h-2 w-full" />
       ) : (
         <Progress
-          value={metric?.percentage || 0}
+          value={metric?.percentage ?? 0}
           className={`h-2 ${showDanger ? 'bg-red-500' : ''}`}
         />
       )}

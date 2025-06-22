@@ -34,7 +34,7 @@ export const POST = requireAuth(async (context, request: NextRequest) => {
           concierge_name: sessionData.conciergeName,
           business_phone: sessionData.businessPhone,
           personality: sessionData.personality,
-          share_phone_number: sessionData.sharePhoneNumber || false,
+          share_phone_number: sessionData.sharePhoneNumber ?? false,
         },
         status: 'pending',
       })

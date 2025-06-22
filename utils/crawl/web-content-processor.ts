@@ -9,6 +9,7 @@ import type { FirecrawlResult } from './firecrawl-types';
 /**
  * Processes crawled web content and prepares it for storage
  */
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class WebContentProcessor {
   /**
    * Extracts and enriches content from Firecrawl results
@@ -30,7 +31,7 @@ export class WebContentProcessor {
       markdownContent = resultData.markdown;
     } else if (resultData.cleaned_html) {
       // Fall back to cleaned HTML if markdown is unavailable
-      markdownContent = `# ${resultData.metadata?.title || 'Web Page Content'}\n\n${resultData.cleaned_html}`;
+      markdownContent = `# ${resultData.metadata?.title ?? 'Web Page Content'}\n\n${resultData.cleaned_html}`;
     } else {
       throw new Error('No usable content found in result data');
     }
@@ -59,7 +60,7 @@ export class WebContentProcessor {
     const { metadata } = resultData;
     const metadataSection = [
       '---',
-      `Title: ${metadata.title || 'Untitled'}`,
+      `Title: ${metadata.title ?? 'Untitled'}`,
       `URL: ${url}`,
       metadata.description ? `Description: ${metadata.description}` : null,
       metadata.author ? `Author: ${metadata.author}` : null,
@@ -84,7 +85,7 @@ export class WebContentProcessor {
     const linkSection = [
       '\n\n## External Links\n',
       ...externalLinks.map(
-        link => `- [${link.text || link.href}](${link.href})${link.title ? ` - ${link.title}` : ''}`
+        link => `- [${link.text ?? link.href}](${link.href})${link.title ? ` - ${link.title}` : ''}`
       ),
     ].join('\n');
 

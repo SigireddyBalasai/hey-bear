@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { TimeSeriesResponse } from '@/types/admin.types';
+
+import type { AdminDashboardState, ChartData, ChartDataset } from '@/types/dashboard.types';
 import type { DashboardData, UsageChartItem } from '@/types/interaction.types';
 import { withErrorHandling } from '@/utils/error-handling';
 
@@ -8,8 +9,10 @@ export function useAdminDashboard(user: any, isAdmin: boolean, isLoading: boolea
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
 
-  const fetchDashboardData = useCallback(async () => {
-    if (!user) return;
+  const fetchDashboardData = useCallback(async (): Promise<void> => {
+    if (!user || !isAdmin) return;
+
+    setState(prev => ({ ...prev, isLoadingData: true }));
 
     await withErrorHandling(
       async () => {

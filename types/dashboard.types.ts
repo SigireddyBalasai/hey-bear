@@ -53,3 +53,23 @@ export interface SuspenseWrapperProps {
   fallback: React.ReactNode;
   componentName?: string;
 }
+
+export interface AdminDashboardState {
+  dashboardData: DashboardData | null;
+  selectedTimeRange: string;
+  isLoadingData: boolean;
+}
+
+export interface ChartDataset {
+  label: string;
+  data: number[];
+  borderColor: string;
+  backgroundColor: string;
+  tension: number;
+  fill: boolean;
+}
+
+export interface ChartData {
+  labels: string[];
+  datasets: ChartDataset[];
+}

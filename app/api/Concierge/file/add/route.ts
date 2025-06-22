@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { UploadFileOptions } from '@pinecone-database/pinecone';
-import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { getPineconeClient } from '@/lib/pinecone';
 import type { Database } from '@/types/db.types';

@@ -58,14 +58,19 @@ export default function UsersPage() {
       <div className="max-h-screen flex-1 overflow-y-auto p-8">
         <AdminHeader
           user={{
-            email: user.email || '',
+            email: user.email ?? '',
             user_metadata: {
-              full_name: user.user_metadata?.full_name || '',
-              avatar_url: user.user_metadata?.avatar_url || '',
+              full_name: (user.user_metadata?.full_name as string) ?? '',
+              avatar_url: (user.user_metadata?.avatar_url as string) ?? '',
             },
           }}
         />
-        <UsersHeader isRefreshing={isRefreshing} onRefresh={handleRefresh} />
+        <UsersHeader
+          isRefreshing={isRefreshing}
+          onRefresh={() => {
+            void handleRefresh();
+          }}
+        />
         <UsersSearchAndFilter
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}

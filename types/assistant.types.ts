@@ -68,7 +68,7 @@ export interface PlanInfoHeaderProps {
 }
 
 // Normalized assistant data using database types only
-export type NormalizedAssistantData = {
+export interface NormalizedAssistantData {
   assistant: Pick<
     AssistantRow,
     'id' | 'name' | 'is_starred' | 'created_at' | 'assigned_phone_number' | 'pending'
@@ -77,7 +77,13 @@ export type NormalizedAssistantData = {
   subscription: AssistantSubscription | null;
   usageLimits: AssistantUsageLimits | null;
   activity: AssistantActivity | null;
-};
+}
 
 // Simple assistant config type
 export type SimpleAssistantConfig = Pick<AssistantConfig, 'description' | 'business_phone'>;
+
+export interface Assistant {
+  id: string;
+  name: string;
+  assignedPhoneNumber?: string;
+}

@@ -5,46 +5,12 @@ import { NextResponse } from 'next/server';
 
 
 import type { Database } from '@/types/db.types';
+import type { UsageAnalytics, UsageOverview, UserUsageStats } from '@/types/usage.types';
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server-admin';
 
 type Interaction = Database['public']['Tables']['interactions']['Row'];
 type Assistant = Database['public']['Tables']['assistants']['Row'];
-
-interface UserUsageStats {
-  user_id: string;
-  interactions_count: number;
-  token_usage: number;
-  cost_estimate: number;
-  assistants_count: number;
-  first_interaction: string | null;
-  last_interaction: string | null;
-}
-
-interface UsageOverview {
-  total_users: number;
-  total_interactions: number;
-  total_tokens: number;
-  total_cost: number;
-  total_assistants: number;
-  active_users_24h: number;
-  active_users_7d: number;
-  avg_interactions_per_user: number;
-  avg_tokens_per_interaction: number;
-}
-
-interface UsageAnalytics {
-  overview: UsageOverview;
-  user_stats: UserUsageStats[];
-  daily_stats: Array<{
-    date: string;
-    interactions: number;
-    tokens: number;
-    cost: number;
-    unique_users: number;
-  }>;
-  top_users: UserUsageStats[];
-}
 
 // Cached function to fetch all interactions data
 async function fetchAllInteractions(): Promise<Interaction[]> {
@@ -62,7 +28,7 @@ async function fetchAllInteractions(): Promise<Interaction[]> {
     throw new Error('Failed to fetch interactions data');
   }
 
-  return data || [];
+  return data ?? [];
 }
 
 // Cached function to fetch all assistants data
@@ -78,7 +44,7 @@ async function fetchAllAssistants(): Promise<Assistant[]> {
     throw new Error('Failed to fetch assistants data');
   }
 
-  return data || [];
+  return data ?? [];
 }
 
 // Cached function to get unique user count
@@ -95,7 +61,7 @@ async function fetchTotalUsers(): Promise<number> {
     return 0;
   }
 
-  return data?.users?.length || 0;
+  return data?.users?.length ?? 0;
 }
 
 // Process usage analytics from raw data
@@ -126,7 +92,7 @@ function processUsageAnalytics(
   for (const interaction of interactions) {
     if (!interaction.user_id) continue;
 
-    const existing = userStatsMap.get(interaction.user_id) || {
+    const existing = userStatsMap.get(interaction.user_id) ?? {
       user_id: interaction.user_id,
       interactions_count: 0,
       token_usage: 0,
@@ -137,8 +103,8 @@ function processUsageAnalytics(
     };
 
     existing.interactions_count++;
-    existing.token_usage += interaction.token_usage || 0;
-    existing.cost_estimate += interaction.cost_estimate || 0;
+    existing.token_usage += interaction.token_usage ?? 0;
+    existing.cost_estimate += interaction.cost_estimate ?? 0;
 
     if (interaction.interaction_time) {
       if (
@@ -147,7 +113,10 @@ function processUsageAnalytics(
       ) {
         existing.first_interaction = interaction.interaction_time;
       }
-      if (!existing.last_interaction || interaction.interaction_time > existing.last_interaction) {
+      if (
+        !existing.last_interaction ||
+        (interaction.interaction_time && interaction.interaction_time > existing.last_interaction)
+      ) {
         existing.last_interaction = interaction.interaction_time;
       }
     }
@@ -182,15 +151,15 @@ function processUsageAnalytics(
   const overview: UsageOverview = {
     total_users: totalUsers,
     total_interactions: interactions.length,
-    total_tokens: interactions.reduce((sum, i) => sum + (i.token_usage || 0), 0),
-    total_cost: interactions.reduce((sum, i) => sum + (i.cost_estimate || 0), 0),
+    total_tokens: interactions.reduce((sum, i) => sum + (i.token_usage ?? 0), 0),
+    total_cost: interactions.reduce((sum, i) => sum + (i.cost_estimate ?? 0), 0),
     total_assistants: assistants.length,
     active_users_24h: new Set(interactions24h.map(i => i.user_id).filter(Boolean)).size,
     active_users_7d: new Set(interactions7d.map(i => i.user_id).filter(Boolean)).size,
     avg_interactions_per_user: totalUsers > 0 ? interactions.length / totalUsers : 0,
     avg_tokens_per_interaction:
       interactions.length > 0
-        ? interactions.reduce((sum, i) => sum + (i.token_usage || 0), 0) / interactions.length
+        ? interactions.reduce((sum, i) => sum + (i.token_usage ?? 0), 0) / interactions.length
         : 0,
   };
 
@@ -229,8 +198,8 @@ function processUsageAnalytics(
 
     if (dailyStat) {
       dailyStat.interactions++;
-      dailyStat.tokens += interaction.token_usage || 0;
-      dailyStat.cost += interaction.cost_estimate || 0;
+      dailyStat.tokens += interaction.token_usage ?? 0;
+      dailyStat.cost += interaction.cost_estimate ?? 0;
       if (interaction.user_id) {
         dailyStat.users.add(interaction.user_id);
       }

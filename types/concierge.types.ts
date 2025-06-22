@@ -7,7 +7,7 @@ export type AssistantSubscription = Database['public']['Tables']['assistant_subs
 export type AssistantUsageLimits = Database['public']['Tables']['assistant_usage_limits']['Row'];
 export type AssistantActivity = Database['public']['Tables']['assistant_activity']['Row'];
 
-export type AssistantWithNonNullableFields = {
+export interface AssistantWithNonNullableFields {
   assistant: Pick<
     AssistantRow,
     'id' | 'name' | 'created_at' | 'is_starred' | 'assigned_phone_number' | 'pending'
@@ -16,7 +16,7 @@ export type AssistantWithNonNullableFields = {
   subscription?: AssistantSubscription;
   usageLimits?: AssistantUsageLimits;
   activity?: AssistantActivity;
-};
+}
 
 // Concierge form data - union of database types only
 export type ConciergeFormData = Pick<AssistantRow, 'name'> &

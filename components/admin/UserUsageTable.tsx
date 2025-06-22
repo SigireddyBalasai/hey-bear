@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 import {
   AlertCircle,
   ArrowUpDown,
@@ -12,6 +10,10 @@ import {
   Search,
   UserRoundCog,
 } from 'lucide-react';
+import { useState } from 'react';
+
+
+import { UserDetailModal } from './UserDetailModal';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +44,6 @@ import {
 } from '@/components/ui/table';
 import type { UserUsageStats, UserUsageTableProps } from '@/types/admin.types';
 
-import { UserDetailModal } from './UserDetailModal';
 
 // Get initials (moved to outer scope)
 const getInitials = (name?: string | null) => {
@@ -65,12 +66,14 @@ const formatDate = (dateStr?: string | null) => {
 
   try {
     const date = new Date(dateStr);
+
     return {
       short: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       year: date.toLocaleDateString('en-US', { year: 'numeric' }),
     };
   } catch (error) {
     console.error('Error formatting date:', error);
+
     return { short: 'Invalid date', year: '' };
   }
 };
@@ -111,12 +114,14 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
       if (sortField === 'date') {
         const dateA = a.date ? new Date(a.date).getTime() : 0;
         const dateB = b.date ? new Date(b.date).getTime() : 0;
+
         return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
       }
 
       if (sortField === 'user') {
         const nameA = a.users?.full_name?.toLowerCase() ?? '';
         const nameB = b.users?.full_name?.toLowerCase() ?? '';
+
         return sortDirection === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
       }
 
@@ -239,13 +244,14 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
               <TableHead className="text-right">Message Count</TableHead>
               <TableHead className="text-right">Token Usage</TableHead>
               <TableHead className="text-right">Cost Estimate</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
+              <TableHead className="w-[80px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredData.length > 0 ? (
               filteredData.map(item => {
                 const dateFormatted = formatDate(item.date);
+
                 return (
                   <TableRow key={item.id} className="hover:bg-muted/30">
                     <TableCell>

@@ -68,7 +68,7 @@ export function AssistantListWrapper({
               created_at: assistantData.assistant.created_at,
               assigned_phone_number: assistantData.assistant.assigned_phone_number,
               description: assistantData.config.description,
-              total_messages: assistantData.activity?.total_messages || 0,
+              total_messages: assistantData.activity?.total_messages ?? 0,
               last_used_at: assistantData.activity?.last_used_at ?? null,
               plan_name: assistantData.subscription?.plan_name ?? null,
             }}

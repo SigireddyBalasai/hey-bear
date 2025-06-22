@@ -2,12 +2,12 @@ import { Bot, Plus, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
-type EmptyStateProps = {
+interface EmptyStateProps {
   searchQuery: string;
   onClearSearch: () => void;
   onCreateNew: () => void;
   noAssistantsYet?: boolean;
-};
+}
 
 export function EmptyState({
   searchQuery,

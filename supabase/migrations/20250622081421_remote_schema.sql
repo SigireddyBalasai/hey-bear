@@ -217,7 +217,11 @@ CREATE OR REPLACE FUNCTION "public"."is_admin"() RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-    RETURN pg_has_role(current_user, 'admin', 'member');
+  -- Check if the current user has is_admin = true in their metadata
+  RETURN COALESCE(
+    (auth.jwt() ->> 'user_metadata')::jsonb ->> 'is_admin' = 'true',
+    false
+  );
 END;
 $$;
 
@@ -257,28 +261,36 @@ $$;
 ALTER FUNCTION "public"."log_plan_change"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."make_admin"("user_email" "text") RETURNS "void"
+CREATE OR REPLACE FUNCTION "public"."make_admin"("user_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
-    user_id UUID;
+  current_metadata jsonb;
+  updated_metadata jsonb;
 BEGIN
-    -- Find the user by email
-    SELECT id INTO user_id FROM auth.users WHERE email = user_email;
-    
-    IF user_id IS NULL THEN
-        RAISE EXCEPTION 'User with email % not found', user_email;
-    END IF;
-    
-    -- Grant admin role to the user
-    EXECUTE format('GRANT admin TO %I', user_id::TEXT);
-    
-    RAISE NOTICE 'Granted admin role to user: %', user_email;
+  -- Only allow this function to be called by admins
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION 'Access denied: Admin privileges required';
+  END IF;
+
+  -- Get current metadata
+  SELECT raw_user_meta_data INTO current_metadata
+  FROM auth.users
+  WHERE id = user_id;
+
+  -- Update metadata with admin status
+  updated_metadata := COALESCE(current_metadata, '{}'::jsonb) || jsonb_build_object('is_admin', true);
+
+  -- Update the user's metadata
+  UPDATE auth.users
+  SET raw_user_meta_data = updated_metadata,
+      updated_at = now()
+  WHERE id = user_id;
 END;
 $$;
 
 
-ALTER FUNCTION "public"."make_admin"("user_email" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."make_admin"("user_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."provision_twilio_number"("p_phone_number" "text", "p_twilio_sid" "text", "p_friendly_name" "text" DEFAULT NULL::"text", "p_country" "text" DEFAULT 'US'::"text", "p_region" "text" DEFAULT NULL::"text", "p_capabilities" "jsonb" DEFAULT '{"sms": true, "voice": true}'::"jsonb") RETURNS "uuid"
@@ -342,6 +354,38 @@ $$;
 
 
 ALTER FUNCTION "public"."remove_admin"("user_email" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."remove_admin"("user_id" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  current_metadata jsonb;
+  updated_metadata jsonb;
+BEGIN
+  -- Only allow this function to be called by admins
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION 'Access denied: Admin privileges required';
+  END IF;
+
+  -- Get current metadata
+  SELECT raw_user_meta_data INTO current_metadata
+  FROM auth.users
+  WHERE id = user_id;
+
+  -- Update metadata to remove admin status
+  updated_metadata := COALESCE(current_metadata, '{}'::jsonb) || jsonb_build_object('is_admin', false);
+
+  -- Update the user's metadata
+  UPDATE auth.users
+  SET raw_user_meta_data = updated_metadata,
+      updated_at = now()
+  WHERE id = user_id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."remove_admin"("user_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."reset_usage_limits"() RETURNS "trigger"
@@ -1146,7 +1190,125 @@ CREATE POLICY "User access to historical usage" ON "public"."historical_usage" F
 
 
 
+CREATE POLICY "Users can delete their assistant activity" ON "public"."assistant_activity" FOR DELETE USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can delete their assistant configs" ON "public"."assistant_configs" FOR DELETE USING (("id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can delete their assistant subscriptions" ON "public"."assistant_subscriptions" FOR DELETE USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can delete their assistant usage limits" ON "public"."assistant_usage_limits" FOR DELETE USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can delete their own assistants" ON "public"."assistants" FOR DELETE USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can delete their own interactions" ON "public"."interactions" FOR DELETE USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can delete their usage statistics" ON "public"."usage_statistics" FOR DELETE USING (((("entity_type" = 'user'::"text") AND ("entity_id" = "auth"."uid"())) OR (("entity_type" = 'assistant'::"text") AND ("entity_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "Users can insert their assistant activity" ON "public"."assistant_activity" FOR INSERT WITH CHECK (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can insert their assistant configs" ON "public"."assistant_configs" FOR INSERT WITH CHECK (("id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can insert their assistant subscriptions" ON "public"."assistant_subscriptions" FOR INSERT WITH CHECK (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can insert their assistant usage limits" ON "public"."assistant_usage_limits" FOR INSERT WITH CHECK (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can insert their own assistants" ON "public"."assistants" FOR INSERT WITH CHECK (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can insert their own audit logs" ON "public"."audit_logs" FOR INSERT WITH CHECK (("performed_by" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can insert their own interactions" ON "public"."interactions" FOR INSERT WITH CHECK (("user_id" = "auth"."uid"()));
+
+
+
 CREATE POLICY "Users can insert their own payment sessions" ON "public"."payment_sessions" FOR INSERT WITH CHECK (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can insert their usage statistics" ON "public"."usage_statistics" FOR INSERT WITH CHECK (((("entity_type" = 'user'::"text") AND ("entity_id" = "auth"."uid"())) OR (("entity_type" = 'assistant'::"text") AND ("entity_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "Users can update their assigned phone numbers" ON "public"."phone_numbers" FOR UPDATE USING ((("assistant_id" IS NULL) OR ("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can update their assistant activity" ON "public"."assistant_activity" FOR UPDATE USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can update their assistant configs" ON "public"."assistant_configs" FOR UPDATE USING (("id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can update their assistant subscriptions" ON "public"."assistant_subscriptions" FOR UPDATE USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can update their assistant usage limits" ON "public"."assistant_usage_limits" FOR UPDATE USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can update their own assistants" ON "public"."assistants" FOR UPDATE USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can update their own interactions" ON "public"."interactions" FOR UPDATE USING (("user_id" = "auth"."uid"()));
 
 
 
@@ -1154,11 +1316,61 @@ CREATE POLICY "Users can update their own payment sessions" ON "public"."payment
 
 
 
-CREATE POLICY "Users can view their own interactions" ON "public"."interactions" FOR SELECT USING (("auth"."uid"() = "user_id"));
+CREATE POLICY "Users can update their usage statistics" ON "public"."usage_statistics" FOR UPDATE USING (((("entity_type" = 'user'::"text") AND ("entity_id" = "auth"."uid"())) OR (("entity_type" = 'assistant'::"text") AND ("entity_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))))));
+
+
+
+CREATE POLICY "Users can view audit logs they created" ON "public"."audit_logs" FOR SELECT USING (("performed_by" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can view their assigned phone numbers" ON "public"."phone_numbers" FOR SELECT USING ((("assistant_id" IS NULL) OR ("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can view their assistant activity" ON "public"."assistant_activity" FOR SELECT USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can view their assistant configs" ON "public"."assistant_configs" FOR SELECT USING (("id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can view their assistant subscriptions" ON "public"."assistant_subscriptions" FOR SELECT USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can view their assistant usage limits" ON "public"."assistant_usage_limits" FOR SELECT USING (("assistant_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Users can view their own assistants" ON "public"."assistants" FOR SELECT USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can view their own interactions" ON "public"."interactions" FOR SELECT USING (("user_id" = "auth"."uid"()));
 
 
 
 CREATE POLICY "Users can view their own payment sessions" ON "public"."payment_sessions" FOR SELECT USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Users can view their usage statistics" ON "public"."usage_statistics" FOR SELECT USING (((("entity_type" = 'user'::"text") AND ("entity_id" = "auth"."uid"())) OR (("entity_type" = 'assistant'::"text") AND ("entity_id" IN ( SELECT "assistants"."id"
+   FROM "public"."assistants"
+  WHERE ("assistants"."user_id" = "auth"."uid"()))))));
 
 
 
@@ -1453,9 +1665,9 @@ GRANT ALL ON FUNCTION "public"."log_plan_change"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."make_admin"("user_email" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."make_admin"("user_email" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."make_admin"("user_email" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."make_admin"("user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."make_admin"("user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."make_admin"("user_id" "uuid") TO "service_role";
 
 
 
@@ -1469,6 +1681,12 @@ GRANT ALL ON FUNCTION "public"."provision_twilio_number"("p_phone_number" "text"
 GRANT ALL ON FUNCTION "public"."remove_admin"("user_email" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."remove_admin"("user_email" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."remove_admin"("user_email" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."remove_admin"("user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."remove_admin"("user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."remove_admin"("user_id" "uuid") TO "service_role";
 
 
 

@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 
-import type { DashboardStats } from '@/types/admin.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+import type { DashboardStats, UserUsageStats } from '@/types/admin.types';
 import type { Database } from '@/types/db.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';

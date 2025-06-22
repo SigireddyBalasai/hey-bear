@@ -17,7 +17,7 @@ import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
 // Data transformation utilities
-const transformInteractionRow = (row: InteractionRow): Interaction => row as Interaction; // InteractionRow and Interaction should be the same type
+const transformInteractionRow = (row: InteractionRow): Interaction => row; // InteractionRow and Interaction should be the same type
 const validateInteractions = (data: InteractionRow[]): Interaction[] =>
   // Trust the database types - no need for runtime validation
   data.map(transformInteractionRow);
@@ -42,7 +42,7 @@ const setEmptyDataState = (
 };
 
 // Create a type for the DataContext using built-in types only
-type DataContextType = {
+interface DataContextType {
   dateRange: string;
   setDateRange: (range: string) => void;
   searchTerm: string;
@@ -69,7 +69,7 @@ type DataContextType = {
   clearCache: () => void;
   refreshData: () => Promise<void>;
   debouncedSearch: (searchTerm: string, delay?: number) => void;
-};
+}
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -120,30 +120,32 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
   const generateCacheKey = useCallback(
     (params: FetchParams & FilterOptions) =>
       JSON.stringify({
-        page: params.page || 1,
-        pageSize: params.pageSize || pageSize,
-        searchTerm: params.searchTerm || '',
-        assistantId: params.assistantId || 'all',
-        fromDate: params.fromDate || '',
-        toDate: params.toDate || '',
+        page: params.page ?? 1,
+        pageSize: params.pageSize ?? pageSize,
+        searchTerm: params.searchTerm ?? '',
+        assistantId: params.assistantId ?? 'all',
+        fromDate: params.fromDate ?? '',
+        toDate: params.toDate ?? '',
       }),
     [pageSize]
   );
 
-  // Enhanced cache utility functions with proper typing
-  const getCachedData = useCallback((key: string): Interaction[] | null => {
-    const cached: CacheEntry | undefined = cacheRef.current.get(key);
+  const getCachedData = useCallback(
+    (key: string): Interaction[] | null => {
+      const cached: CacheEntry | undefined = cacheRef.current.get(key);
 
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.data;
-    }
-    // Remove expired entry
-    if (cached) {
-      cacheRef.current.delete(key);
-    }
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.data;
+      }
+      // Remove expired entry
+      if (cached) {
+        cacheRef.current.delete(key);
+      }
 
-    return null;
-  }, []);
+      return null;
+    },
+    [CACHE_DURATION]
+  );
 
   const setCachedData = useCallback((key: string, data: Interaction[]): void => {
     // Cleanup old cache entries if we're at the limit
@@ -165,13 +167,13 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
 
   // Enhanced stats calculation with memoization
   const calculateStats = useCallback((interactions: Interaction[]) => {
-    const totalInteractions = interactions?.length || 0;
+    const totalInteractions = interactions?.length ?? 0;
 
     // Safely extract chat data for uniqueContacts calculation
     const safeChats =
       interactions
         ?.map(i => i.chat)
-        .filter((chat): chat is string => Boolean(chat) && String(chat).length > 0) || [];
+        .filter((chat): chat is string => Boolean(chat) && String(chat).length > 0) ?? [];
     const uniqueContacts = new Set(safeChats).size;
 
     // Safely calculate average response time
@@ -249,7 +251,7 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
             throw error;
           }
 
-          const safeInteractions = validateInteractions(interactions || []);
+          const safeInteractions = validateInteractions(interactions ?? []);
 
           setCachedData(cacheKey, safeInteractions);
           setAllInteractions(safeInteractions);
@@ -273,8 +275,8 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
     async (params: FetchParams): Promise<void> => {
       const cacheKey = generateCacheKey({
         ...params,
-        page: params.page || 1,
-        pageSize: params.pageSize || pageSize,
+        page: params.page ?? 1,
+        pageSize: params.pageSize ?? pageSize,
         fromDate: '',
         toDate: '',
       });
@@ -283,7 +285,7 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
       if (cachedData) {
         setAllInteractions(cachedData);
         setStats(calculateStats(cachedData));
-        setTotalPages(Math.ceil(cachedData.length / (params.pageSize || pageSize)));
+        setTotalPages(Math.ceil(cachedData.length / (params.pageSize ?? pageSize)));
         setTotalItems(cachedData.length);
 
         return;
@@ -331,13 +333,13 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
             throw error;
           }
 
-          const safeInteractions = validateInteractions(interactions || []);
+          const safeInteractions = validateInteractions(interactions ?? []);
 
           setCachedData(cacheKey, safeInteractions);
           setAllInteractions(safeInteractions);
           setStats(calculateStats(safeInteractions));
-          setTotalPages(Math.ceil((count || 0) / limit));
-          setTotalItems(count || 0);
+          setTotalPages(Math.ceil((count ?? 0) / limit));
+          setTotalItems(count ?? 0);
         },
         {
           toastTitle: 'Failed to fetch interactions',
@@ -370,7 +372,7 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
       page: currentPage,
       pageSize,
       searchTerm,
-      assistantId: assistantId || '',
+      assistantId: assistantId ?? '',
     });
   }, [clearCache, fetchInteractions, currentPage, pageSize, searchTerm, assistantId]);
 
@@ -384,7 +386,7 @@ const DataProviderComponent = React.memo(({ children }: { children: ReactNode })
       }
 
       searchTimeoutRef.current = setTimeout(() => {
-        fetchInteractions({ page: 1, pageSize, searchTerm, assistantId: assistantId || '' });
+        void fetchInteractions({ page: 1, pageSize, searchTerm, assistantId: assistantId ?? '' });
       }, delay);
     },
     [fetchInteractions, pageSize, assistantId]

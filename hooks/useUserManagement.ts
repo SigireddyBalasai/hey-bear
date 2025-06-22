@@ -15,11 +15,11 @@ export function useUserManagement() {
 
   const supabase = createClient();
 
-  // Fetch real user data
   const fetchRealUsers = useCallback(async () => {
     const result = await withErrorHandling(
       async () => {
         const { data: authUsers, error } = await supabase.auth.admin.listUsers();
+
         if (error) throw error;
         const transformedUsers: UserData[] = authUsers.users.map((authUser: any) => ({
           id: authUser.id,
@@ -29,43 +29,47 @@ export function useUserManagement() {
             (authUser.user_metadata?.full_name as string) ||
             (authUser.user_metadata?.name as string) ||
             '',
-          is_admin: false, // Admin status should be checked via is_admin() RPC for current user only
+          is_admin: false,
           last_sign_in: authUser.last_sign_in_at || '',
           created_at: authUser.created_at,
           updated_at: authUser.updated_at || '',
           status: 'active',
           subscription_plan: (authUser.user_metadata?.subscription_plan as string) || 'free',
           last_active: authUser.last_sign_in_at || '',
-          total_interactions: (authUser.user_metadata?.total_interactions as number) || 0,
-          total_tokens: (authUser.user_metadata?.total_tokens as number) || 0,
-          cost_estimate: (authUser.user_metadata?.cost_estimate as number) || 0,
+          total_interactions: (authUser.user_metadata?.total_interactions as number) ?? 0,
+          total_tokens: (authUser.user_metadata?.total_tokens as number) ?? 0,
+          cost_estimate: (authUser.user_metadata?.cost_estimate as number) ?? 0,
         }));
+
         return transformedUsers;
       },
       { toastTitle: 'Failed to fetch users' }
     );
-    return result || [];
+
+    return result ?? [];
   }, [supabase]);
 
-  // Load users
   useEffect(() => {
     const loadUsers = async () => {
       const realUsers = await fetchRealUsers();
+
       setUsers(realUsers);
       setFilteredUsers(realUsers);
     };
+
     void loadUsers();
   }, [fetchRealUsers]);
 
-  // Filter users
   useEffect(() => {
     const filtered = users.filter(user => {
       const matchesSearch =
         user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
+
     setFilteredUsers(filtered);
   }, [searchTerm, statusFilter, users]);
 
@@ -74,6 +78,7 @@ export function useUserManagement() {
     await withErrorHandling(
       async () => {
         const realUsers = await fetchRealUsers();
+
         setUsers(realUsers);
         setFilteredUsers(realUsers);
         showSuccess('User list refreshed');
@@ -93,6 +98,7 @@ export function useUserManagement() {
     withErrorHandling(
       async () => {
         const updatedUsers = users.filter(u => u.id !== userToDelete.id);
+
         setUsers(updatedUsers);
         setFilteredUsers(
           updatedUsers.filter(user => {
@@ -100,6 +106,7 @@ export function useUserManagement() {
               user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
               user.email?.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+
             return matchesSearch && matchesStatus;
           })
         );

@@ -1,8 +1,8 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
-import { useSearchParams } from 'next/navigation';
 
 import { AssistantSelection } from '@/components/dashboard/AssistantSelection';
 import { DashboardControls } from '@/components/dashboard/DashboardControls';
@@ -47,6 +47,7 @@ const ConciergeInteractionDashboard = () => {
   const supabase = createClient();
 
   const oneMonthAgo = new Date();
+
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
   // Fetch user data from Supabase
@@ -60,6 +61,7 @@ const ConciergeInteractionDashboard = () => {
 
         if (error || !user) {
           console.error('Error fetching user:', error);
+
           return;
         }
 
@@ -81,11 +83,9 @@ const ConciergeInteractionDashboard = () => {
                 assistant.name.toLowerCase() === conciergeParam.toLowerCase()
             );
 
-            if (!targetAssistant) {
-              targetAssistant = assistantsData.find(
-                (assistant: DashboardAssistant) => assistant.id === conciergeParam
-              );
-            }
+            targetAssistant ??= assistantsData.find(
+              (assistant: DashboardAssistant) => assistant.id === conciergeParam
+            );
 
             if (targetAssistant) {
               setSpecificAssistant(targetAssistant);
@@ -109,13 +109,14 @@ const ConciergeInteractionDashboard = () => {
       }
     };
 
-    fetchUserData();
+    void fetchUserData();
   }, [supabase, conciergeParam, setAssistantId]);
 
   // Update assistant name when assistantId changes
   useEffect(() => {
     if (assistantId && availableAssistants.length > 0) {
       const assistant = availableAssistants.find(a => a.id === assistantId);
+
       if (assistant) {
         setAssistantName(assistant.name);
       }
@@ -124,11 +125,11 @@ const ConciergeInteractionDashboard = () => {
 
   // Using API pagination instead of client-side pagination
   useEffect(() => {
-    fetchInteractions({
+    void fetchInteractions({
       page: currentPage,
-      pageSize: pageSize,
-      searchTerm: searchTerm,
-      assistantId: assistantId || '', // Pass assistantId here
+      pageSize,
+      searchTerm,
+      assistantId: assistantId ?? '', // Pass assistantId here
     });
   }, [currentPage, pageSize, searchTerm, assistantId, fetchInteractions]);
 
@@ -144,16 +145,17 @@ const ConciergeInteractionDashboard = () => {
   };
 
   const handleDateRangeChange = (startDate: string, endDate: string) => {
-    filterInteractions({
+    void filterInteractions({
       fromDate: startDate,
       toDate: endDate,
-      assistantId: assistantId || '',
+      assistantId: assistantId ?? '',
       searchTerm: '',
     });
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const { value } = e.target;
+
     setSearchTerm(value);
   };
 
@@ -219,7 +221,7 @@ const ConciergeInteractionDashboard = () => {
 
           <PlanUsage
             selectedAssistant={specificAssistant?.id}
-            assistantSelectionDisabled={!!specificAssistant}
+            assistantSelectionDisabled={Boolean(specificAssistant)}
           />
 
           <div className="mb-6 rounded-lg bg-white p-4 shadow">
@@ -235,7 +237,9 @@ const ConciergeInteractionDashboard = () => {
               totalItems={apiTotalPages * 10}
               sortBy={'interaction_time'}
               sortDirection={'desc'}
-              onSortChange={() => {}}
+              onSortChange={() => {
+                // TODO: Implement sorting
+              }}
               onPageChange={changePage}
               onTabChange={handleTabChange}
             />

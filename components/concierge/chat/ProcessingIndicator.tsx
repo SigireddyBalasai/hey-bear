@@ -7,7 +7,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface ProcessingIndicatorProps {
-  fileList: { files: Array<{ id: string; status?: string }> };
+  fileList: { files: { id: string; status?: string }[] };
   processingFileIds: string[];
 }
 

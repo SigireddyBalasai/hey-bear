@@ -78,13 +78,13 @@ export async function getAssistantDataFromPaymentSession(
     const configData = paymentSession.assistant_config_data as AssistantConfigData;
 
     const assistantData: AssistantData = {
-      name: configData.display_name || configData.name || 'New Assistant',
+      name: configData.display_name ?? configData.name ?? 'New Assistant',
       description: configData.description,
       concierge_name: configData.concierge_name,
       personality: configData.personality,
       business_name: configData.business_name,
       business_phone: configData.business_phone,
-      share_phone_number: configData.share_phone_number || false,
+      share_phone_number: configData.share_phone_number ?? false,
       display_name: configData.display_name,
     };
 
@@ -158,15 +158,15 @@ export async function createAssistantWithConfig(
     console.log('Successfully created assistant in webhook:', newAssistant.id);
 
     // Create assistant config
-    const conciergeName = assistantData.concierge_name || assistantData.name || 'Assistant';
-    const businessName = assistantData.business_name || '';
-    const systemPrompt = `You are ${conciergeName}, a helpful assistant for ${businessName || 'the user'}. Your personality is ${(assistantData.personality || 'Business Casual').toLowerCase()}. ${assistantData.description || ''}`;
+    const conciergeName = assistantData.concierge_name ?? assistantData.name ?? 'Assistant';
+    const businessName = assistantData.business_name ?? '';
+    const systemPrompt = `You are ${conciergeName}, a helpful assistant for ${businessName ?? 'the user'}. Your personality is ${(assistantData.personality ?? 'Business Casual').toLowerCase()}. ${assistantData.description ?? ''}`;
     const pineconeName = generatePineconeName(assistantData.name);
 
     const { error: configError } = await supabase.from('assistant_configs').insert({
       id: newAssistant.id,
       description: assistantData.description,
-      display_name: assistantData.display_name || assistantData.name,
+      display_name: assistantData.display_name ?? assistantData.name,
       concierge_name: assistantData.concierge_name,
       personality: assistantData.personality,
       business_name: assistantData.business_name,

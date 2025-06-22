@@ -6,13 +6,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 type ViewMode = 'grid' | 'list';
 
-type SearchAndControlsProps = {
+interface SearchAndControlsProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   onCreateNew: () => void;
-};
+}
 
 export function SearchAndControls({
   searchQuery,

@@ -143,7 +143,7 @@ export default function UsagePage() {
                       <tr key={user.userId} className="border-b last:border-b-0">
                         <td className="p-4">
                           <div>
-                            <div className="font-medium">{user.fullName || 'Unknown User'}</div>
+                            <div className="font-medium">{user.fullName ?? 'Unknown User'}</div>
                             <div className="text-sm text-muted-foreground">{user.email}</div>
                           </div>
                         </td>

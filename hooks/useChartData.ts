@@ -2,7 +2,7 @@ import type { TimeSeriesDataPoint } from '@/types/admin.types';
 
 export function useChartData(
   timeSeriesData: TimeSeriesDataPoint[],
-  tokenDistribution: Array<{ type: string; tokens: number; percentage: number }>
+  tokenDistribution: { type: string; tokens: number; percentage: number }[]
 ) {
   const generateTimeSeriesData = () => {
     return {

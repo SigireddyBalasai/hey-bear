@@ -65,8 +65,8 @@ export function UsageTable({ filteredRecords, totalRecords }: UsageTableProps) {
                   <td className="p-2">
                     <Badge variant="secondary">{record.interaction_type}</Badge>
                   </td>
-                  <td className="p-2">{formatNumber(record.tokens_used || 0)}</td>
-                  <td className="p-2">{formatCurrency(record.cost || 0)}</td>
+                  <td className="p-2">{formatNumber(record.tokens_used ?? 0)}</td>
+                  <td className="p-2">{formatCurrency(record.cost ?? 0)}</td>
                   <td className="p-2">{format(parseISO(record.created_at), 'PPp')}</td>
                 </tr>
               ))}

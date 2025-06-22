@@ -1,4 +1,4 @@
-type UserWithUsage = {
+interface UserWithUsage {
   id: string;
   auth_user_id: string;
   email?: string;
@@ -18,7 +18,7 @@ type UserWithUsage = {
     token_usage: number;
     cost_estimate: number;
   };
-};
+}
 
 /**
  * Fetches usage data for the admin dashboard via API
@@ -37,7 +37,7 @@ export async function fetchUsageData(
     inputTokens: number;
     outputTokens: number;
   };
-  timeSeriesData: Array<{
+  timeSeriesData: {
     date: string;
     interactions: number;
     tokens: number;
@@ -46,8 +46,8 @@ export async function fetchUsageData(
     costs: number;
     activeUsers: number;
     errors: number;
-  }>;
-  userStats: Array<{
+  }[];
+  userStats: {
     userId: string;
     email?: string;
     fullName?: string;
@@ -57,7 +57,7 @@ export async function fetchUsageData(
     outputTokens: number;
     costs: number;
     lastActive: string | null;
-  }>;
+  }[];
 }> {
   try {
     const params = new URLSearchParams();
@@ -82,7 +82,7 @@ export async function fetchUsageData(
         errors: number;
         activeUsers: number;
       };
-      timeSeriesData: Array<{
+      timeSeriesData: {
         date: string;
         interactions: number;
         tokens: number;
@@ -91,8 +91,8 @@ export async function fetchUsageData(
         costs: number;
         activeUsers: number;
         errors: number;
-      }>;
-      userStats: Array<{
+      }[];
+      userStats: {
         userId: string;
         email?: string;
         fullName?: string;
@@ -102,7 +102,7 @@ export async function fetchUsageData(
         outputTokens: number;
         costs: number;
         lastActive: string | null;
-      }>;
+      }[];
     };
   } catch (error) {
     console.error('Error in fetchUsageData:', error);
@@ -151,13 +151,13 @@ export async function fetchSystemMetrics(): Promise<{
   totalRequests: number;
   totalTokens: number;
   errorRate: number;
-  hourlyMetrics: Array<{
+  hourlyMetrics: {
     timestamp: string;
     requests: number;
     tokens: number;
     errors: number;
     avgLatency: number;
-  }>;
+  }[];
 }> {
   try {
     const response = await fetch('/api/admin/metrics');
@@ -171,13 +171,13 @@ export async function fetchSystemMetrics(): Promise<{
       totalRequests: number;
       totalTokens: number;
       errorRate: number;
-      hourlyMetrics: Array<{
+      hourlyMetrics: {
         timestamp: string;
         requests: number;
         tokens: number;
         errors: number;
         avgLatency: number;
-      }>;
+      }[];
     };
   } catch (error) {
     console.error('Error in fetchSystemMetrics:', error);

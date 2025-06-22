@@ -100,7 +100,7 @@ const InteractionRow = memo<{
   return (
     <TableRow key={interaction.id} className={index % 2 === 0 ? 'bg-muted/50' : ''}>
       <TableCell className="text-xs">
-        {formatTimestamp(interaction.interaction_time || '')}
+        {formatTimestamp(interaction.interaction_time ?? '')}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
@@ -301,11 +301,11 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
           throw queryError;
         }
 
-        const transformedData = transformInteractionData(data || []);
+        const transformedData = transformInteractionData(data ?? []);
 
         setInteractions(transformedData);
-        setTotalItems(count || 0);
-        setTotalPages(Math.ceil((count || 0) / pageSize));
+        setTotalItems(count ?? 0);
+        setTotalPages(Math.ceil((count ?? 0) / pageSize));
       },
       {
         toastTitle: 'Failed to load interactions',
@@ -329,7 +329,7 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
   // Effects
   useEffect(() => {
     if (!propInteractions) {
-      fetchInteractions();
+      void fetchInteractions();
     }
   }, [fetchInteractions, propInteractions]);
 
@@ -395,7 +395,7 @@ const InteractionLogComponent: React.FC<InteractionLogProps> = ({
     return interactions.map((interaction, index) => (
       <InteractionRow key={interaction.id} interaction={interaction} index={index} />
     ));
-  }, [loading, interactions, error, pageSize]);
+  }, [loading, interactions, error, pageSize, searchTerm]);
 
   return (
     <Card>

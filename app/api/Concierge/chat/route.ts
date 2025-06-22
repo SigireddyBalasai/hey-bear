@@ -86,8 +86,8 @@ export const POST = requireAuth(async (context, req: NextRequest) => {
 
     await supabase.from('assistant_activity').upsert({
       assistant_id: validAssistantId,
-      total_messages: (existingActivity?.total_messages || 0) + 1,
-      total_tokens: (existingActivity?.total_tokens || 0) + tokenCount,
+      total_messages: (existingActivity?.total_messages ?? 0) + 1,
+      total_tokens: (existingActivity?.total_tokens ?? 0) + tokenCount,
       last_message_at: requestTimestamp.toISOString(),
       last_used_at: requestTimestamp.toISOString(),
     });

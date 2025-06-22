@@ -5,7 +5,7 @@ import { authenticate } from '@/utils/auth-utils';
 import { updateSession } from '@/utils/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
 
   const sessionResponse = await updateSession(request);
 
@@ -16,11 +16,13 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/admin')) {
     try {
       const authResult = await authenticate(true);
+
       if (!authResult.success) {
         return NextResponse.redirect(new URL('/sign-in?error=admin-required', request.url));
       }
     } catch (error) {
       console.error('Admin auth check failed:', error);
+
       return NextResponse.redirect(new URL('/sign-in?error=auth-failed', request.url));
     }
   }

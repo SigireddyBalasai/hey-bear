@@ -1,6 +1,5 @@
 'use client';
 
-import { AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 
@@ -37,12 +36,12 @@ export default function AssistantsPage() {
   useUrlParameters({
     setFormData,
     setCreateDialogOpen,
-    fetchAssistants,
+    fetchAssistants: () => void fetchAssistants(),
   });
 
   // Fetch assistants on component mount
   useEffect(() => {
-    fetchAssistants();
+    void fetchAssistants();
   }, [fetchAssistants]);
 
   // Show loading screen while data is being fetched
@@ -83,7 +82,9 @@ export default function AssistantsPage() {
       {normalizedAssistants.length === 0 ? (
         <EmptyState
           searchQuery=""
-          onClearSearch={() => {}}
+          onClearSearch={() => {
+            /* No search to clear when no assistants */
+          }}
           onCreateNew={() => setCreateDialogOpen(true)}
           noAssistantsYet
         />

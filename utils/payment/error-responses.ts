@@ -3,12 +3,12 @@ import { NextResponse } from 'next/server';
 /**
  * Creates standardized error responses for payment processing
  */
-export class PaymentErrorHandler {
-  static invalidRequest(message = 'Invalid request') {
+export const PaymentErrorHandler = {
+  invalidRequest(message = 'Invalid request') {
     return NextResponse.json({ error: message }, { status: 400 });
-  }
+  },
 
-  static invalidWebhookPayload(origin: string) {
+  invalidWebhookPayload(origin: string) {
     return NextResponse.json(
       {
         error: 'Invalid webhook payload',
@@ -16,9 +16,9 @@ export class PaymentErrorHandler {
       },
       { status: 400 }
     );
-  }
+  },
 
-  static paymentNotCompleted(origin: string, paymentStatus: string, sessionStatus: string) {
+  paymentNotCompleted(origin: string, paymentStatus: string, sessionStatus: string) {
     console.error('[PAYMENT ERROR] Payment not completed:', {
       paymentStatus,
       sessionStatus,
@@ -31,9 +31,9 @@ export class PaymentErrorHandler {
       },
       { status: 400 }
     );
-  }
+  },
 
-  static missingReference(origin: string) {
+  missingReference(origin: string) {
     return NextResponse.json(
       {
         error: 'Missing reference',
@@ -41,9 +41,9 @@ export class PaymentErrorHandler {
       },
       { status: 400 }
     );
-  }
+  },
 
-  static invalidReferenceFormat(origin: string) {
+  invalidReferenceFormat(origin: string) {
     return NextResponse.json(
       {
         error: 'Invalid reference format',
@@ -51,9 +51,9 @@ export class PaymentErrorHandler {
       },
       { status: 400 }
     );
-  }
+  },
 
-  static paymentSessionNotFound(origin: string) {
+  paymentSessionNotFound(origin: string) {
     return NextResponse.json(
       {
         error: 'Payment session details not found, cannot proceed.',
@@ -61,9 +61,9 @@ export class PaymentErrorHandler {
       },
       { status: 404 }
     );
-  }
+  },
 
-  static assistantCreationFailed(origin: string) {
+  assistantCreationFailed(origin: string) {
     return NextResponse.json(
       {
         error: 'Assistant creation failed',
@@ -71,9 +71,9 @@ export class PaymentErrorHandler {
       },
       { status: 500 }
     );
-  }
+  },
 
-  static assistantCreationError(origin: string) {
+  assistantCreationError(origin: string) {
     return NextResponse.json(
       {
         error: 'Assistant creation error',
@@ -81,9 +81,9 @@ export class PaymentErrorHandler {
       },
       { status: 500 }
     );
-  }
+  },
 
-  static unexpectedError(origin: string) {
+  unexpectedError(origin: string) {
     return NextResponse.json(
       {
         error: 'Processing failed',
@@ -91,9 +91,9 @@ export class PaymentErrorHandler {
       },
       { status: 500 }
     );
-  }
+  },
 
-  static success(origin: string, assistantId: string, isDefault = false) {
+  success(origin: string, assistantId: string, isDefault = false) {
     const successType = isDefault ? '&type=default' : '';
 
     return NextResponse.json({
@@ -101,5 +101,5 @@ export class PaymentErrorHandler {
       assistantId,
       redirectUrl: `${origin}/Concierge?success=payment_complete&assistant_created=true${successType}`,
     });
-  }
-}
+  },
+} as const;

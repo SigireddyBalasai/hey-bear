@@ -34,7 +34,7 @@ export function Header({ user }: HeaderProps) {
       }
     };
 
-    checkAdminStatus();
+    void checkAdminStatus();
   }, [user, supabase]);
 
   const handleSignOut = async () => {
@@ -89,7 +89,7 @@ export function Header({ user }: HeaderProps) {
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <button
-              onClick={handleSignOut}
+              onClick={() => void handleSignOut()}
               className="flex w-full cursor-pointer items-center px-2 py-1.5 text-sm text-red-600 hover:bg-accent hover:text-red-600 focus:text-red-600"
             >
               <LogOut className="mr-2 h-4 w-4" />

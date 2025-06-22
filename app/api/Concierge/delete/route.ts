@@ -48,7 +48,7 @@ async function cancelStripeSubscription(
 
   for (const subscription of subscriptionData) {
     console.log(
-      `Processing subscription ${subscription.id} with status: ${subscription.status}, stripe_subscription_id: ${subscription.stripe_subscription_id || 'null'}`
+      `Processing subscription ${subscription.id} with status: ${subscription.status}, stripe_subscription_id: ${subscription.stripe_subscription_id ?? 'null'}`
     );
 
     // If there's no Stripe subscription ID, just mark it as canceled in our database

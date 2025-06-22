@@ -1,9 +1,11 @@
 'use client';
 
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-
 import { format } from 'date-fns';
 import { CalendarIcon, FilterIcon, X } from 'lucide-react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+
+
+import { useData } from './DataContext';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -20,7 +22,6 @@ import type { FilterComponentProps, FilterValues } from '@/types/interaction.typ
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-import { useData } from './DataContext';
 
 type Assistant = Database['public']['Tables']['assistants']['Row'];
 
@@ -109,15 +110,19 @@ const QuickDateRanges = memo<{
   const dateRanges = useMemo(() => {
     const today = new Date();
     const yesterday = new Date(today);
+
     yesterday.setDate(yesterday.getDate() - 1);
 
     const lastWeek = new Date(today);
+
     lastWeek.setDate(lastWeek.getDate() - 7);
 
     const lastMonth = new Date(today);
+
     lastMonth.setMonth(lastMonth.getMonth() - 1);
 
     const last3Months = new Date(today);
+
     last3Months.setMonth(last3Months.getMonth() - 3);
 
     return [
@@ -160,7 +165,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
     const [filterValues, setFilterValues] = useState<FilterValues>({
       fromDate: undefined,
       toDate: undefined,
-      assistantId: assistantId || 'all',
+      assistantId: assistantId ?? 'all',
       searchTerm: '',
       dateRange: 'last30days',
     });
@@ -190,8 +195,10 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
             data: { user },
             error: userError,
           } = await supabase.auth.getUser();
+
           if (userError || !user) {
             console.error('Error fetching user:', userError);
+
             return;
           }
 
@@ -203,6 +210,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
 
           if (assistantsError) {
             console.error('Error fetching assistants:', assistantsError);
+
             return;
           }
 
@@ -221,7 +229,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
 
     // Load assistants on mount
     useEffect(() => {
-      fetchAssistants();
+      void fetchAssistants();
     }, [fetchAssistants]);
 
     // Apply filters
@@ -318,7 +326,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
                 <Label className="text-xs">From Date</Label>
                 <DatePicker
                   date={filterValues.fromDate}
-                  onSelect={date => updateFilterValue('fromDate', date || undefined)}
+                  onSelect={date => updateFilterValue('fromDate', date ?? undefined)}
                   placeholder="Select start date"
                   disabled={loadingStates.applying}
                 />
@@ -327,7 +335,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
                 <Label className="text-xs">To Date</Label>
                 <DatePicker
                   date={filterValues.toDate}
-                  onSelect={date => updateFilterValue('toDate', date || undefined)}
+                  onSelect={date => updateFilterValue('toDate', date ?? undefined)}
                   placeholder="Select end date"
                   disabled={loadingStates.applying}
                 />
@@ -357,7 +365,7 @@ const FilterComponent: React.FC<FilterComponentProps> = memo(
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4">
             <Button
-              onClick={handleApplyFilters}
+              onClick={() => void handleApplyFilters()}
               disabled={loadingStates.applying}
               className="flex-1"
             >

@@ -1,12 +1,7 @@
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
 'use client';
 
-import { useEffect, useState } from 'react';
-
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import type { User } from '@supabase/supabase-js';
 
@@ -14,95 +9,6 @@ import type { UseAdminAuthResult } from '@/types/auth.types';
 import { showWarning } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side authentication hooks
- * Uses client-side Supabase for browser components
- */
-
-/**
- * Client-side admin authentication hook
- * Uses client-side Supabase for admin checking
- */
 export function useAdminAuth(): UseAdminAuthResult {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -119,6 +25,7 @@ export function useAdminAuth(): UseAdminAuthResult {
         // Handle case where client is null during build
         if (!supabase) {
           setIsLoading(false);
+
           return;
         }
 
@@ -131,6 +38,7 @@ export function useAdminAuth(): UseAdminAuthResult {
         if (authError || !authUser) {
           console.error('User not authenticated:', authError);
           router.push('/sign-in');
+
           return;
         }
 
@@ -143,6 +51,7 @@ export function useAdminAuth(): UseAdminAuthResult {
           console.error('Error checking admin status:', adminError);
           showWarning('Access Error', 'Unable to verify admin permissions');
           router.push('/');
+
           return;
         }
 
@@ -152,6 +61,7 @@ export function useAdminAuth(): UseAdminAuthResult {
           showWarning('Access Denied', "You don't have permission to access the admin dashboard");
           setIsAdmin(false);
           router.push('/');
+
           return;
         }
 
@@ -196,6 +106,7 @@ export function useAuth(): { user: User | null; isLoading: boolean } {
           console.error('User not authenticated:', authError);
           setUser(null);
           router.push('/sign-in');
+
           return;
         }
 

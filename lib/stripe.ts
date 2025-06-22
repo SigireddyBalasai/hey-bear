@@ -7,7 +7,9 @@ export const getStripeInstance = async (): Promise<Stripe | null> => {
     return null;
   }
 
-  return new Stripe(secretKey, {
-    apiVersion: '2025-05-28.basil',
-  });
+  return await Promise.resolve(
+    new Stripe(secretKey, {
+      apiVersion: '2025-05-28.basil',
+    })
+  );
 };

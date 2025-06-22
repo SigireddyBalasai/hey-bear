@@ -37,23 +37,23 @@ export async function createAssistantFromConfig(
   const planName = planDetails.id;
 
   const assistantName =
-    assistantConfigData.display_name ||
+    assistantConfigData.display_name ??
     (assistantConfigData.business_name
       ? `${assistantConfigData.business_name} Assistant`
       : 'Business Assistant');
 
   const description =
-    assistantConfigData.description ||
-    `AI assistant for ${assistantConfigData.business_name || 'your business'}`;
+    assistantConfigData.description ??
+    `AI assistant for ${assistantConfigData.business_name ?? 'your business'}`;
 
   try {
     // Create assistant directly in database instead of API call
     return await createAssistantDirect({
       name: assistantName,
       description,
-      concierge_name: assistantConfigData.concierge_name || 'Assistant',
-      business_name: assistantConfigData.business_name || 'Business',
-      business_phone: assistantConfigData.business_phone || '',
+      concierge_name: assistantConfigData.concierge_name ?? 'Assistant',
+      business_name: assistantConfigData.business_name ?? 'Business',
+      business_phone: assistantConfigData.business_phone ?? '',
       plan: planName,
       stripeCheckoutSessionId: sessionId,
       paymentSessionId,
@@ -97,7 +97,7 @@ async function createAssistantDirect(params: {
       .eq('id', params.paymentSessionId)
       .single();
 
-    resolvedUserId = paymentSession?.user_id || undefined;
+    resolvedUserId = paymentSession?.user_id ?? undefined;
   }
 
   if (!resolvedUserId) {
@@ -155,7 +155,7 @@ async function createAssistantDirect(params: {
   // 2.5. Create Pinecone assistant
   try {
     const pinecone = getPineconeClient();
-    const systemPrompt = `You are ${params.concierge_name}, a helpful assistant for ${params.business_name || 'the user'}. Your personality is professional and helpful. ${params.description || ''}`;
+    const systemPrompt = `You are ${params.concierge_name}, a helpful assistant for ${params.business_name ?? 'the user'}. Your personality is professional and helpful. ${params.description ?? ''}`;
 
     await pinecone.createAssistant({
       name: configData.pinecone_name,
@@ -171,12 +171,12 @@ async function createAssistantDirect(params: {
   const subscriptionData = {
     assistant_id: assistantId,
     plan_id: params.plan,
-    plan_name: planDetails?.id || params.plan,
+    plan_name: planDetails?.id ?? params.plan,
     status: 'active' as Database['public']['Enums']['subscription_status'],
     payment_session_id: params.paymentSessionId,
-    message_limit: planDetails?.limits.maxMessages || 1000,
-    document_limit: planDetails?.limits.maxDocuments || 10,
-    webpage_limit: planDetails?.limits.maxWebpages || 5,
+    message_limit: planDetails?.limits.maxMessages ?? 1000,
+    document_limit: planDetails?.limits.maxDocuments ?? 10,
+    webpage_limit: planDetails?.limits.maxWebpages ?? 5,
     created_at: now,
     updated_at: now,
   };
@@ -243,17 +243,17 @@ async function createAssistantViaAPI(
 ): Promise<CreateAssistantResult> {
   const createAssistantPayload = {
     assistantName:
-      assistantConfigData.display_name ||
+      assistantConfigData.display_name ??
       (assistantConfigData.business_name
         ? `${assistantConfigData.business_name} Assistant`
         : 'Business Assistant'),
     description:
-      assistantConfigData.description ||
-      `AI assistant for ${assistantConfigData.business_name || 'your business'}`,
+      assistantConfigData.description ??
+      `AI assistant for ${assistantConfigData.business_name ?? 'your business'}`,
     params: {
-      conciergeName: assistantConfigData.concierge_name || 'Assistant',
-      businessName: assistantConfigData.business_name || 'Business',
-      phoneNumber: assistantConfigData.business_phone || '',
+      conciergeName: assistantConfigData.concierge_name ?? 'Assistant',
+      businessName: assistantConfigData.business_name ?? 'Business',
+      phoneNumber: assistantConfigData.business_phone ?? '',
     },
     stripeCheckoutSessionId: sessionId,
     paymentSessionId,
@@ -261,7 +261,7 @@ async function createAssistantViaAPI(
   };
 
   // Use environment variable for base URL in production
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? origin ?? 'http://localhost:3000';
   const apiUrl = `${baseUrl}/api/Concierge/create`;
 
   const response = await fetch(apiUrl, {
@@ -315,7 +315,7 @@ export async function createDefaultAssistant(
   };
 
   // Use environment variable for base URL in production
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? origin ?? 'http://localhost:3000';
   const apiUrl = `${baseUrl}/api/Concierge/create`;
 
   const response = await fetch(apiUrl, {

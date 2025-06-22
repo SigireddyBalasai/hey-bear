@@ -1,12 +1,9 @@
-// API-related interfaces and types
 import type { Database } from '@/types/db.types';
 
-// Database types for API usage
 export type AssistantRow = Database['public']['Tables']['assistants']['Row'];
 export type PaymentSessionRow = Database['public']['Tables']['payment_sessions']['Row'];
 export type AssistantConfigRow = Database['public']['Tables']['assistant_configs']['Row'];
 
-// Create assistant request - using db.types only
 export type CreateAssistantRequest = Pick<AssistantRow, 'name'> &
   Pick<
     AssistantConfigRow,
@@ -16,8 +13,6 @@ export type CreateAssistantRequest = Pick<AssistantRow, 'name'> &
     stripeCheckoutSessionId?: string;
     paymentSessionId?: string;
   };
-
-// Twilio API interfaces
 
 export interface ChatAPIResponse {
   response?: string;
@@ -32,7 +27,6 @@ export interface ChatAPIResponse {
   };
 }
 
-// Concierge API interfaces
 export interface DeleteFileRequest {
   fileId: string;
   assistantId: string;
@@ -58,7 +52,7 @@ export interface FirecrawlCrawlResponse {
   success?: boolean;
   id: string;
   url?: string;
-  data?: Record<string, unknown>;
+  data?: Record<string, string | number | boolean | null>;
 }
 
 export interface RequestBody {
@@ -103,10 +97,10 @@ export interface FirecrawlResult {
     sourceURL?: string;
   };
   links?: {
-    external: Array<{ url: string; text?: string; href?: string; title?: string }>;
+    external: { url: string; text?: string; href?: string; title?: string }[];
   };
   success?: boolean;
-  data?: Record<string, unknown>;
+  data?: Record<string, string | number | boolean | null>;
   error?: string;
 }
 
@@ -119,15 +113,20 @@ export interface PineconeResponse {
     promptTokens?: number;
     completionTokens?: number;
   };
-  citations?: unknown;
+  citations?:
+    | {
+        source?: string;
+        url?: string;
+        title?: string;
+      }[]
+    | null;
 }
 
-// Payment API interfaces
-export type CreateAssistantResult = {
+export interface CreateAssistantResult {
   message: string;
   assistantId: string;
   pendingAssistantId: string;
-};
+}
 
 export interface WebhookPayload {
   type: string;
@@ -135,19 +134,17 @@ export interface WebhookPayload {
     object: {
       id: string;
       customer: string;
-      metadata: Record<string, unknown>;
+      metadata: Record<string, string | number | boolean | null>;
       object?: string;
     };
   };
 }
 
-// Assistant config data type - based on database type
 export type AssistantConfigData = Pick<
   AssistantConfigRow,
   'display_name' | 'business_name' | 'description' | 'concierge_name' | 'business_phone'
 >;
 
-// Stripe interfaces
 export interface StripeCustomerResult {
   success: boolean;
   customerId?: string;
@@ -158,15 +155,12 @@ export interface CustomerSessionResponse {
   customer_session_client_secret: string;
 }
 
-// File operations interface - removed duplicate RequestBody
-
 export interface ErrorData {
   detail?: string;
   details?: string;
   message?: string;
 }
 
-// Missing API interfaces
 export interface ChatRequest {
   message: string;
   assistantId: string;
@@ -175,9 +169,8 @@ export interface ChatRequest {
 
 export type DeleteAssistantRequest = Pick<AssistantRow, 'id' | 'name'> &
   Pick<AssistantConfigRow, 'pinecone_name'> & {
-    // API-specific fields for backward compatibility
-    assistantId: string; // maps to id
-    assistantName?: string; // maps to name
+    assistantId: string;
+    assistantName?: string;
     namespace?: string;
     index_name?: string;
   };
@@ -207,16 +200,13 @@ export interface InteractionRequest {
   isError?: boolean;
 }
 
-// Additional missing interfaces
-// Payment session data type - database type with additional API fields
 export type PaymentSessionData = PaymentSessionRow & {
-  // Additional fields expected by API code
-  sessionId: string; // maps to session_id
-  userId: string; // maps to user_id
-  stripeCustomerId: string; // maps to stripe_customer_id
-  assistantName: string; // from assistant_config_data JSON
-  businessName: string; // from assistant_config_data JSON
-  displayName: string; // from assistant_config_data JSON
+  sessionId: string;
+  userId: string;
+  stripeCustomerId: string;
+  assistantName: string;
+  businessName: string;
+  displayName: string;
   assistantDescription: string; // from assistant_config_data JSON
   conciergeName: string; // from assistant_config_data JSON
   businessPhone: string; // from assistant_config_data JSON
@@ -232,7 +222,6 @@ export interface InteractionWebhookPayload {
   chat_id: string;
 }
 
-// Assistant session data - using unions of db.types only
 export type AssistantSessionData = Pick<AssistantRow, 'name'> &
   Pick<
     AssistantConfigRow,
@@ -243,3 +232,73 @@ export type AssistantSessionData = Pick<AssistantRow, 'name'> &
     | 'business_phone'
     | 'concierge_name'
   >;
+
+export interface PurchaseRequestBody {
+  phoneNumber?: string;
+  areaCode?: string;
+  countryCode?: string;
+}
+
+export interface AssignPhoneNumberRequest {
+  assistantId: string;
+  phoneNumberId: string;
+  webhookUrl?: string;
+}
+
+export interface UnassignPhoneNumberRequest {
+  assistantId: string;
+}
+
+export interface UserMetadata {
+  full_name?: string;
+  name?: string;
+  stripe_customer_id?: string;
+  [key: string]: unknown;
+}
+
+export interface UserUsage {
+  interactions_used: number;
+  assistants_used: number;
+  token_usage: number;
+  cost_estimate: number;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  max_assistants: number;
+  max_interactions: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExtendedUser {
+  id: string;
+  auth_user_id: string;
+  email: string | undefined;
+  full_name: string | undefined;
+  last_sign_in: string | null;
+  created_at: string;
+  updated_at: string;
+  is_admin: boolean;
+  stripe_customer_id: string | null;
+  plan: Plan;
+  userusage: UserUsage;
+}
+
+export interface AssignRequestBody {
+  phoneNumberId: string;
+  assistantId: string;
+  webhookUrl?: string;
+}
+
+export interface TwilioPhoneNumber {
+  sid: string;
+  phoneNumber: string;
+  capabilities: Record<string, unknown>;
+  isoCountry?: string;
+  voiceUrl?: string;
+  smsUrl?: string;
+  smsFallbackUrl?: string;
+}

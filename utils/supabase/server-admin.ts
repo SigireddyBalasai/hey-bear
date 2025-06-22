@@ -1,15 +1,11 @@
 "use server";
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/types/db.types';
 
-/**
- * Creates a Supabase client with service role key for admin operations.
- * This client bypasses Row Level Security (RLS) and should only be used
- * in secure server environments for admin operations, webhooks, etc.
- */
-export const createClient = async () => {
+export const createClient = async (): Promise<SupabaseClient<Database>> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -21,10 +17,14 @@ export const createClient = async () => {
     throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
   }
 
-  return createSupabaseClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+  const client = await Promise.resolve(
+    createSupabaseClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  );
+
+  return client;
 };

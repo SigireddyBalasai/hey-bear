@@ -28,7 +28,7 @@ export const POST = requireAuth(async context => {
       return NextResponse.json(
         {
           error: 'Failed to get customer ID',
-          details: customerResult.error || 'Unable to create or retrieve Stripe customer',
+          details: customerResult.error ?? 'Unable to create or retrieve Stripe customer',
         },
         { status: 500 }
       );
@@ -40,7 +40,7 @@ export const POST = requireAuth(async context => {
       return NextResponse.json(
         {
           error: 'Failed to create customer session',
-          details: sessionResult.error || 'Unable to create Stripe customer session',
+          details: sessionResult.error ?? 'Unable to create Stripe customer session',
         },
         { status: 500 }
       );
@@ -49,7 +49,7 @@ export const POST = requireAuth(async context => {
     return NextResponse.json({
       customer_session_client_secret: sessionResult.clientSecret,
       customer_id: customerResult.customerId,
-      is_new_customer: customerResult.isNewCustomer || false,
+      is_new_customer: customerResult.isNewCustomer ?? false,
     });
   } catch (error: unknown) {
     console.error('Customer session creation error:', error);

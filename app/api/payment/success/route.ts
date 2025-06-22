@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   let sessionId = 'unknown';
 
-  if (!request || !request.body || !request.headers) {
+  if (!request?.body || !request.headers) {
     return PaymentErrorHandler.invalidRequest();
   }
 
@@ -38,14 +38,14 @@ export async function POST(request: NextRequest) {
         hasObject: Boolean(body.data?.object),
         objectType: body.data?.object?.object,
       });
-      const origin = request.headers.get('origin') || 'http://localhost:3000';
+      const origin = request.headers.get('origin') ?? 'http://localhost:3000';
 
       return PaymentErrorHandler.invalidWebhookPayload(origin);
     }
 
     const session = body.data.object as unknown as Stripe.Checkout.Session;
 
-    sessionId = session.id as string;
+    sessionId = session.id;
 
     console.log('[PAYMENT SUCCESS] Processing Stripe session from webhook:', {
       sessionId: session.id,
@@ -57,16 +57,16 @@ export async function POST(request: NextRequest) {
       customerId: session.customer,
     });
 
-    const origin = request.headers.get('origin') || 'http://localhost:3000';
+    const origin = request.headers.get('origin') ?? 'http://localhost:3000';
 
     return await processPaymentSuccess(session, origin, startTime);
   } catch (error) {
     console.error('[PAYMENT SUCCESS] Failed to parse webhook payload:', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
-      sessionId: sessionId || 'unknown',
+      sessionId: sessionId ?? 'unknown',
     });
-    const origin = request.headers.get('origin') || 'http://localhost:3000';
+    const origin = request.headers.get('origin') ?? 'http://localhost:3000';
 
     return PaymentErrorHandler.invalidWebhookPayload(origin);
   }
@@ -94,8 +94,8 @@ async function processPaymentSuccess(
 
       return PaymentErrorHandler.paymentNotCompleted(
         origin,
-        session.payment_status || 'unknown',
-        session.status || 'unknown'
+        session.payment_status ?? 'unknown',
+        session.status ?? 'unknown'
       );
     }
 

@@ -11,8 +11,8 @@ import {
 } from '@/utils/stripe/webhook-handlers';
 import { createClient } from '@/utils/supabase/server-admin';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy');
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_dummy';
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? 'sk_test_dummy');
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? 'whsec_dummy';
 
 export async function POST(request: NextRequest) {
   const body = await request.text();

@@ -38,13 +38,13 @@ export async function handleCheckoutSessionCompleted(
     // Fallback to metadata extraction
     assistantData = {
       name: assistantName,
-      description: session.metadata.assistant_description || null,
-      concierge_name: session.metadata.concierge_name || null,
-      personality: session.metadata.personality || null,
-      business_name: session.metadata.business_name || null,
-      business_phone: session.metadata.business_phone || null,
+      description: session.metadata.assistant_description ?? null,
+      concierge_name: session.metadata.concierge_name ?? null,
+      personality: session.metadata.personality ?? null,
+      business_name: session.metadata.business_name ?? null,
+      business_phone: session.metadata.business_phone ?? null,
       share_phone_number: session.metadata.share_phone_number === 'true',
-      display_name: session.metadata.display_name || null,
+      display_name: session.metadata.display_name ?? null,
     };
   }
 
@@ -99,7 +99,7 @@ export async function handleInvoicePaymentSucceeded(
   console.log('Processing invoice payment succeeded:', invoice.id);
 
   // Check if invoice has subscription data
-  const subscriptionRef = (invoice as any).subscription;
+  const subscriptionRef = (invoice as { subscription?: string | { id: string } }).subscription;
 
   if (!subscriptionRef) {
     console.log('Invoice has no subscription, skipping');
@@ -107,7 +107,8 @@ export async function handleInvoicePaymentSucceeded(
     return;
   }
 
-  const subscriptionId = typeof subscriptionRef === 'string' ? subscriptionRef : subscriptionRef.id;
+  const subscriptionId =
+    typeof subscriptionRef === 'string' ? subscriptionRef : (subscriptionRef as { id: string }).id;
 
   await updateSubscriptionForPaymentSuccess(supabase, subscriptionId);
 }
@@ -122,7 +123,7 @@ export async function handleInvoicePaymentFailed(
   console.log('Processing invoice payment failed:', invoice.id);
 
   // Check if invoice has subscription data
-  const subscriptionRef = (invoice as any).subscription;
+  const subscriptionRef = (invoice as { subscription?: string | { id: string } }).subscription;
 
   if (!subscriptionRef) {
     console.log('Invoice has no subscription, skipping');
@@ -130,7 +131,8 @@ export async function handleInvoicePaymentFailed(
     return;
   }
 
-  const subscriptionId = typeof subscriptionRef === 'string' ? subscriptionRef : subscriptionRef.id;
+  const subscriptionId =
+    typeof subscriptionRef === 'string' ? subscriptionRef : (subscriptionRef as { id: string }).id;
 
   await updateSubscriptionForPaymentFailure(supabase, subscriptionId);
 }

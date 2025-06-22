@@ -51,12 +51,12 @@ export function useFileManagement({
         }
 
         const responseData = (await response.json()) as {
-          files?: Array<{
+          files?: {
             id: string;
             name: string;
             created_at: string;
             [key: string]: unknown;
-          }>;
+          }[];
         };
 
         // Ensure we have a valid array before calling map
@@ -102,7 +102,7 @@ export function useFileManagement({
       if (!response.ok) {
         const errorData = (await response.json()) as { error?: string };
 
-        throw new Error(errorData.error || 'Failed to upload file');
+        throw new Error(errorData.error ?? 'Failed to upload file');
       }
 
       onFilesUpdated();
@@ -133,7 +133,7 @@ export function useFileManagement({
       if (!response.ok) {
         const errorData = (await response.json()) as { error?: string };
 
-        throw new Error(errorData.error || 'Failed to add URL');
+        throw new Error(errorData.error ?? 'Failed to add URL');
       }
 
       onFilesUpdated();
@@ -169,10 +169,10 @@ export function useFileManagement({
         try {
           const errorData = (await response.json()) as { error?: string };
 
-          errorMessage = errorData.error || errorMessage;
+          errorMessage = errorData.error ?? errorMessage;
         } catch {
           // If JSON parsing fails, use the status text
-          errorMessage = response.statusText || errorMessage;
+          errorMessage = response.statusText ?? errorMessage;
         }
         if (errorMessage.includes('File deletion already started')) {
           showSuccess('File deletion in progress', 'The file is being removed from your assistant');

@@ -4,50 +4,13 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 
+import type { ExtendedUser, Plan, UserMetadata, UserUsage } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server-admin';
 
-interface UserMetadata {
-  full_name?: string;
-  name?: string;
-  stripe_customer_id?: string;
-  [key: string]: unknown;
-}
-
 type Interaction = Database['public']['Tables']['interactions']['Row'];
 type Assistant = Database['public']['Tables']['assistants']['Row'];
-
-interface UserUsage {
-  interactions_used: number;
-  assistants_used: number;
-  token_usage: number;
-  cost_estimate: number;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  max_assistants: number;
-  max_interactions: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ExtendedUser {
-  id: string;
-  auth_user_id: string;
-  email: string | undefined;
-  full_name: string | undefined;
-  last_sign_in: string | null;
-  created_at: string;
-  updated_at: string;
-  is_admin: boolean;
-  stripe_customer_id: string | null;
-  plan: Plan;
-  userusage: UserUsage;
-}
 
 // Cached function to fetch all admin users data
 async function fetchAllUsersData(): Promise<ExtendedUser[]> {
@@ -96,17 +59,17 @@ async function fetchAllUsersData(): Promise<ExtendedUser[]> {
     const userAssistants: Assistant[] =
       (assistantsData as Assistant[])?.filter(
         (assistant: Assistant) => assistant.user_id === authUser.id
-      ) || [];
+      ) ?? [];
 
     const userusage: UserUsage = {
       interactions_used: userUsageData.length,
       assistants_used: userAssistants.length,
       token_usage: userUsageData.reduce(
-        (sum: number, usage: Interaction) => sum + (usage.token_usage || 0),
+        (sum: number, usage: Interaction) => sum + (usage.token_usage ?? 0),
         0
       ),
       cost_estimate: userUsageData.reduce(
-        (sum: number, usage: Interaction) => sum + (usage.cost_estimate || 0),
+        (sum: number, usage: Interaction) => sum + (usage.cost_estimate ?? 0),
         0
       ),
     };
@@ -126,18 +89,18 @@ async function fetchAllUsersData(): Promise<ExtendedUser[]> {
     const userMetadata: UserMetadata | undefined = authUser.user_metadata as
       | UserMetadata
       | undefined;
-    const fullName: string | undefined = userMetadata?.full_name || userMetadata?.name || undefined;
+    const fullName: string | undefined = userMetadata?.full_name ?? userMetadata?.name;
 
     return {
       id: authUser.id,
       auth_user_id: authUser.id,
       email: authUser.email,
       full_name: fullName,
-      last_sign_in: authUser.last_sign_in_at || null,
+      last_sign_in: authUser.last_sign_in_at ?? null,
       created_at: authUser.created_at,
-      updated_at: authUser.updated_at || authUser.created_at,
+      updated_at: authUser.updated_at ?? authUser.created_at,
       is_admin: false,
-      stripe_customer_id: (userMetadata?.stripe_customer_id as string) || null,
+      stripe_customer_id: (userMetadata?.stripe_customer_id as string) ?? null,
       plan,
       userusage,
     };

@@ -71,7 +71,7 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
 
     // Return the raw interaction data
     return NextResponse.json({
-      interactions: chatData || [],
+      interactions: chatData ?? [],
       totalPages: Math.ceil((count ?? 0) / pageSize),
       currentPage: page,
       totalCount: count,
@@ -82,7 +82,7 @@ export const GET = requireAuth(async (context, req: NextRequest) => {
     console.error('Error fetching interactions:', {
       message: errorObj.message,
       name: errorObj.name,
-      stack: errorObj.stack || 'No stack trace',
+      stack: errorObj.stack ?? 'No stack trace',
       error,
     });
 

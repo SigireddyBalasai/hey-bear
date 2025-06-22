@@ -36,10 +36,10 @@ export function parseClientReferenceId(clientRefId: string) {
     throw new Error(`Invalid client_reference_id format: ${clientRefId}`);
   }
 
-  const authUserId = userMatch[1];
+  const [, authUserId] = userMatch;
 
   const sessionMatch = clientRefId.match(sessionPattern);
-  const internalPaymentSessionId = sessionMatch?.[1] || null;
+  const internalPaymentSessionId = sessionMatch?.[1] ?? null;
 
   return {
     authUserId,

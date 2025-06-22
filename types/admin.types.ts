@@ -98,7 +98,11 @@ export interface ChartOptions {
     };
     tooltip: {
       callbacks: {
-        label: (context: unknown) => string;
+        label: (context: {
+          label?: string;
+          parsed?: { y: number };
+          dataset?: { label?: string };
+        }) => string;
       };
     };
   };
@@ -219,12 +223,12 @@ export interface IndexStatData {
 
 // Admin dashboard interfaces
 export interface TimeSeriesResponse {
-  timeSeriesData: Array<{
+  timeSeriesData: {
     date: string;
     count: number;
     tokens: number;
     cost: number;
-  }>;
+  }[];
 }
 
 export interface UserDetailModalProps {

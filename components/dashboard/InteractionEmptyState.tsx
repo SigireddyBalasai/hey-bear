@@ -28,7 +28,7 @@ export function InteractionEmptyState({
 }: InteractionEmptyStateProps) {
   const hasSearch = searchTerm && searchTerm.trim().length > 0;
   const hasAssistantFilter = assistantName && assistantName !== 'all';
-  const hasAnyActiveFilters = hasFiltersApplied || hasSearch || hasAssistantFilter;
+  const hasAnyActiveFilters = hasFiltersApplied ?? false ?? hasSearch ?? hasAssistantFilter;
 
   return (
     <Card className={`w-full ${className}`}>

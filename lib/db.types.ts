@@ -1,6 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       assistant_activity: {
@@ -930,11 +930,9 @@ export type Database = {
         | 'December';
       subscription_status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
     };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
+    CompositeTypes: Record<never, never>;
   };
-};
+}
 
 type DefaultSchema = Database[Extract<keyof Database, 'public'>];
 

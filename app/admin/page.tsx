@@ -1,8 +1,6 @@
 'use client';
 
-
 import {
-  BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
@@ -16,6 +14,8 @@ import {
 import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
 import { useEffect } from 'react';
 
+
+import { AdminPhoneNumbersSection } from '@/components/admin/admin-phone-numbers-section';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { DashboardCharts } from '@/components/admin/dashboard/DashboardCharts';
@@ -35,11 +35,10 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
+  Filler,
   Title,
   Tooltip,
-  Legend,
-  Filler
+  Legend
 );
 
 function Dashboard() {
@@ -49,7 +48,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (isAdmin) {
-      loadDashboardData();
+      void loadDashboardData();
     }
   }, [isAdmin, loadDashboardData]);
 
@@ -230,6 +229,9 @@ function Dashboard() {
                 </Card>
               </TabsContent>
             </Tabs>
+
+            {/* Phone Numbers Management Section */}
+            <AdminPhoneNumbersSection />
           </div>
         </main>
       </div>

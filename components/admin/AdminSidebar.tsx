@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useEffect } from 'react';
-
+import { BarChart3, ChevronRight, Download, HelpCircle, Home, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import React, { useEffect } from 'react';
 
-import { BarChart3, ChevronRight, Download, HelpCircle, Home, Users } from 'lucide-react';
 
 import { fetchAllUsers } from '@/components/admin/utils/adminUtils';
 import { Button } from '@/components/ui/button';
@@ -63,11 +62,12 @@ export function AdminSidebar() {
           try {
             // Use fetchAllUsers function to get the users array and its length
             const users = await fetchAllUsers();
+
             setUserCount(Array.isArray(users) ? users.length : 0);
           } catch (error) {
             // Fallback to direct auth user count if fetchAllUsers fails
             try {
-              const supabase = await createClient();
+              const supabase = createClient();
               const { data: authUsersData, error } = await supabase.auth.admin.listUsers();
 
               if (!error && authUsersData?.users) {
@@ -88,7 +88,7 @@ export function AdminSidebar() {
       );
     };
 
-    getUserCount();
+    void getUserCount();
   }, [setIsLoading]);
 
   const links = [

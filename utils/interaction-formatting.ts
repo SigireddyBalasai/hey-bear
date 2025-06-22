@@ -11,7 +11,7 @@ export function extractPhoneNumber(interaction: InteractionRow): string {
       const chatData = JSON.parse(interaction.chat);
       const data = chatData as { from?: string; to?: string };
 
-      return data.from || data.to || '';
+      return data.from ?? data.to ?? '';
     }
   } catch (error) {
     console.warn('Failed to extract phone number:', error);
@@ -29,7 +29,7 @@ export function extractMessageType(interaction: InteractionRow): string {
       const chatData = JSON.parse(interaction.chat);
       const data = chatData as { type?: string };
 
-      return data.type || 'sms';
+      return data.type ?? 'sms';
     }
   } catch (error) {
     console.warn('Failed to extract message type:', error);
@@ -47,7 +47,7 @@ export function extractUserMessage(interaction: InteractionRow): string {
       const chatData = JSON.parse(interaction.chat);
       const data = chatData as { user_message?: string; Body?: string };
 
-      return data.user_message || data.Body || '';
+      return data.user_message ?? data.Body ?? '';
     }
   } catch (error) {
     console.warn('Failed to extract user message:', error);
@@ -65,7 +65,7 @@ export function extractAssistantResponse(interaction: InteractionRow): string {
       const chatData = JSON.parse(interaction.chat);
       const data = chatData as { assistant_response?: string };
 
-      return data.assistant_response || '';
+      return data.assistant_response ?? '';
     }
   } catch (error) {
     console.warn('Failed to extract assistant response:', error);

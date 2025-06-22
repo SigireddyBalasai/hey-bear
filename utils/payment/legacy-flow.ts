@@ -27,14 +27,14 @@ type AssistantMetadata = Pick<AssistantRow, 'name'> &
  */
 export function extractAssistantMetadata(session: Stripe.Checkout.Session): AssistantMetadata {
   return {
-    name: session.metadata?.assistant_name || '',
-    description: session.metadata?.assistant_description || '',
-    concierge_name: session.metadata?.concierge_name || '',
-    personality: session.metadata?.personality || '',
-    business_name: session.metadata?.business_name || '',
-    business_phone: session.metadata?.business_phone || '',
+    name: session.metadata?.assistant_name ?? '',
+    description: session.metadata?.assistant_description ?? '',
+    concierge_name: session.metadata?.concierge_name ?? '',
+    personality: session.metadata?.personality ?? '',
+    business_name: session.metadata?.business_name ?? '',
+    business_phone: session.metadata?.business_phone ?? '',
     share_phone_number: session.metadata?.share_phone_number === 'true',
-    display_name: session.metadata?.display_name || '',
+    display_name: session.metadata?.display_name ?? '',
   };
 }
 
@@ -49,7 +49,7 @@ export async function createAssistantFromMetadata(
   // Check if we have metadata
   if (!session.metadata || Object.keys(session.metadata).length === 0) {
     console.warn('[LEGACY FLOW] No metadata found, creating default assistant');
-    const customerEmail = session.customer_details?.email || '';
+    const customerEmail = session.customer_details?.email ?? '';
 
     return createDefaultAssistant(customerEmail, sessionId, origin);
   }

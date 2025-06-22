@@ -1,6 +1,3 @@
-/**
- * Utilities for processing chat data
- */
 import type { Json } from '@/types/db.types';
 
 /**
