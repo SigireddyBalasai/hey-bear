@@ -142,7 +142,8 @@ export function CreateAssistantDialog({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              This is the style and tone in which it would engage in dialogue with others.
+              This is the style and tone in which it would engage in dialogue
+              with others.
             </p>
           </div>
 
@@ -203,14 +204,15 @@ export function CreateAssistantDialog({
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  This is useful if you want your No-show to redirect others to another number if they request it.
+                  This is useful if you want your No-show to redirect others to
+                  another number if they request it.
                 </p>
               </div>
             )}
           </div>
-          
+
           <Separator className="my-4" />
-          
+
           {/* Subscription Plan Selection */}
           <PlanSelectionCard
             selectedPlan={selectedPlan}
@@ -222,7 +224,10 @@ export function CreateAssistantDialog({
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreateAssistant} disabled={isCreating || !newAssistantName.trim() || !selectedPlan}>
+          <Button
+            onClick={handleCreateAssistant}
+            disabled={isCreating || !newAssistantName.trim() || !selectedPlan}
+          >
             {isCreating ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />

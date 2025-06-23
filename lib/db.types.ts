@@ -7,497 +7,933 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          operationName?: string
-          query?: string
-          variables?: Json
-          extensions?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
-      assistants: {
-        Row: {
-          assigned_phone_number: string | null
-          created_at: string | null
-          id: string
-          is_starred: boolean | null
-          name: string
-          params: Json | null
-          pinecone_name: string | null
-          plan_id: string | null
-          user_id: string | null
-        }
-        Insert: {
-          assigned_phone_number?: string | null
-          created_at?: string | null
-          id?: string
-          is_starred?: boolean | null
-          name: string
-          params?: Json | null
-          pinecone_name?: string | null
-          plan_id?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          assigned_phone_number?: string | null
-          created_at?: string | null
-          id?: string
-          is_starred?: boolean | null
-          name?: string
-          params?: Json | null
-          pinecone_name?: string | null
-          plan_id?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assistants_assigned_phone_number_fkey"
-            columns: ["assigned_phone_number"]
-            isOneToOne: false
-            referencedRelation: "phonenumbers"
-            referencedColumns: ["number"]
-          },
-          {
-            foreignKeyName: "assistants_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assistants_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      assistantusage: {
-        Row: {
-          assistant_id: string | null
-          id: string
-          interactions_used: number | null
-          last_reset_at: string | null
-          usage_tier_id: string | null
-        }
-        Insert: {
-          assistant_id?: string | null
-          id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          usage_tier_id?: string | null
-        }
-        Update: {
-          assistant_id?: string | null
-          id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          usage_tier_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assistantusage_assistant_id_fkey"
-            columns: ["assistant_id"]
-            isOneToOne: false
-            referencedRelation: "assistants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assistantusage_usage_tier_id_fkey"
-            columns: ["usage_tier_id"]
-            isOneToOne: false
-            referencedRelation: "usagetiers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      interactions: {
-        Row: {
-          assistant_id: string | null
-          chat: string
-          cost_estimate: number | null
-          duration: number | null
-          id: string
-          input_tokens: number | null
-          interaction_time: string | null
-          is_error: boolean | null
-          output_tokens: number | null
-          request: string
-          response: string
-          token_usage: number | null
-          user_id: string | null
-        }
-        Insert: {
-          assistant_id?: string | null
-          chat: string
-          cost_estimate?: number | null
-          duration?: number | null
-          id?: string
-          input_tokens?: number | null
-          interaction_time?: string | null
-          is_error?: boolean | null
-          output_tokens?: number | null
-          request: string
-          response: string
-          token_usage?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          assistant_id?: string | null
-          chat?: string
-          cost_estimate?: number | null
-          duration?: number | null
-          id?: string
-          input_tokens?: number | null
-          interaction_time?: string | null
-          is_error?: boolean | null
-          output_tokens?: number | null
-          request?: string
-          response?: string
-          token_usage?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interactions_assistant_id_fkey"
-            columns: ["assistant_id"]
-            isOneToOne: false
-            referencedRelation: "assistants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interactions_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pending_assistants: {
-        Row: {
-          checkout_session_id: string | null
-          created_at: string | null
-          id: string
-          name: string
-          params: Json | null
-          plan_id: string | null
-          user_id: string
-        }
-        Insert: {
-          checkout_session_id?: string | null
-          created_at?: string | null
-          id?: string
-          name: string
-          params?: Json | null
-          plan_id?: string | null
-          user_id: string
-        }
-        Update: {
-          checkout_session_id?: string | null
-          created_at?: string | null
-          id?: string
-          name?: string
-          params?: Json | null
-          plan_id?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pending_assistants_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      phonenumberpool: {
-        Row: {
-          added_at: string | null
-          added_by_admin: string | null
-          id: string
-          phone_number_id: string | null
-        }
-        Insert: {
-          added_at?: string | null
-          added_by_admin?: string | null
-          id?: string
-          phone_number_id?: string | null
-        }
-        Update: {
-          added_at?: string | null
-          added_by_admin?: string | null
-          id?: string
-          phone_number_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "phonenumberpool_added_by_admin_fkey"
-            columns: ["added_by_admin"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "phonenumberpool_phone_number_id_fkey"
-            columns: ["phone_number_id"]
-            isOneToOne: false
-            referencedRelation: "phonenumbers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      phonenumbers: {
-        Row: {
-          country: Database["public"]["Enums"]["country"] | null
-          created_at: string | null
-          id: string
-          is_assigned: boolean | null
-          number: string
-        }
-        Insert: {
-          country?: Database["public"]["Enums"]["country"] | null
-          created_at?: string | null
-          id?: string
-          is_assigned?: boolean | null
-          number: string
-        }
-        Update: {
-          country?: Database["public"]["Enums"]["country"] | null
-          created_at?: string | null
-          id?: string
-          is_assigned?: boolean | null
-          number?: string
-        }
-        Relationships: []
-      }
-      plans: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          max_assistants: number | null
-          max_interactions: number | null
-          name: string
-          price: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          max_assistants?: number | null
-          max_interactions?: number | null
-          name: string
-          price?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          max_assistants?: number | null
-          max_interactions?: number | null
-          name?: string
-          price?: number | null
-        }
-        Relationships: []
-      }
-      usage_limits: {
+      assistant_activity: {
         Row: {
           assistant_id: string
           created_at: string
-          documents_count: number
-          id: string
-          last_reset: string
-          messages_received: number
-          messages_sent: number
+          last_activity_at: string | null
+          last_message_at: string | null
+          last_used_at: string | null
+          total_documents: number | null
+          total_interactions: number | null
+          total_messages: number | null
+          total_tokens: number | null
+          total_webpages: number | null
           updated_at: string
-          webpages_crawled: number
         }
         Insert: {
           assistant_id: string
           created_at?: string
-          documents_count?: number
-          id?: string
-          last_reset?: string
-          messages_received?: number
-          messages_sent?: number
+          last_activity_at?: string | null
+          last_message_at?: string | null
+          last_used_at?: string | null
+          total_documents?: number | null
+          total_interactions?: number | null
+          total_messages?: number | null
+          total_tokens?: number | null
+          total_webpages?: number | null
           updated_at?: string
-          webpages_crawled?: number
         }
         Update: {
           assistant_id?: string
           created_at?: string
-          documents_count?: number
-          id?: string
-          last_reset?: string
-          messages_received?: number
-          messages_sent?: number
+          last_activity_at?: string | null
+          last_message_at?: string | null
+          last_used_at?: string | null
+          total_documents?: number | null
+          total_interactions?: number | null
+          total_messages?: number | null
+          total_tokens?: number | null
+          total_webpages?: number | null
           updated_at?: string
-          webpages_crawled?: number
         }
         Relationships: [
           {
-            foreignKeyName: "usage_limits_assistant_id_fkey"
+            foreignKeyName: "assistant_activity_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_detail_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_activity_assistant_id_fkey"
             columns: ["assistant_id"]
             isOneToOne: true
             referencedRelation: "assistants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "assistant_activity_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
+          },
         ]
       }
-      usagetiers: {
+      assistant_configs: {
         Row: {
-          created_at: string | null
+          business_hours: Json | null
+          business_name: string | null
+          business_phone: string | null
+          concierge_name: string | null
+          created_at: string
+          description: string | null
+          display_name: string | null
+          features_enabled: Json | null
           id: string
-          max_phone_numbers: number | null
-          max_requests_per_month: number | null
-          name: string
+          personality: string | null
+          pinecone_name: string | null
+          share_phone_number: boolean | null
+          system_prompt: string | null
+          timezone: string | null
+          updated_at: string
+          webhook_enabled: boolean | null
+          webhook_url: string | null
         }
         Insert: {
-          created_at?: string | null
-          id?: string
-          max_phone_numbers?: number | null
-          max_requests_per_month?: number | null
-          name: string
+          business_hours?: Json | null
+          business_name?: string | null
+          business_phone?: string | null
+          concierge_name?: string | null
+          created_at?: string
+          description?: string | null
+          display_name?: string | null
+          features_enabled?: Json | null
+          id: string
+          personality?: string | null
+          pinecone_name?: string | null
+          share_phone_number?: boolean | null
+          system_prompt?: string | null
+          timezone?: string | null
+          updated_at?: string
+          webhook_enabled?: boolean | null
+          webhook_url?: string | null
         }
         Update: {
-          created_at?: string | null
+          business_hours?: Json | null
+          business_name?: string | null
+          business_phone?: string | null
+          concierge_name?: string | null
+          created_at?: string
+          description?: string | null
+          display_name?: string | null
+          features_enabled?: Json | null
           id?: string
-          max_phone_numbers?: number | null
-          max_requests_per_month?: number | null
+          personality?: string | null
+          pinecone_name?: string | null
+          share_phone_number?: boolean | null
+          system_prompt?: string | null
+          timezone?: string | null
+          updated_at?: string
+          webhook_enabled?: boolean | null
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_configs_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "assistant_detail_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_configs_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_configs_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
+          },
+        ]
+      }
+      assistant_limits: {
+        Row: {
+          assistant_id: string
+          created_at: string
+          current_month_documents: number
+          current_month_messages: number
+          current_month_tokens: number
+          current_month_webpages: number
+          current_period_start: string
+          documents_used: number
+          last_reset: string
+          message_used: number
+          token_used: number
+          updated_at: string
+          webpages_used: number
+        }
+        Insert: {
+          assistant_id: string
+          created_at?: string
+          current_month_documents?: number
+          current_month_messages?: number
+          current_month_tokens?: number
+          current_month_webpages?: number
+          current_period_start?: string
+          documents_used?: number
+          last_reset?: string
+          message_used?: number
+          token_used?: number
+          updated_at?: string
+          webpages_used?: number
+        }
+        Update: {
+          assistant_id?: string
+          created_at?: string
+          current_month_documents?: number
+          current_month_messages?: number
+          current_month_tokens?: number
+          current_month_webpages?: number
+          current_period_start?: string
+          documents_used?: number
+          last_reset?: string
+          message_used?: number
+          token_used?: number
+          updated_at?: string
+          webpages_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_limits_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_detail_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_limits_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_limits_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
+          },
+        ]
+      }
+      assistant_subscriptions: {
+        Row: {
+          assistant_id: string
+          cancel_at_period_end: boolean | null
+          created_at: string
+          currency: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          document_limit: number | null
+          id: string
+          message_limit: number | null
+          payment_session_id: string | null
+          plan_id: string
+          plan_name: string | null
+          price: number | null
+          product_id: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_subscription_id: string | null
+          support_email: string | null
+          support_level: string | null
+          updated_at: string
+          webpage_limit: number | null
+        }
+        Insert: {
+          assistant_id: string
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          currency?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          document_limit?: number | null
+          id?: string
+          message_limit?: number | null
+          payment_session_id?: string | null
+          plan_id: string
+          plan_name?: string | null
+          price?: number | null
+          product_id?: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_subscription_id?: string | null
+          support_email?: string | null
+          support_level?: string | null
+          updated_at?: string
+          webpage_limit?: number | null
+        }
+        Update: {
+          assistant_id?: string
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          currency?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          document_limit?: number | null
+          id?: string
+          message_limit?: number | null
+          payment_session_id?: string | null
+          plan_id?: string
+          plan_name?: string | null
+          price?: number | null
+          product_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_subscription_id?: string | null
+          support_email?: string | null
+          support_level?: string | null
+          updated_at?: string
+          webpage_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_subscriptions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_detail_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_subscriptions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_subscriptions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
+          },
+          {
+            foreignKeyName: "assistant_subscriptions_payment_session_id_fkey"
+            columns: ["payment_session_id"]
+            isOneToOne: false
+            referencedRelation: "payment_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_usage_limits: {
+        Row: {
+          assistant_id: string
+          created_at: string
+          document_limit: number | null
+          max_messages: number | null
+          max_tokens: number | null
+          message_limit: number | null
+          token_limit: number | null
+          updated_at: string
+          webpage_limit: number | null
+        }
+        Insert: {
+          assistant_id: string
+          created_at?: string
+          document_limit?: number | null
+          max_messages?: number | null
+          max_tokens?: number | null
+          message_limit?: number | null
+          token_limit?: number | null
+          updated_at?: string
+          webpage_limit?: number | null
+        }
+        Update: {
+          assistant_id?: string
+          created_at?: string
+          document_limit?: number | null
+          max_messages?: number | null
+          max_tokens?: number | null
+          message_limit?: number | null
+          token_limit?: number | null
+          updated_at?: string
+          webpage_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_usage_limits_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_detail_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_usage_limits_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_usage_limits_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
+          },
+        ]
+      }
+      assistants: {
+        Row: {
+          assigned_phone_number: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_starred: boolean | null
+          name: string
+          pending: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_phone_number?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_starred?: boolean | null
+          name: string
+          pending?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_phone_number?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_starred?: boolean | null
           name?: string
+          pending?: boolean | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
-      users: {
+      audit_logs: {
         Row: {
-          auth_user_id: string | null
-          created_at: string | null
+          action: string
+          action_timestamp: string
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_type: string
           id: string
-          is_admin: boolean | null
-          last_active: string | null
-          metadata: Json | null
-          plan_id: string | null
-          updated_at: string | null
+          performed_by: string
+          related_entity_id: string | null
         }
         Insert: {
-          auth_user_id?: string | null
-          created_at?: string | null
+          action: string
+          action_timestamp?: string
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_type: string
           id?: string
-          is_admin?: boolean | null
-          last_active?: string | null
-          metadata?: Json | null
-          plan_id?: string | null
-          updated_at?: string | null
+          performed_by: string
+          related_entity_id?: string | null
         }
         Update: {
-          auth_user_id?: string | null
-          created_at?: string | null
+          action?: string
+          action_timestamp?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
           id?: string
-          is_admin?: boolean | null
-          last_active?: string | null
-          metadata?: Json | null
-          plan_id?: string | null
-          updated_at?: string | null
+          performed_by?: string
+          related_entity_id?: string | null
+        }
+        Relationships: []
+      }
+      historical_usage: {
+        Row: {
+          assistant_id: string
+          avg_daily_messages: number | null
+          created_at: string
+          documents_used: number
+          id: string
+          messages_used: number
+          peak_usage_date: string | null
+          period: string
+          tokens_used: number
+          updated_at: string
+          webpages_used: number
+        }
+        Insert: {
+          assistant_id: string
+          avg_daily_messages?: number | null
+          created_at?: string
+          documents_used: number
+          id?: string
+          messages_used: number
+          peak_usage_date?: string | null
+          period: string
+          tokens_used: number
+          updated_at?: string
+          webpages_used: number
+        }
+        Update: {
+          assistant_id?: string
+          avg_daily_messages?: number | null
+          created_at?: string
+          documents_used?: number
+          id?: string
+          messages_used?: number
+          peak_usage_date?: string | null
+          period?: string
+          tokens_used?: number
+          updated_at?: string
+          webpages_used?: number
         }
         Relationships: [
           {
-            foreignKeyName: "users_plan_id_fkey"
-            columns: ["plan_id"]
+            foreignKeyName: "historical_usage_assistant_id_fkey"
+            columns: ["assistant_id"]
             isOneToOne: false
-            referencedRelation: "plans"
+            referencedRelation: "assistant_detail_view"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historical_usage_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historical_usage_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
           },
         ]
       }
-      userusage: {
+      interactions: {
         Row: {
-          assistants_used: number | null
+          assistant_id: string
+          chat: Json | null
           cost_estimate: number | null
+          created_at: string | null
+          duration: number | null
+          error_message: string | null
           id: string
-          interactions_used: number | null
-          last_reset_at: string | null
-          phone_numbers_used: number | null
+          input_tokens: number | null
+          interaction_time: string | null
+          is_error: boolean | null
+          metadata: Json | null
+          model: string | null
+          output_tokens: number | null
+          request: Json | null
+          response: Json | null
+          session_id: string | null
+          source: string | null
+          status: string | null
           token_usage: number | null
-          usage_tier_id: string | null
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
-          assistants_used?: number | null
+          assistant_id: string
+          chat?: Json | null
           cost_estimate?: number | null
+          created_at?: string | null
+          duration?: number | null
+          error_message?: string | null
           id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          phone_numbers_used?: number | null
+          input_tokens?: number | null
+          interaction_time?: string | null
+          is_error?: boolean | null
+          metadata?: Json | null
+          model?: string | null
+          output_tokens?: number | null
+          request?: Json | null
+          response?: Json | null
+          session_id?: string | null
+          source?: string | null
+          status?: string | null
           token_usage?: number | null
-          usage_tier_id?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
-          assistants_used?: number | null
+          assistant_id?: string
+          chat?: Json | null
           cost_estimate?: number | null
+          created_at?: string | null
+          duration?: number | null
+          error_message?: string | null
           id?: string
-          interactions_used?: number | null
-          last_reset_at?: string | null
-          phone_numbers_used?: number | null
+          input_tokens?: number | null
+          interaction_time?: string | null
+          is_error?: boolean | null
+          metadata?: Json | null
+          model?: string | null
+          output_tokens?: number | null
+          request?: Json | null
+          response?: Json | null
+          session_id?: string | null
+          source?: string | null
+          status?: string | null
           token_usage?: number | null
-          usage_tier_id?: string | null
+          updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_sessions: {
+        Row: {
+          amount_total: number | null
+          assistant_config_data: Json
+          created_at: string
+          currency: string | null
+          customer_email: string | null
+          expires_at: string | null
+          id: string
+          plan_id: string | null
+          session_id: string
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_total?: number | null
+          assistant_config_data: Json
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          expires_at?: string | null
+          id?: string
+          plan_id?: string | null
+          session_id: string
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_total?: number | null
+          assistant_config_data?: Json
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          expires_at?: string | null
+          id?: string
+          plan_id?: string | null
+          session_id?: string
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      phone_numbers: {
+        Row: {
+          assistant_id: string | null
+          capabilities: Json | null
+          capabilities_enabled: Json | null
+          country: string | null
+          created_at: string
+          id: string
+          is_assigned: boolean | null
+          messaging_service_sid: string | null
+          phone_number: string
+          sms_fallback_url: string | null
+          sms_url: string | null
+          status: string | null
+          twilio_sid: string | null
+          updated_at: string
+          voice_url: string | null
+        }
+        Insert: {
+          assistant_id?: string | null
+          capabilities?: Json | null
+          capabilities_enabled?: Json | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_assigned?: boolean | null
+          messaging_service_sid?: string | null
+          phone_number: string
+          sms_fallback_url?: string | null
+          sms_url?: string | null
+          status?: string | null
+          twilio_sid?: string | null
+          updated_at?: string
+          voice_url?: string | null
+        }
+        Update: {
+          assistant_id?: string | null
+          capabilities?: Json | null
+          capabilities_enabled?: Json | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_assigned?: boolean | null
+          messaging_service_sid?: string | null
+          phone_number?: string
+          sms_fallback_url?: string | null
+          sms_url?: string | null
+          status?: string | null
+          twilio_sid?: string | null
+          updated_at?: string
+          voice_url?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "userusage_usage_tier_id_fkey"
-            columns: ["usage_tier_id"]
+            foreignKeyName: "phone_numbers_assistant_id_fkey"
+            columns: ["assistant_id"]
             isOneToOne: false
-            referencedRelation: "usagetiers"
+            referencedRelation: "assistant_detail_view"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "userusage_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "phone_numbers_assistant_id_fkey"
+            columns: ["assistant_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "assistants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_numbers_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
           },
         ]
       }
+      usage_statistics: {
+        Row: {
+          cost_estimate: number | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          input_tokens: number | null
+          interactions_count: number | null
+          last_activity: string | null
+          messages_count: number | null
+          output_tokens: number | null
+          period: string | null
+          token_usage: number | null
+          updated_at: string
+        }
+        Insert: {
+          cost_estimate?: number | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          input_tokens?: number | null
+          interactions_count?: number | null
+          last_activity?: string | null
+          messages_count?: number | null
+          output_tokens?: number | null
+          period?: string | null
+          token_usage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cost_estimate?: number | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          input_tokens?: number | null
+          interactions_count?: number | null
+          last_activity?: string | null
+          messages_count?: number | null
+          output_tokens?: number | null
+          period?: string | null
+          token_usage?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      assistant_detail_view: {
+        Row: {
+          assistant_created_at: string | null
+          assistant_name: string | null
+          assistant_updated_at: string | null
+          business_name: string | null
+          config_created_at: string | null
+          config_updated_at: string | null
+          current_period_end: string | null
+          description: string | null
+          display_name: string | null
+          document_limit: number | null
+          features_enabled: Json | null
+          id: string | null
+          is_active: boolean | null
+          last_activity_at: string | null
+          message_limit: number | null
+          message_used: number | null
+          personality: string | null
+          pinecone_name: string | null
+          plan_id: string | null
+          plan_name: string | null
+          subscription_status:
+            | Database["public"]["Enums"]["subscription_status"]
+            | null
+          system_prompt: string | null
+          token_used: number | null
+          total_interactions: number | null
+          user_id: string | null
+          webhook_enabled: boolean | null
+          webpage_limit: number | null
+        }
+        Relationships: []
+      }
+      interaction_phone_summary: {
+        Row: {
+          assistant_id: string | null
+          avg_duration: number | null
+          phone: string | null
+          total_calls: number | null
+        }
+        Relationships: []
+      }
+      plan_details: {
+        Row: {
+          assistant_id: string | null
+          capabilities_enabled: Json | null
+          currency: string | null
+          document_limit: number | null
+          features_enabled: Json | null
+          message_limit: number | null
+          plan_name: string | null
+          price: number | null
+          product_id: string | null
+          support_email: string | null
+          support_level: string | null
+          webpage_limit: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_subscriptions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_detail_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_subscriptions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_subscriptions_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "usage_overview"
+            referencedColumns: ["assistant_id"]
+          },
+        ]
+      }
+      usage_overview: {
+        Row: {
+          assistant_id: string | null
+          assistant_name: string | null
+          current_month_messages: number | null
+          current_month_tokens: number | null
+          document_limit: number | null
+          documents_remaining: number | null
+          documents_used: number | null
+          message_limit: number | null
+          message_used: number | null
+          messages_remaining: number | null
+          plan_name: string | null
+          token_used: number | null
+          webpage_limit: number | null
+          webpages_remaining: number | null
+          webpages_used: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      assign_phone_number: {
+      cleanup_old_audit_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      has_feature_access: {
+        Args: { p_assistant_id: string; p_feature: string }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      provision_twilio_number: {
+        Args: {
+          p_phone_number: string
+          p_twilio_sid: string
+          p_friendly_name?: string
+          p_country?: string
+          p_region?: string
+          p_capabilities?: Json
+        }
+        Returns: string
+      }
+      update_twilio_webhooks: {
+        Args: {
+          p_phone_id: string
+          p_voice_url?: string
+          p_sms_url?: string
+          p_sms_fallback_url?: string
+        }
+        Returns: boolean
+      }
+      update_usage: {
         Args: {
           p_assistant_id: string
-          p_phone_number: string
-          p_phone_number_id: string
+          p_messages?: number
+          p_tokens?: number
+          p_documents?: number
+          p_webpages?: number
         }
         Returns: undefined
       }
     }
     Enums: {
       country: "US" | "Canada"
+      monthly_interval:
+        | "January"
+        | "February"
+        | "March"
+        | "April"
+        | "May"
+        | "June"
+        | "July"
+        | "August"
+        | "September"
+        | "October"
+        | "November"
+        | "December"
+      subscription_status:
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | "unpaid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -611,12 +1047,30 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       country: ["US", "Canada"],
+      monthly_interval: [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ],
+      subscription_status: [
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "unpaid",
+      ],
     },
   },
 } as const

@@ -1,25 +1,35 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useData } from './DataContext';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useData } from "./DataContext";
 
 const PlanUsage = () => {
   const { isLoading, stats } = useData();
-  
+
   // Calculate percentages for progress bars
-  const smsReceivedParts = stats.smsReceived.split('/');
-  const smsSentParts = stats.smsSent.split('/');
-  
-  const smsReceivedPercentage = (parseInt(smsReceivedParts[0]) / parseInt(smsReceivedParts[1])) * 100;
-  const smsSentPercentage = (parseInt(smsSentParts[0]) / parseInt(smsSentParts[1])) * 100;
-  
+  const smsReceivedParts = stats.smsReceived.split("/");
+  const smsSentParts = stats.smsSent.split("/");
+
+  const smsReceivedPercentage =
+    (parseInt(smsReceivedParts[0]) / parseInt(smsReceivedParts[1])) * 100;
+  const smsSentPercentage =
+    (parseInt(smsSentParts[0]) / parseInt(smsSentParts[1])) * 100;
+
   return (
     <div className="mb-6">
       <Card>
         <CardHeader>
           <div>
             <CardTitle>Plan Usage</CardTitle>
-            <CardDescription>Track your usage to ensure you stay within your plan's limits</CardDescription>
+            <CardDescription>
+              Track your usage to ensure you stay within your plan's limits
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -44,21 +54,21 @@ const PlanUsage = () => {
                   <span>{stats.smsReceived}</span>
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-indigo-500 rounded-full" 
+                  <div
+                    className="h-full bg-indigo-500 rounded-full"
                     style={{ width: `${smsReceivedPercentage}%` }}
                   ></div>
                 </div>
               </div>
-              
+
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>SMS Sent</span>
                   <span>{stats.smsSent}</span>
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-indigo-500 rounded-full" 
+                  <div
+                    className="h-full bg-indigo-500 rounded-full"
                     style={{ width: `${smsSentPercentage}%` }}
                   ></div>
                 </div>

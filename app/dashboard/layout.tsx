@@ -1,13 +1,9 @@
-import { DataProvider } from './DataContext';
+import { DataProvider } from "./DataContext";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return (
-    <DataProvider>
-      {children}
-    </DataProvider>
-  );
+  return <DataProvider>{children}</DataProvider>;
 }

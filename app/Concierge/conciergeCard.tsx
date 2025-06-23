@@ -1,12 +1,31 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Bot, Star, Trash, Phone, CreditCard } from "lucide-react";
+import {
+  MoreHorizontal,
+  Bot,
+  Star,
+  Trash,
+  Phone,
+  CreditCard,
+} from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Tables } from '@/lib/db.types';
-import Link from 'next/link';
+import { Tables } from "@/lib/db.types";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +33,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
-type Assistant = Tables<'assistants'>;
+type Assistant = Tables<"assistants">;
 
 interface AssistantCardProps {
   assistant: Assistant;
@@ -27,18 +46,25 @@ interface AssistantCardProps {
   handleToggleStar: (id: string, isStarred: boolean) => void;
 }
 
-export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDeleteAssistant, handleToggleStar }: AssistantCardProps) {
+export function AssistantCard({
+  assistant,
+  getInitials,
+  getAvatarColor,
+  handleDeleteAssistant,
+  handleToggleStar,
+}: AssistantCardProps) {
   // Parse description from params if available
-  const description = typeof assistant.params === 'object' && 
-                     assistant.params !== null && 
-                     'description' in assistant.params ? 
-                     String(assistant.params.description) : 
-                     'No description provided';
-  
+  const description =
+    typeof assistant.params === "object" &&
+    assistant.params !== null &&
+    "description" in assistant.params
+      ? String(assistant.params.description)
+      : "No description provided";
+
   // Format the creation date
-  const createdAt = assistant.created_at ? 
-    format(new Date(assistant.created_at), 'MMM d, yyyy') : 
-    'Unknown date';
+  const createdAt = assistant.created_at
+    ? format(new Date(assistant.created_at), "MMM d, yyyy")
+    : "Unknown date";
 
   return (
     <Card className="h-full flex flex-col">
@@ -49,22 +75,22 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-6 w-6 p-0"
                     onClick={(e) => {
                       e.preventDefault();
                       handleToggleStar(assistant.id, !assistant.is_starred);
                     }}
                   >
-                    <Star 
+                    <Star
                       className={cn(
-                        "h-4 w-4", 
-                        assistant.is_starred 
-                          ? "fill-yellow-400 text-yellow-400" 
-                          : "text-muted-foreground"
-                      )} 
+                        "h-4 w-4",
+                        assistant.is_starred
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-muted-foreground",
+                      )}
                     />
                   </Button>
                 </TooltipTrigger>
@@ -82,25 +108,27 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {/* Upgrade Plan button */}
-              {typeof assistant.params === 'object' && 
-               assistant.params !== null && 
-               'subscription' in assistant.params && 
-               typeof assistant.params.subscription === 'object' &&
-               assistant.params.subscription !== null &&
-               'plan' in assistant.params.subscription &&
-               assistant.params.subscription.plan === 'personal' && (
-                <>
-                  <DropdownMenuItem 
-                    onClick={() => window.location.href=`/api/subscriptions/upgrade?assistantId=${assistant.id}`}
-                    className="cursor-pointer"
-                  >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Upgrade to Business
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <DropdownMenuItem 
+              {typeof assistant.params === "object" &&
+                assistant.params !== null &&
+                "subscription" in assistant.params &&
+                typeof assistant.params.subscription === "object" &&
+                assistant.params.subscription !== null &&
+                "plan" in assistant.params.subscription &&
+                assistant.params.subscription.plan === "personal" && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        (window.location.href = `/api/subscriptions/upgrade?assistantId=${assistant.id}`)
+                      }
+                      className="cursor-pointer"
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Upgrade to Business
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+              <DropdownMenuItem
                 onClick={() => handleDeleteAssistant(assistant.id)}
                 className="text-red-600 focus:text-red-600 dark:focus:text-red-400 cursor-pointer"
               >
@@ -108,7 +136,10 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
                 Delete
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+              <DropdownMenuItem
+                disabled
+                className="text-xs text-muted-foreground"
+              >
                 Created: {createdAt}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -118,11 +149,11 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
           {description}
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="flex-1">
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline" className="flex items-center">
-            <Bot className="mr-1 h-3 w-3" /> No-Show 
+            <Bot className="mr-1 h-3 w-3" /> No-Show
           </Badge>
           {assistant.assigned_phone_number && (
             <Badge variant="outline" className="gap-1 flex items-center">
@@ -130,37 +161,39 @@ export function AssistantCard({ assistant, getInitials, getAvatarColor, handleDe
               SMS
             </Badge>
           )}
-          {typeof assistant.params === 'object' && 
-           assistant.params !== null && 
-           'subscription' in assistant.params && 
-           typeof assistant.params.subscription === 'object' &&
-           assistant.params.subscription !== null &&
-           'plan' in assistant.params.subscription && (
-            <Badge 
-              variant="outline" 
-              className="gap-1 flex items-center" 
-              color={assistant.params.subscription.plan === 'business' ? 'gold' : 'blue'}
-            >
-              <CreditCard className="h-3 w-3" />
-              {assistant.params.subscription.plan === 'business' ? 'Business' : 'Personal'}
-            </Badge>
-          )}
+          {typeof assistant.params === "object" &&
+            assistant.params !== null &&
+            "subscription" in assistant.params &&
+            typeof assistant.params.subscription === "object" &&
+            assistant.params.subscription !== null &&
+            "plan" in assistant.params.subscription && (
+              <Badge
+                variant="outline"
+                className="gap-1 flex items-center"
+                color={
+                  assistant.params.subscription.plan === "business"
+                    ? "gold"
+                    : "blue"
+                }
+              >
+                <CreditCard className="h-3 w-3" />
+                {assistant.params.subscription.plan === "business"
+                  ? "Business"
+                  : "Personal"}
+              </Badge>
+            )}
         </div>
       </CardContent>
-      
+
       <CardFooter>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link href={`/Concierge/${assistant.id}`} className="w-full">
-                <Button className="w-full">
-                  Open and Edit
-                </Button>
+                <Button className="w-full">Open and Edit</Button>
               </Link>
             </TooltipTrigger>
-            <TooltipContent>
-              Chat with {assistant.name}
-            </TooltipContent>
+            <TooltipContent>Chat with {assistant.name}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </CardFooter>

@@ -5,7 +5,7 @@ import { checkIsAdmin } from "@/utils/admin";
 export async function GET() {
   try {
     const supabase = await createClient();
-    
+
     // Verify admin user
     const {
       data: { user },
@@ -17,8 +17,11 @@ export async function GET() {
     }
 
     // Check admin status using the utility function
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
-    
+    const { isAdmin, error: adminError } = await checkIsAdmin(
+      supabase,
+      user.id,
+    );
+
     if (adminError || !isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -33,7 +36,7 @@ export async function GET() {
       console.error("DB error fetching phone numbers:", numbersError);
       return NextResponse.json(
         { error: "Failed to fetch phone numbers" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -42,7 +45,7 @@ export async function GET() {
     console.error("Unexpected error in phone numbers API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -51,11 +54,11 @@ export async function DELETE(request: Request) {
   try {
     const supabase = await createClient();
     const { phoneNumber, twilioSid } = await request.json();
-    
+
     if (!phoneNumber && !twilioSid) {
       return NextResponse.json(
         { error: "Phone number or Twilio SID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,28 +73,31 @@ export async function DELETE(request: Request) {
     }
 
     // Check admin status using the utility function
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
-    
+    const { isAdmin, error: adminError } = await checkIsAdmin(
+      supabase,
+      user.id,
+    );
+
     if (adminError || !isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Delete from database first
     const query = supabase.from("phonenumbers").delete();
-    
+
     if (phoneNumber) {
       query.eq("phone_number", phoneNumber);
     } else if (twilioSid) {
       query.eq("twilio_sid", twilioSid);
     }
-    
+
     const { error: deleteError } = await query;
 
     if (deleteError) {
       console.error("Error deleting phone number:", deleteError);
       return NextResponse.json(
         { error: "Failed to delete phone number from database" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -100,10 +106,10 @@ export async function DELETE(request: Request) {
     const twilioResponse = await fetch("/api/twilio/release", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        phoneNumber, 
+      body: JSON.stringify({
+        phoneNumber,
         twilioSid,
-        adminId: user.id 
+        adminId: user.id,
       }),
     });
 
@@ -112,25 +118,24 @@ export async function DELETE(request: Request) {
     if (!twilioResponse.ok) {
       console.warn(
         "Phone number deleted from database but Twilio release failed:",
-        twilioResult.error
+        twilioResult.error,
       );
-      return NextResponse.json(
-        { 
-          success: true, 
-          warning: "Phone number removed from database but may not have been released from Twilio"
-        }
-      );
+      return NextResponse.json({
+        success: true,
+        warning:
+          "Phone number removed from database but may not have been released from Twilio",
+      });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: "Phone number released successfully"
+      message: "Phone number released successfully",
     });
   } catch (error) {
     console.error("Unexpected error releasing phone number:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,15 +1,20 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Search, Plus, LayoutGrid, LayoutList } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, Plus, LayoutGrid, LayoutList } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 
 type SearchAndControlsProps = {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  viewMode: 'grid' | 'list';
-  setViewMode: (mode: 'grid' | 'list') => void;
+  viewMode: "grid" | "list";
+  setViewMode: (mode: "grid" | "list") => void;
   createDialogOpen: boolean;
   setCreateDialogOpen: (open: boolean) => void;
 };
@@ -40,18 +45,18 @@ export function SearchAndControls({
             <TooltipTrigger asChild>
               <div className="border rounded-md p-1 flex">
                 <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  variant={viewMode === "grid" ? "default" : "ghost"}
                   size="icon"
                   className="h-9 w-9"
-                  onClick={() => setViewMode('grid')}
+                  onClick={() => setViewMode("grid")}
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  variant={viewMode === "list" ? "default" : "ghost"}
                   size="icon"
                   className="h-9 w-9"
-                  onClick={() => setViewMode('list')}
+                  onClick={() => setViewMode("list")}
                 >
                   <LayoutList className="h-4 w-4" />
                 </Button>

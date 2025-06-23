@@ -1,29 +1,28 @@
 "use client";
 
-import { Line } from 'react-chartjs-2';
+import { Line } from "react-chartjs-2";
 
 interface UsageChartProps {
   title: string;
   data: any;
-  type?: 'line' | 'bar';
+  type?: "line" | "bar";
   yAxisLabel?: string;
   isCurrency?: boolean;
 }
 
-export function UsageChart({ 
-  title, 
-  data, 
-  type = 'line', 
-  yAxisLabel = '', 
-  isCurrency = false 
+export function UsageChart({
+  title,
+  data,
+  type = "line",
+  yAxisLabel = "",
+  isCurrency = false,
 }: UsageChartProps) {
-  
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: "top" as const,
       },
       title: {
         display: true,
@@ -38,13 +37,13 @@ export function UsageChart({
           text: yAxisLabel,
         },
         ticks: {
-          callback: function(value: any) {
+          callback: function (value: any) {
             if (isCurrency) {
-              return '$' + value;
+              return "$" + value;
             }
             return value;
-          }
-        }
+          },
+        },
       },
     },
   };

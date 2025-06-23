@@ -8,7 +8,7 @@
 export function logTwilio(context: string, message: string, data?: any) {
   const timestamp = new Date().toISOString();
   const logPrefix = `[TWILIO][${context}][${timestamp}]`;
-  
+
   if (data) {
     console.log(`${logPrefix} ${message}`, data);
   } else {
@@ -22,10 +22,10 @@ export function logTwilio(context: string, message: string, data?: any) {
 export function logTwilioError(context: string, message: string, error?: any) {
   const timestamp = new Date().toISOString();
   const logPrefix = `[TWILIO-ERROR][${context}][${timestamp}]`;
-  
+
   if (error) {
     console.error(`${logPrefix} ${message}`, error);
-    
+
     // Extract additional Twilio-specific error information if available
     if (error.code) {
       console.error(`${logPrefix} Twilio Error Code: ${error.code}`);
@@ -44,18 +44,24 @@ export function logTwilioError(context: string, message: string, error?: any) {
 /**
  * Format an incoming Twilio webhook request for logging
  */
-export function formatTwilioWebhook(formData: FormData, url: string, isVoice: boolean = false) {
+export function formatTwilioWebhook(
+  formData: FormData,
+  url: string,
+  isVoice: boolean = false,
+) {
   const params = Object.fromEntries(formData.entries());
-  const type = isVoice ? 'VOICE' : 'SMS';
-  
+  const type = isVoice ? "VOICE" : "SMS";
+
   return {
     type,
     url,
     params: {
       ...params,
       // Don't log full message body in production to avoid logging sensitive data
-      Body: params.Body ? `${String(params.Body).substring(0, 50)}${String(params.Body).length > 50 ? '...' : ''}` : undefined
-    }
+      Body: params.Body
+        ? `${String(params.Body).substring(0, 50)}${String(params.Body).length > 50 ? "..." : ""}`
+        : undefined,
+    },
   };
 }
 
@@ -64,11 +70,10 @@ export function formatTwilioWebhook(formData: FormData, url: string, isVoice: bo
  */
 export function logTwimlResponse(twiml: string) {
   // Clean up the TwiML for logging by removing line breaks
-  const cleanTwiml = twiml.replace(/\s+/g, ' ').trim();
-  const shortTwiml = cleanTwiml.length > 200 
-    ? `${cleanTwiml.substring(0, 197)}...` 
-    : cleanTwiml;
-  
-  logTwilio('TwiML', `Generated response: ${shortTwiml}`);
-  logTwilio('TwiML', `Response length: ${twiml.length} chars`);
+  const cleanTwiml = twiml.replace(/\s+/g, " ").trim();
+  const shortTwiml =
+    cleanTwiml.length > 200 ? `${cleanTwiml.substring(0, 197)}...` : cleanTwiml;
+
+  logTwilio("TwiML", `Generated response: ${shortTwiml}`);
+  logTwilio("TwiML", `Response length: ${twiml.length} chars`);
 }

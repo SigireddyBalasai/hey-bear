@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,13 +11,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Phone, 
-  RefreshCw, 
+import {
+  Phone,
+  RefreshCw,
   Plus,
   AlertTriangle,
   Check,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,28 +33,28 @@ export function TwilioNumbersList() {
   const fetchTwilioNumbers = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const response = await fetch('/api/twilio/list');
-      
+      const response = await fetch("/api/twilio/list");
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch Twilio numbers');
+        throw new Error(errorData.error || "Failed to fetch Twilio numbers");
       }
-      
+
       const data = await response.json();
-      
+
       if (!data.success) {
-        throw new Error(data.error || 'Unknown error');
+        throw new Error(data.error || "Unknown error");
       }
-      
+
       setTwilioNumbers(data.twilioNumbers || []);
       setDbNumbers(data.dbNumbers || []);
       setUnmanagedNumbers(data.unmanagedNumbers || []);
     } catch (error) {
-      console.error('Error fetching Twilio numbers:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error');
-      toast.error('Failed to fetch Twilio numbers');
+      console.error("Error fetching Twilio numbers:", error);
+      setError(error instanceof Error ? error.message : "Unknown error");
+      toast.error("Failed to fetch Twilio numbers");
     } finally {
       setIsLoading(false);
     }
@@ -64,25 +64,28 @@ export function TwilioNumbersList() {
   const addToDatabase = async (phoneNumber: string) => {
     setIsImporting(true);
     try {
-      const response = await fetch('/api/twilio/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber })
+      const response = await fetch("/api/twilio/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        const errorMessage = data.error || `Failed with status: ${response.status}`;
-        console.error('Import error:', data);
+        const errorMessage =
+          data.error || `Failed with status: ${response.status}`;
+        console.error("Import error:", data);
         throw new Error(errorMessage);
       }
-      
-      toast.success('Phone number added to database');
+
+      toast.success("Phone number added to database");
       fetchTwilioNumbers(); // Refresh data
     } catch (error) {
-      console.error('Error adding phone number to database:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to add number');
+      console.error("Error adding phone number to database:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to add number",
+      );
     } finally {
       setIsImporting(false);
     }
@@ -101,8 +104,15 @@ export function TwilioNumbersList() {
             <Phone className="h-5 w-5" />
             <span>Twilio Account Phone Numbers</span>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchTwilioNumbers} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchTwilioNumbers}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         </CardTitle>
@@ -110,7 +120,7 @@ export function TwilioNumbersList() {
           All phone numbers from your Twilio account
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         {error ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
@@ -125,7 +135,9 @@ export function TwilioNumbersList() {
         ) : isLoading ? (
           <div className="py-8 text-center">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground/50" />
-            <p className="text-muted-foreground">Loading phone numbers from Twilio...</p>
+            <p className="text-muted-foreground">
+              Loading phone numbers from Twilio...
+            </p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -137,9 +149,10 @@ export function TwilioNumbersList() {
                   Unmanaged Twilio Numbers
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  These phone numbers exist in your Twilio account but are not yet added to the database.
+                  These phone numbers exist in your Twilio account but are not
+                  yet added to the database.
                 </p>
-                
+
                 <div className="rounded-md border">
                   <div className="grid grid-cols-3 px-4 py-3 bg-muted font-medium text-sm">
                     <div>Phone Number</div>
@@ -148,12 +161,17 @@ export function TwilioNumbersList() {
                   </div>
                   <div className="divide-y">
                     {unmanagedNumbers.map((phone, index) => (
-                      <div key={index} className="grid grid-cols-3 px-4 py-3 items-center">
-                        <div className="font-mono text-sm">{phone.phoneNumber}</div>
+                      <div
+                        key={index}
+                        className="grid grid-cols-3 px-4 py-3 items-center"
+                      >
+                        <div className="font-mono text-sm">
+                          {phone.phoneNumber}
+                        </div>
                         <div className="text-sm">{phone.friendlyName}</div>
                         <div className="flex justify-end">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => addToDatabase(phone.phoneNumber)}
                             disabled={isImporting}
@@ -172,14 +190,16 @@ export function TwilioNumbersList() {
                 </div>
               </div>
             )}
-            
+
             {/* All Twilio Numbers */}
             <div>
-              <h3 className="text-sm font-medium mb-2">All Twilio Account Numbers</h3>
+              <h3 className="text-sm font-medium mb-2">
+                All Twilio Account Numbers
+              </h3>
               <p className="text-xs text-muted-foreground mb-4">
                 Complete list of phone numbers in your Twilio account.
               </p>
-              
+
               {twilioNumbers.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground border rounded-md">
                   No phone numbers found in your Twilio account.
@@ -194,21 +214,34 @@ export function TwilioNumbersList() {
                   </div>
                   <div className="divide-y max-h-96 overflow-y-auto">
                     {twilioNumbers.map((phone, index) => {
-                      const isInDatabase = dbNumbers.some(dbPhone => dbPhone.number === phone.phoneNumber);
-                      
+                      const isInDatabase = dbNumbers.some(
+                        (dbPhone) => dbPhone.number === phone.phoneNumber,
+                      );
+
                       return (
-                        <div key={index} className="grid grid-cols-4 px-4 py-3 items-center">
-                          <div className="font-mono text-sm">{phone.phoneNumber}</div>
+                        <div
+                          key={index}
+                          className="grid grid-cols-4 px-4 py-3 items-center"
+                        >
+                          <div className="font-mono text-sm">
+                            {phone.phoneNumber}
+                          </div>
                           <div className="text-sm">{phone.friendlyName}</div>
                           <div className="flex flex-wrap gap-1">
                             {phone.capabilities?.sms && (
-                              <Badge variant="secondary" className="text-xs">SMS</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                SMS
+                              </Badge>
                             )}
                             {phone.capabilities?.voice && (
-                              <Badge variant="secondary" className="text-xs">Voice</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                Voice
+                              </Badge>
                             )}
                             {phone.capabilities?.mms && (
-                              <Badge variant="secondary" className="text-xs">MMS</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                MMS
+                              </Badge>
                             )}
                           </div>
                           <div>
@@ -217,7 +250,10 @@ export function TwilioNumbersList() {
                                 <Check className="h-3.5 w-3.5" /> Managed
                               </span>
                             ) : (
-                              <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-700 text-xs"
+                              >
                                 Not Imported
                               </Badge>
                             )}
@@ -232,15 +268,21 @@ export function TwilioNumbersList() {
           </div>
         )}
       </CardContent>
-      
+
       <CardFooter className="border-t pt-4 flex justify-between">
         <p className="text-xs text-muted-foreground">
-          {twilioNumbers.length} total number{twilioNumbers.length !== 1 ? 's' : ''} in your Twilio account
+          {twilioNumbers.length} total number
+          {twilioNumbers.length !== 1 ? "s" : ""} in your Twilio account
         </p>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => window.open('https://www.twilio.com/console/phone-numbers/incoming', '_blank')}
+          onClick={() =>
+            window.open(
+              "https://www.twilio.com/console/phone-numbers/incoming",
+              "_blank",
+            )
+          }
         >
           <ExternalLink className="h-3.5 w-3.5 mr-1" />
           Manage in Twilio Console

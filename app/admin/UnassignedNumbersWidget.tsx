@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, AlertTriangle, RefreshCw } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Phone, AlertTriangle, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export function UnassignedNumbersWidget() {
   const [numbers, setNumbers] = useState<any[]>([]);
@@ -22,16 +28,16 @@ export function UnassignedNumbersWidget() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('phonenumbers')
-        .select('*')
-        .eq('is_assigned', false)
-        .order('created_at', { ascending: false });
-      
+        .from("phonenumbers")
+        .select("*")
+        .eq("is_assigned", false)
+        .order("created_at", { ascending: false });
+
       if (error) throw error;
-      
+
       setNumbers(data || []);
     } catch (error) {
-      console.error('Error fetching unassigned numbers:', error);
+      console.error("Error fetching unassigned numbers:", error);
     } finally {
       setIsLoading(false);
     }
@@ -59,13 +65,20 @@ export function UnassignedNumbersWidget() {
         ) : numbers.length === 0 ? (
           <div className="py-6 text-center">
             <AlertTriangle className="h-8 w-8 mx-auto mb-3 text-amber-500/70" />
-            <p className="text-sm text-muted-foreground">No unassigned numbers available.</p>
-            <p className="text-xs text-muted-foreground mt-1">Purchase new numbers to assign to No-show.</p>
+            <p className="text-sm text-muted-foreground">
+              No unassigned numbers available.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Purchase new numbers to assign to No-show.
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
             {numbers.slice(0, 5).map((number) => (
-              <div key={number.id} className="text-sm flex justify-between items-center">
+              <div
+                key={number.id}
+                className="text-sm flex justify-between items-center"
+              >
                 <span className="font-mono">{number.number}</span>
                 <Badge variant="outline" className="text-xs">
                   {new Date(number.created_at).toLocaleDateString()}
@@ -81,11 +94,11 @@ export function UnassignedNumbersWidget() {
         )}
       </CardContent>
       <CardFooter className="pt-0">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="w-full" 
-          onClick={() => router.push('/admin/phone-management')}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => router.push("/admin/phone-management")}
         >
           {numbers.length > 0 ? "Assign Numbers" : "Purchase Numbers"}
         </Button>

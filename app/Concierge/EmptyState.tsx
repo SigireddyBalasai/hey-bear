@@ -1,6 +1,6 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Bot, Plus } from 'lucide-react';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Bot, Plus } from "lucide-react";
 
 type EmptyStateProps = {
   searchQuery: string;
@@ -8,7 +8,11 @@ type EmptyStateProps = {
   setCreateDialogOpen: (open: boolean) => void;
 };
 
-export function EmptyState({ searchQuery, setSearchQuery, setCreateDialogOpen }: EmptyStateProps) {
+export function EmptyState({
+  searchQuery,
+  setSearchQuery,
+  setCreateDialogOpen,
+}: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="bg-muted rounded-full p-4 mb-4">
@@ -16,12 +20,12 @@ export function EmptyState({ searchQuery, setSearchQuery, setCreateDialogOpen }:
       </div>
       <h3 className="text-xl font-semibold mb-2">No No-show found</h3>
       <p className="text-muted-foreground max-w-md mb-6">
-        {searchQuery ?
-          `No No-show match your search for "${searchQuery}"` :
-          "You don't have any No-show yet. Create your first one to get started."}
+        {searchQuery
+          ? `No No-show match your search for "${searchQuery}"`
+          : "You don't have any No-show yet. Create your first one to get started."}
       </p>
       {searchQuery ? (
-        <Button variant="outline" onClick={() => setSearchQuery('')}>
+        <Button variant="outline" onClick={() => setSearchQuery("")}>
           Clear search
         </Button>
       ) : (

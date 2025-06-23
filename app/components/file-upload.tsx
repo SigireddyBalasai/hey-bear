@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Phone, RefreshCw, PlusCircle, Check, X, AlertTriangle } from "lucide-react";
+import {
+  Phone,
+  RefreshCw,
+  PlusCircle,
+  Check,
+  X,
+  AlertTriangle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -36,7 +43,7 @@ interface AssistantPhoneNumberSelectorProps {
 export function ConciergePhoneNumberSelector({
   assistantId,
   onAssigned,
-  currentPhoneNumber
+  currentPhoneNumber,
 }: AssistantPhoneNumberSelectorProps) {
   const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,18 +58,20 @@ export function ConciergePhoneNumberSelector({
   const fetchAvailablePhoneNumbers = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/phone-numbers/available');
-      
+      const response = await fetch("/api/phone-numbers/available");
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch available phone numbers');
+        throw new Error(
+          errorData.error || "Failed to fetch available phone numbers",
+        );
       }
-      
+
       const { numbers } = await response.json();
       setAvailableNumbers(numbers || []);
     } catch (error) {
-      console.error('Error fetching phone numbers:', error);
-      toast.error('Failed to load available phone numbers');
+      console.error("Error fetching phone numbers:", error);
+      toast.error("Failed to load available phone numbers");
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +79,7 @@ export function ConciergePhoneNumberSelector({
 
   // Format phone number for display
   const formatPhoneNumber = (phoneNumber: string) => {
-    if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
+    if (phoneNumber.startsWith("+1") && phoneNumber.length === 12) {
       return `(${phoneNumber.substring(2, 5)}) ${phoneNumber.substring(5, 8)}-${phoneNumber.substring(8)}`;
     }
     return phoneNumber;
@@ -78,10 +87,10 @@ export function ConciergePhoneNumberSelector({
 
   // Get origin for default webhook
   const getOrigin = () => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       return window.location.origin;
     }
-    return '';
+    return "";
   };
 
   // Build default webhook URL
@@ -89,7 +98,7 @@ export function ConciergePhoneNumberSelector({
     // Ensure the URL is properly formatted with the assistantId as a query parameter
     const baseUrl = `${getOrigin()}/api/twilio/webhook`;
     const url = new URL(baseUrl);
-    url.searchParams.append('assistantId', assistantId);
+    url.searchParams.append("assistantId", assistantId);
     return url.toString();
   };
 
@@ -98,7 +107,7 @@ export function ConciergePhoneNumberSelector({
     if (useDefaultWebhook) {
       setWebhook(getDefaultWebhookUrl());
     } else {
-      setWebhook('');
+      setWebhook("");
     }
   }, [useDefaultWebhook, assistantId]);
 
@@ -112,35 +121,37 @@ export function ConciergePhoneNumberSelector({
   // Handle phone number assignment
   const assignPhoneNumber = async () => {
     if (!selectedNumber) {
-      toast.error('Please select a phone number');
+      toast.error("Please select a phone number");
       return;
     }
 
     if (!assistantId) {
-      toast.error('Invalid assistant ID');
+      toast.error("Invalid assistant ID");
       return;
     }
 
     if (!webhook) {
-      toast.error('Please provide a webhook URL');
+      toast.error("Please provide a webhook URL");
       return;
     }
 
     setIsAssigning(true);
-    console.log(`Starting phone number assignment: ${selectedNumber} for No-Show : ${assistantId}`);
-    
+    console.log(
+      `Starting phone number assignment: ${selectedNumber} for No-Show : ${assistantId}`,
+    );
+
     try {
       // Now attempt the assignment
       console.log(`Sending assignment request`);
-      const response = await fetch('/api/phone-numbers/assign', {
-        method: 'POST',
+      const response = await fetch("/api/phone-numbers/assign", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           assistantId,
           phoneNumber: selectedNumber,
-          webhook: webhook
+          webhook: webhook,
         }),
       });
 
@@ -148,28 +159,28 @@ export function ConciergePhoneNumberSelector({
       console.log(`Assignment response:`, data);
 
       if (!response.ok) {
-        console.error('Assignment error response:', data);
-        throw new Error(data.error || 'Failed to assign phone number');
+        console.error("Assignment error response:", data);
+        throw new Error(data.error || "Failed to assign phone number");
       }
 
-      toast.success('Phone number assigned successfully!');
+      toast.success("Phone number assigned successfully!");
       onAssigned(selectedNumber);
       setDialogOpen(false);
     } catch (error) {
-      console.error('Error assigning phone number:', error);
-      
+      console.error("Error assigning phone number:", error);
+
       // Handle specific error messages
-      let errorMessage = 'Failed to assign phone number';
+      let errorMessage = "Failed to assign phone number";
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Check for specific schema errors and provide a clearer message
         if (errorMessage.includes("Could not find the")) {
           errorMessage = "Database schema issue. Please contact support.";
           console.error("Schema error - possible column mismatch in database");
         }
       }
-      
+
       toast.error(errorMessage);
     } finally {
       console.log(`Assignment process completed`);
@@ -195,33 +206,37 @@ export function ConciergePhoneNumberSelector({
   const unassignPhoneNumber = async () => {
     if (!currentPhoneNumber) return;
     if (!assistantId) {
-      toast.error('Invalid assistant ID');
+      toast.error("Invalid assistant ID");
       return;
     }
-    
+
     setIsAssigning(true);
     try {
-      const response = await fetch('/api/phone-numbers/unassign', {
-        method: 'POST',
+      const response = await fetch("/api/phone-numbers/unassign", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           assistantId,
-          phoneNumber: currentPhoneNumber
+          phoneNumber: currentPhoneNumber,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to unassign phone number');
+        throw new Error(errorData.error || "Failed to unassign phone number");
       }
 
-      toast.success('Phone number removed successfully');
+      toast.success("Phone number removed successfully");
       onAssigned("");
     } catch (error) {
-      console.error('Error unassigning phone number:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to unassign phone number');
+      console.error("Error unassigning phone number:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to unassign phone number",
+      );
     } finally {
       setIsAssigning(false);
     }
@@ -234,21 +249,25 @@ export function ConciergePhoneNumberSelector({
           <Phone className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-medium">SMS Phone Number</h3>
         </div>
-        
+
         {currentPhoneNumber ? (
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1.5">
               <Phone className="h-3 w-3" />
               {formatPhoneNumber(currentPhoneNumber)}
             </Badge>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={unassignPhoneNumber} 
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={unassignPhoneNumber}
               disabled={isAssigning}
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
-              {isAssigning ? <RefreshCw className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              {isAssigning ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
             </Button>
           </div>
         ) : (
@@ -263,14 +282,17 @@ export function ConciergePhoneNumberSelector({
               <DialogHeader>
                 <DialogTitle>Assign Phone Number</DialogTitle>
                 <DialogDescription>
-                  Select a phone number to connect to this No-Show . This will enable SMS conversations.
+                  Select a phone number to connect to this No-Show . This will
+                  enable SMS conversations.
                 </DialogDescription>
               </DialogHeader>
-              
+
               {isLoading ? (
                 <div className="py-4 text-center">
                   <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Loading available numbers...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading available numbers...
+                  </p>
                 </div>
               ) : availableNumbers.length === 0 ? (
                 <div>
@@ -288,7 +310,10 @@ export function ConciergePhoneNumberSelector({
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="phoneNumber">Phone Number</Label>
-                      <Select value={selectedNumber} onValueChange={setSelectedNumber}>
+                      <Select
+                        value={selectedNumber}
+                        onValueChange={setSelectedNumber}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select a phone number" />
                         </SelectTrigger>
@@ -301,53 +326,65 @@ export function ConciergePhoneNumberSelector({
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     {/* Webhook Configuration */}
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id="useDefaultWebhook" 
+                        <Checkbox
+                          id="useDefaultWebhook"
                           checked={useDefaultWebhook}
-                          onCheckedChange={(checked) => setUseDefaultWebhook(checked as boolean)}
+                          onCheckedChange={(checked) =>
+                            setUseDefaultWebhook(checked as boolean)
+                          }
                         />
-                        <Label htmlFor="useDefaultWebhook">Use default webhook URL</Label>
+                        <Label htmlFor="useDefaultWebhook">
+                          Use default webhook URL
+                        </Label>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="webhook">Webhook URL</Label>
-                        <Input 
-                          id="webhook" 
-                          value={webhook} 
+                        <Input
+                          id="webhook"
+                          value={webhook}
                           onChange={(e) => setWebhook(e.target.value)}
                           disabled={useDefaultWebhook}
                           placeholder="https://your-webhook-url.com/path"
                         />
                         <p className="text-xs text-muted-foreground">
-                          The webhook URL will receive SMS events for this No-Show .
+                          The webhook URL will receive SMS events for this
+                          No-Show .
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="bg-muted rounded-md p-3 text-sm">
                       <p>When you assign a phone number:</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
                         <li>Users can interact with the No-Show via SMS</li>
                         <li>SMS messages will be forwarded to your webhook</li>
                         <li>Standard messaging rates may apply to end users</li>
-                        <li>One phone number can only be assigned to one No-Show</li>
+                        <li>
+                          One phone number can only be assigned to one No-Show
+                        </li>
                       </ul>
                     </div>
                   </div>
                 </div>
               )}
-              
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  onClick={assignPhoneNumber} 
-                  disabled={isAssigning || !selectedNumber || !webhook || availableNumbers.length === 0}
+                <Button
+                  onClick={assignPhoneNumber}
+                  disabled={
+                    isAssigning ||
+                    !selectedNumber ||
+                    !webhook ||
+                    availableNumbers.length === 0
+                  }
                 >
                   {isAssigning ? (
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -361,12 +398,16 @@ export function ConciergePhoneNumberSelector({
           </Dialog>
         )}
       </div>
-      
+
       <div className="text-sm text-muted-foreground">
         {currentPhoneNumber ? (
-          <p>This No-Show can receive and respond to SMS messages at this number.</p>
+          <p>
+            This No-Show can receive and respond to SMS messages at this number.
+          </p>
         ) : (
-          <p>Assign a phone number to enable SMS interactions with this No-Show .</p>
+          <p>
+            Assign a phone number to enable SMS interactions with this No-Show .
+          </p>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import twilio from 'twilio';
-import { createClient } from '@/utils/supabase/server';
-import { checkIsAdmin } from '@/utils/admin';
+import { NextResponse } from "next/server";
+import twilio from "twilio";
+import { createClient } from "@/utils/supabase/server";
+import { checkIsAdmin } from "@/utils/admin";
 
 // Initialize Twilio client
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -11,17 +11,23 @@ export async function POST(request: Request) {
   try {
     // Check authentication and admin permissions
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Use the checkIsAdmin utility function
-    const { isAdmin, error: adminError } = await checkIsAdmin(supabase, user.id);
-    
+    const { isAdmin, error: adminError } = await checkIsAdmin(
+      supabase,
+      user.id,
+    );
+
     if (adminError || !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Parse request body
@@ -30,15 +36,15 @@ export async function POST(request: Request) {
 
     if (!twilioSid && !phoneNumber) {
       return NextResponse.json(
-        { error: 'Either twilioSid or phoneNumber must be provided' },
-        { status: 400 }
+        { error: "Either twilioSid or phoneNumber must be provided" },
+        { status: 400 },
       );
     }
-    
+
     if (!accountSid || !authToken) {
       return NextResponse.json(
-        { error: 'Twilio credentials not configured' },
-        { status: 500 }
+        { error: "Twilio credentials not configured" },
+        { status: 500 },
       );
     }
 
@@ -52,14 +58,14 @@ export async function POST(request: Request) {
         phoneNumber,
         limit: 1,
       });
-      
+
       if (numbers.length === 0) {
         return NextResponse.json(
-          { error: 'Phone number not found in Twilio account' },
-          { status: 404 }
+          { error: "Phone number not found in Twilio account" },
+          { status: 404 },
         );
       }
-      
+
       sid = numbers[0].sid;
     }
 
@@ -70,35 +76,35 @@ export async function POST(request: Request) {
 
     if (phoneNumber) {
       await supabase
-        .from('phonenumbers')
+        .from("phonenumbers")
         .update({ is_assigned: false })
-        .eq('number', phoneNumber);
+        .eq("number", phoneNumber);
     }
 
-    await supabase.from('interactions').insert({
+    await supabase.from("interactions").insert({
       user_id: adminId,
-      assistant_id: null, 
-      chat: 'system',
-      request: 'Release phone number',
-      response: JSON.stringify({ 
-        action: 'release_phone_number', 
-        details: { twilioSid: sid, phoneNumber } 
+      assistant_id: null,
+      chat: "system",
+      request: "Release phone number",
+      response: JSON.stringify({
+        action: "release_phone_number",
+        details: { twilioSid: sid, phoneNumber },
       }),
-      interaction_time: new Date().toISOString()
+      interaction_time: new Date().toISOString(),
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Phone number released successfully',
+      message: "Phone number released successfully",
     });
   } catch (error: any) {
-    console.error('Error releasing phone number:', error);
+    console.error("Error releasing phone number:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message || 'Failed to release phone number'
+      {
+        success: false,
+        error: error.message || "Failed to release phone number",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

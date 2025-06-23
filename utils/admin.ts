@@ -1,4 +1,4 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Checks if a user is an admin
@@ -13,11 +13,11 @@ export async function checkIsAdmin(supabase: SupabaseClient, userId: string) {
       .select("is_admin")
       .eq("user_id", userId)
       .maybeSingle();
-    
+
     if (error) {
       return { isAdmin: false, error };
     }
-    
+
     return { isAdmin: data?.is_admin || false, error: null };
   } catch (error) {
     console.error("Error checking admin status:", error);

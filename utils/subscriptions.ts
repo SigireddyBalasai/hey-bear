@@ -1,5 +1,5 @@
-import { createClient } from '@/utils/supabase/server';
-import { isSubscriptionActive } from '@/lib/stripe';
+import { createClient } from "@/utils/supabase/server";
+import { isSubscriptionActive } from "@/lib/stripe";
 
 interface Subscription {
   status?: string;
@@ -12,38 +12,39 @@ interface Subscription {
 export async function checkAssistantSubscription(assistantId: string) {
   try {
     const supabase = await createClient();
-    
+
     // Fetch the assistant with subscription info
     const { data: assistant, error } = await supabase
-      .from('assistants')
-      .select('*')
-      .eq('id', assistantId)
+      .from("assistants")
+      .select("*")
+      .eq("id", assistantId)
       .single();
-    
+
     if (error || !assistant) {
-      console.error('Error fetching assistant:', error);
-      return { isActive: false, error: 'Assistant not found' };
+      console.error("Error fetching assistant:", error);
+      return { isActive: false, error: "Assistant not found" };
     }
-    
+
     // Use the helper to check if the subscription is active
-    const subscription = typeof assistant.params === 'object' && assistant.params 
-      ? (assistant.params as Record<string, any>).subscription as Subscription 
-      : undefined;
+    const subscription =
+      typeof assistant.params === "object" && assistant.params
+        ? ((assistant.params as Record<string, any>)
+            .subscription as Subscription)
+        : undefined;
     const active = isSubscriptionActive(subscription);
-    
+
     if (!active) {
-      return { 
-        isActive: false, 
-        error: 'Subscription inactive', 
+      return {
+        isActive: false,
+        error: "Subscription inactive",
         status: subscription?.status,
-        plan: subscription?.plan
+        plan: subscription?.plan,
       };
     }
-    
+
     return { isActive: true };
-    
   } catch (error) {
-    console.error('Error checking subscription:', error);
-    return { isActive: false, error: 'Failed to check subscription' };
+    console.error("Error checking subscription:", error);
+    return { isActive: false, error: "Failed to check subscription" };
   }
 }

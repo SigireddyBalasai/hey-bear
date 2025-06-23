@@ -1,8 +1,18 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const StatCard = ({ title, value, description, loading }: { title: string, value: string | number, description: string, loading: boolean }) => (
+const StatCard = ({
+  title,
+  value,
+  description,
+  loading,
+}: {
+  title: string;
+  value: string | number;
+  description: string;
+  loading: boolean;
+}) => (
   <Card>
     <CardHeader className="pb-2">
       <CardTitle className="text-sm text-gray-500">{title}</CardTitle>

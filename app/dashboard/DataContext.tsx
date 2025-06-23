@@ -1,6 +1,12 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Interaction, DashboardStats, DashboardResponse } from './models';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { Interaction, DashboardStats, DashboardResponse } from "./models";
 
 interface DataContextProps {
   allInteractions: Interaction[];
@@ -43,22 +49,22 @@ const defaultStats: DashboardStats = {
   totalInteractions: 0,
   activeContacts: 0,
   interactionsPerContact: 0,
-  averageResponseTime: '0s',
-  phoneNumbers: '0/10',
-  smsReceived: '0/200',
-  smsSent: '0/200',
-  planType: 'Personal'
+  averageResponseTime: "0s",
+  phoneNumbers: "0/10",
+  smsReceived: "0/200",
+  smsSent: "0/200",
+  planType: "Personal",
 };
 
 const DataContext = createContext<DataContextProps>({
   allInteractions: [],
   filteredInteractions: [],
   stats: defaultStats,
-  dateRange: '',
+  dateRange: "",
   isLoading: true,
   setIsLoading: () => {},
   filterInteractions: () => {},
-  searchTerm: '',
+  searchTerm: "",
   setSearchTerm: () => {},
   currentPage: 1,
   setCurrentPage: () => {},
@@ -73,11 +79,13 @@ const DataContext = createContext<DataContextProps>({
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [allInteractions, setAllInteractions] = useState<Interaction[]>([]);
-  const [filteredInteractions, setFilteredInteractions] = useState<Interaction[]>([]);
+  const [filteredInteractions, setFilteredInteractions] = useState<
+    Interaction[]
+  >([]);
   const [stats, setStats] = useState<DashboardStats>(defaultStats);
-  const [dateRange, setDateRange] = useState<string>('');
+  const [dateRange, setDateRange] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(5);
   const [totalItems, setTotalItems] = useState<number>(0);
@@ -90,59 +98,63 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     pageSize: size = pageSize,
     startDate,
     endDate,
-    assistantId: id = assistantId ?? 'all',
-    searchTerm: search = searchTerm
+    assistantId: id = assistantId ?? "all",
+    searchTerm: search = searchTerm,
   }: FetchOptions) => {
     setIsLoading(true);
-    
+
     try {
-      console.log('Fetching interactions with params:', { 
-        page, 
-        pageSize: size, 
-        startDate, 
-        endDate, 
-        assistantId: id || 'all', 
-        searchTerm: search 
+      console.log("Fetching interactions with params:", {
+        page,
+        pageSize: size,
+        startDate,
+        endDate,
+        assistantId: id || "all",
+        searchTerm: search,
       });
-      
+
       // Build the query URL with parameters
       const queryParams = new URLSearchParams({
         page: page.toString(),
-        pageSize: size.toString()
+        pageSize: size.toString(),
       });
-      
-      if (startDate) queryParams.append('startDate', startDate);
-      if (endDate) queryParams.append('endDate', endDate);
+
+      if (startDate) queryParams.append("startDate", startDate);
+      if (endDate) queryParams.append("endDate", endDate);
       // Always pass assistantId but default to 'all' if not provided
-      queryParams.append('assistantId', id || 'all');
-      if (search) queryParams.append('searchTerm', search);
-      
+      queryParams.append("assistantId", id || "all");
+      if (search) queryParams.append("searchTerm", search);
+
       const apiUrl = `/api/dashboard/interactions?${queryParams.toString()}`;
-      console.log('Fetching from URL:', apiUrl);
-      
+      console.log("Fetching from URL:", apiUrl);
+
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
-        console.error('API response not OK:', response.status, response.statusText);
+        console.error(
+          "API response not OK:",
+          response.status,
+          response.statusText,
+        );
         throw new Error(`Error fetching interactions: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Update state with the response data - using safer null checks
       setAllInteractions(data?.interactions || []);
       setFilteredInteractions(data?.interactions || []);
       setStats(data?.stats || defaultStats);
-      setDateRange(data?.dateRange || '');
+      setDateRange(data?.dateRange || "");
       setTotalItems(data?.pagination?.total || 0);
       setTotalPages(data?.pagination?.totalPages || 1);
     } catch (error) {
-      console.error('Failed to fetch interactions:', error);
+      console.error("Failed to fetch interactions:", error);
       // Set default values on error
       setAllInteractions([]);
       setFilteredInteractions([]);
       setStats(defaultStats);
-      setDateRange('');
+      setDateRange("");
       setTotalItems(0);
       setTotalPages(1);
     } finally {
@@ -171,14 +183,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to load initial data:", error);
       }
     };
-    
+
     loadInitialData();
   }, []); // fetchInteractions removed from dependency array to prevent loops
 
   // Filter interactions based on provided criteria
   const filterInteractions = (filters: FilterOptions) => {
     setIsLoading(true);
-    
+
     try {
       // For server-side filtering, we need to fetch with new parameters
       fetchInteractions({
@@ -186,15 +198,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         pageSize,
         startDate: filters.fromDate,
         endDate: filters.toDate,
-        assistantId: filters.assistantId || assistantId || 'all',
-        searchTerm
+        assistantId: filters.assistantId || assistantId || "all",
+        searchTerm,
       });
     } catch (error) {
       console.error("Failed to apply filters:", error);
       setIsLoading(false);
     }
   };
-  
+
   const value = {
     allInteractions,
     filteredInteractions,
@@ -213,7 +225,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     totalPages,
     fetchInteractions,
     assistantId,
-    setAssistantId // Added new state value
+    setAssistantId, // Added new state value
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

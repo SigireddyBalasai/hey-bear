@@ -1,56 +1,63 @@
 "use client";
-import { AssistantCard } from './conciergeCard';
-import { AssistantList } from './AssistantList';
-import { CreateAssistantDialog } from './CreateAssistantDialog';
-import { EmptyState } from './EmptyState';
-import { Header } from './Header';
-import { Loading } from './Loading';
-import { Login } from './Login';
-import { SearchAndControls } from './SearchAndControl';
-import { TabsNavigation } from './TabsNavigation';
-import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Tables } from '@/lib/db.types';
-import { UserCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Phone, CreditCard } from 'lucide-react';
-import { SUBSCRIPTION_PLANS, getSubscriptionPlanDetails } from '@/lib/stripe';
-import {Button} from "@/components/ui/button"
+import { AssistantCard } from "./conciergeCard";
+import { AssistantList } from "./AssistantList";
+import { CreateAssistantDialog } from "./CreateAssistantDialog";
+import { EmptyState } from "./EmptyState";
+import { Header } from "./Header";
+import { Loading } from "./Loading";
+import { Login } from "./Login";
+import { SearchAndControls } from "./SearchAndControl";
+import { TabsNavigation } from "./TabsNavigation";
+import { useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Tables } from "@/lib/db.types";
+import { UserCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Phone, CreditCard } from "lucide-react";
+import { SUBSCRIPTION_PLANS, getSubscriptionPlanDetails } from "@/lib/stripe";
+import { Button } from "@/components/ui/button";
 
-type Assistant = Tables<'assistants'>
+type Assistant = Tables<"assistants">;
 
 export default function AssistantsPage() {
   const [user, setUser] = useState<any>(null);
   const [assistants, setAssistants] = useState<Assistant[]>([]);
-  const [newAssistantName, setNewAssistantName] = useState('');
-  const [newAssistantDescription, setNewAssistantDescription] = useState('');
+  const [newAssistantName, setNewAssistantName] = useState("");
+  const [newAssistantDescription, setNewAssistantDescription] = useState("");
   // New fields for assistant creation
-  const [conciergeName, setConciergeName] = useState('');
-  const [conciergePersonality, setConciergePersonality] = useState('Business Casual');
-  const [businessName, setBusinessName] = useState('');
+  const [conciergeName, setConciergeName] = useState("");
+  const [conciergePersonality, setConciergePersonality] =
+    useState("Business Casual");
+  const [businessName, setBusinessName] = useState("");
   const [sharePhoneNumber, setSharePhoneNumber] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState("");
   // Subscription plan state - Initialize with 'personal' as default
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(SUBSCRIPTION_PLANS.PERSONAL.id ?? null);
-  
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(
+    SUBSCRIPTION_PLANS.PERSONAL.id ?? null,
+  );
+
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('all');
-  
+  const [selectedTab, setSelectedTab] = useState("all");
+
   // Add state to track checkout status
-  const [checkoutStatus, setCheckoutStatus] = useState<'success' | 'canceled' | null>(null);
-  const [checkoutAssistantId, setCheckoutAssistantId] = useState<string | null>(null);
+  const [checkoutStatus, setCheckoutStatus] = useState<
+    "success" | "canceled" | null
+  >(null);
+  const [checkoutAssistantId, setCheckoutAssistantId] = useState<string | null>(
+    null,
+  );
   const router = useRouter();
-  
+
   // Function to get URL parameters
   const getUrlParameter = (name: string) => {
-    if (typeof window === 'undefined') return null;
+    if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
     return params.get(name);
   };
@@ -61,65 +68,68 @@ export default function AssistantsPage() {
   const fetchAssistants = async () => {
     try {
       setIsLoading(true);
-      
+
       // First get the authenticated user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
       if (userError || !user) {
-        console.error('Error fetching user:', userError);
+        console.error("Error fetching user:", userError);
         setUser(null);
         return;
       }
-      
+
       setUser(user);
-      
+
       // Now fetch the user record from the users table to get the proper ID
       const { data: userData, error: userDataError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', user.id)
+        .from("users")
+        .select("id")
+        .eq("auth_user_id", user.id)
         .single();
-        
+
       if (userDataError) {
-        console.error('Error fetching user data:', userDataError);
+        console.error("Error fetching user data:", userDataError);
         return;
       }
-      
+
       if (!userData) {
-        console.error('User record not found in users table');
+        console.error("User record not found in users table");
         return;
       }
-      
+
       // Fetch assistants using the user_id from users table
       const { data: assistantsData, error: assistantsError } = await supabase
-        .from('assistants')
-        .select('*')
-        .eq('user_id', userData.id);
-      
+        .from("assistants")
+        .select("*")
+        .eq("user_id", userData.id);
+
       if (assistantsError) {
-        console.error('Error fetching No-Show :', assistantsError);
+        console.error("Error fetching No-Show :", assistantsError);
         return;
       }
-      
-      console.log('Fetched assistants:', assistantsData);
-      
+
+      console.log("Fetched assistants:", assistantsData);
+
       // Process and sort assistants
       if (assistantsData && assistantsData.length > 0) {
         const frontendAssistants = assistantsData;
-        
+
         // Sort by creation date (newest first)
         frontendAssistants.sort((a: Assistant, b: Assistant) => {
-          const dateA = a.created_at || '';
-          const dateB = b.created_at || '';
+          const dateA = a.created_at || "";
+          const dateB = b.created_at || "";
           return new Date(dateB).getTime() - new Date(dateA).getTime();
         });
-        
+
         setAssistants(frontendAssistants);
       } else {
         setAssistants([]);
       }
     } catch (error) {
-      console.error('Error in fetchconcierge:', error);
+      console.error("Error in fetchconcierge:", error);
       toast("Connection error", {
         description: "Failed to connect to the server",
       });
@@ -130,76 +140,79 @@ export default function AssistantsPage() {
 
   // Check for Stripe redirect parameters on component mount
   useEffect(() => {
-    const success = getUrlParameter('success');
-    const canceled = getUrlParameter('canceled');
-    const assistantId = getUrlParameter('assistant_id');
-    
-    if (success === 'true' && assistantId) {
-      setCheckoutStatus('success');
+    const success = getUrlParameter("success");
+    const canceled = getUrlParameter("canceled");
+    const assistantId = getUrlParameter("assistant_id");
+
+    if (success === "true" && assistantId) {
+      setCheckoutStatus("success");
       setCheckoutAssistantId(assistantId);
-      
+
       // Remove query params from URL without page reload
       window.history.replaceState({}, document.title, window.location.pathname);
-      
+
       // Show success message
       toast("Subscription successful", {
         description: "Your No-Show has been successfully activated!",
       });
-      
+
       // Fetch the updated list of assistants to reflect the change
       fetchAssistants();
-    } else if (canceled === 'true' && assistantId) {
-      setCheckoutStatus('canceled');
+    } else if (canceled === "true" && assistantId) {
+      setCheckoutStatus("canceled");
       setCheckoutAssistantId(assistantId);
-      
+
       // Remove query params from URL without page reload
       window.history.replaceState({}, document.title, window.location.pathname);
-      
+
       // Show canceled message
       toast("Checkout canceled", {
-        description: "Your payment was not completed. The No-Show will remain inactive.",
+        description:
+          "Your payment was not completed. The No-Show will remain inactive.",
       });
-      
+
       // Fetch the updated list of assistants to reflect the change
       fetchAssistants();
     }
   }, []);
-  
+
   // Effect to handle return from Stripe checkout
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
-    const success = queryParams.get('success');
-    const canceled = queryParams.get('canceled');
-    const assistantId = queryParams.get('assistant_id');
-    const sessionId = queryParams.get('session_id');
+    const success = queryParams.get("success");
+    const canceled = queryParams.get("canceled");
+    const assistantId = queryParams.get("assistant_id");
+    const sessionId = queryParams.get("session_id");
 
-    if (success === 'true' && assistantId) {
+    if (success === "true" && assistantId) {
       toast.success("Payment successful", {
-        description: "Your No-Show has been activated with your subscription plan",
+        description:
+          "Your No-Show has been activated with your subscription plan",
       });
-      
+
       // Clear URL parameters to avoid showing the message again on refresh
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       // Fetch assistants to update the list with the new subscription status
       fetchAssistants();
     }
 
-    if (canceled === 'true' && assistantId) {
+    if (canceled === "true" && assistantId) {
       toast("Payment canceled", {
-        description: "You can complete the payment later to activate your No-Show ",
+        description:
+          "You can complete the payment later to activate your No-Show ",
       });
-      
+
       // Clear URL parameters
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       // Fetch assistants to ensure list is up to date
       fetchAssistants();
     }
   }, []);
-  
+
   // Fetch user and assistants data on component mount
   useEffect(() => {
     fetchAssistants();
@@ -213,29 +226,33 @@ export default function AssistantsPage() {
       });
       return;
     }
-    
+
     if (!selectedPlan) {
       toast("Subscription plan required", {
         description: "Please select a subscription plan for your No-Show ",
       });
       return;
     }
-    
+
     try {
       setIsCreating(true);
-      
+
       // Get the plan details based on the selected price ID
       const planDetails = getSubscriptionPlanDetails(selectedPlan!);
       if (!planDetails) {
-        toast("Invalid plan", { description: "Selected subscription plan is invalid." });
+        toast("Invalid plan", {
+          description: "Selected subscription plan is invalid.",
+        });
         return;
       }
       // Determine plan type key for subscription (e.g., 'personal' or 'business')
-      const planKey = Object.keys(SUBSCRIPTION_PLANS).find(key =>
-        SUBSCRIPTION_PLANS[key as keyof typeof SUBSCRIPTION_PLANS].id === selectedPlan
+      const planKey = Object.keys(SUBSCRIPTION_PLANS).find(
+        (key) =>
+          SUBSCRIPTION_PLANS[key as keyof typeof SUBSCRIPTION_PLANS].id ===
+          selectedPlan,
       ) as keyof typeof SUBSCRIPTION_PLANS;
       const planType = planKey.toLowerCase();
-      
+
       // Create a structured params object that includes all the new fields
       const assistantParams = {
         description: newAssistantDescription,
@@ -251,13 +268,13 @@ export default function AssistantsPage() {
           description: newAssistantDescription,
           sharePhoneNumber,
           phoneNumber,
-        })
+        }),
       };
-      
-      const response = await fetch('/api/Concierge/create', {
-        method: 'POST',
+
+      const response = await fetch("/api/Concierge/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           assistantName: newAssistantName,
@@ -266,58 +283,61 @@ export default function AssistantsPage() {
           plan: planType,
         }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create assistant');
+        throw new Error(data.error || "Failed to create assistant");
       }
-      
+
       // Create checkout session for the bot in Stripe
-      const checkoutResponse = await fetch('/api/subscriptions/create', {
-        method: 'POST',
+      const checkoutResponse = await fetch("/api/subscriptions/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           assistantId: data.assistantId,
           planId: planDetails.id,
         }),
       });
-      
+
       const checkoutData = await checkoutResponse.json();
-      
+
       if (!checkoutResponse.ok) {
-        throw new Error(checkoutData.error || "Failed to create subscription checkout");
+        throw new Error(
+          checkoutData.error || "Failed to create subscription checkout",
+        );
       }
-      
+
       // Reset form fields and close dialog
-      setNewAssistantName('');
-      setNewAssistantDescription('');
-      setConciergeName('');
-      setConciergePersonality('Business Casual');
-      setBusinessName('');
+      setNewAssistantName("");
+      setNewAssistantDescription("");
+      setConciergeName("");
+      setConciergePersonality("Business Casual");
+      setBusinessName("");
       setSharePhoneNumber(false);
-      setPhoneNumber('');
+      setPhoneNumber("");
       setSelectedPlan(SUBSCRIPTION_PLANS.PERSONAL.id ?? null);
       setCreateDialogOpen(false);
-      
+
       // Show loading toast
       toast("Redirecting to checkout", {
-        description: "Please complete the payment process to activate your No-Show ",
+        description:
+          "Please complete the payment process to activate your No-Show ",
       });
-      
+
       // Redirect to Stripe Checkout
       if (checkoutData.checkoutUrl) {
         window.location.href = checkoutData.checkoutUrl;
       } else {
         throw new Error("No checkout URL provided");
       }
-      
     } catch (error: any) {
-      console.error('Error creating No-Show :', error);
+      console.error("Error creating No-Show :", error);
       toast("Error", {
-        description: error.message || "Something went wrong while creating the No-Show ",
+        description:
+          error.message || "Something went wrong while creating the No-Show ",
       });
     } finally {
       setIsCreating(false);
@@ -341,23 +361,23 @@ export default function AssistantsPage() {
     phoneNumber: string | null;
   }) => {
     let prompt = `You are ${conciergeName}, an AI Concierge`;
-    
+
     if (businessName) {
       prompt += ` for ${businessName}`;
     }
-    
+
     prompt += `. Your communication style is ${conciergePersonality.toLowerCase()}.`;
-    
+
     if (description) {
       prompt += `\n\nYour primary function: ${description}`;
     }
-    
+
     if (sharePhoneNumber && phoneNumber) {
-      prompt += `\n\nWhen someone asks for contact information or how to reach ${businessName || 'us'} directly, provide this phone number: ${phoneNumber}.`;
+      prompt += `\n\nWhen someone asks for contact information or how to reach ${businessName || "us"} directly, provide this phone number: ${phoneNumber}.`;
     }
-    
+
     prompt += `\n\nAlways be helpful, accurate, and respond in a ${conciergePersonality.toLowerCase()} tone. If you don't know something, admit it rather than making up information.`;
-    
+
     return prompt;
   };
 
@@ -365,46 +385,47 @@ export default function AssistantsPage() {
   const handleDeleteAssistant = async (assistantId: string) => {
     try {
       // Find the assistant to delete
-      const assistantToDelete = assistants.find(a => a.id === assistantId);
-      
+      const assistantToDelete = assistants.find((a) => a.id === assistantId);
+
       if (!assistantToDelete) {
         toast("Error", {
           description: "No-Show not found",
         });
         return;
       }
-      
+
       // Delete from Supabase
       const { error } = await supabase
-        .from('assistants')
+        .from("assistants")
         .delete()
-        .eq('id', assistantId);
-      
+        .eq("id", assistantId);
+
       if (error) {
         throw error;
       }
-      
+
       // Cancel subscription if it exists
-      await fetch('/api/subscriptions/cancel', {
-        method: 'POST',
+      await fetch("/api/subscriptions/cancel", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           assistantId: assistantId,
         }),
       });
-      
+
       // Update local state
-      setAssistants(assistants.filter(a => a.id !== assistantId));
-      
+      setAssistants(assistants.filter((a) => a.id !== assistantId));
+
       toast("No-Show deleted", {
         description: `${assistantToDelete.name} has been removed`,
       });
     } catch (error: any) {
-      console.error('Error deleting No-Show:', error);
+      console.error("Error deleting No-Show:", error);
       toast("Error", {
-        description: error.message || "Something went wrong while deleting the No-Show",
+        description:
+          error.message || "Something went wrong while deleting the No-Show",
       });
     }
   };
@@ -413,32 +434,36 @@ export default function AssistantsPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    router.push('/sign-in');
+    router.push("/sign-in");
   };
 
   // Filter assistants based on search query and selected tab
-  const filteredAssistants = assistants.filter(assistant => {
+  const filteredAssistants = assistants.filter((assistant) => {
     // First check if the assistant has pending status - if so, exclude it
-    const isPending = typeof assistant.params === 'object' && 
-                      assistant.params !== null &&
-                      'pending' in assistant.params &&
-                      assistant.params.pending === true;
-    
+    const isPending =
+      typeof assistant.params === "object" &&
+      assistant.params !== null &&
+      "pending" in assistant.params &&
+      assistant.params.pending === true;
+
     if (isPending) {
       return false; // Skip pending assistants that haven't been paid for
     }
-    
-    const matchesSearch = assistant.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (typeof assistant.params === 'object' && 
-                            assistant.params !== null &&
-                           'description' in assistant.params && 
-                           typeof assistant.params.description === 'string' && 
-                           assistant.params.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
+    const matchesSearch =
+      assistant.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (typeof assistant.params === "object" &&
+        assistant.params !== null &&
+        "description" in assistant.params &&
+        typeof assistant.params.description === "string" &&
+        assistant.params.description
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()));
+
     // Filter based on selected tab
-    if (selectedTab === 'all') {
+    if (selectedTab === "all") {
       return matchesSearch;
-    } else if (selectedTab === 'favorites') {
+    } else if (selectedTab === "favorites") {
       return matchesSearch && assistant.is_starred === true;
     } else {
       // Additional filters could be added here (shared, etc.)
@@ -447,21 +472,25 @@ export default function AssistantsPage() {
   });
 
   // Helper function for type checking params.subscription
-  const hasSubscriptionPlan = (params: any): params is { subscription: { plan: string } } => {
-    return typeof params === 'object' && 
-           params !== null && 
-           'subscription' in params && 
-           typeof params.subscription === 'object' &&
-           params.subscription !== null &&
-           'plan' in params.subscription;
+  const hasSubscriptionPlan = (
+    params: any,
+  ): params is { subscription: { plan: string } } => {
+    return (
+      typeof params === "object" &&
+      params !== null &&
+      "subscription" in params &&
+      typeof params.subscription === "object" &&
+      params.subscription !== null &&
+      "plan" in params.subscription
+    );
   };
 
   // Generate avatar initials from assistant name
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
       .toUpperCase()
       .substring(0, 2);
   };
@@ -469,39 +498,50 @@ export default function AssistantsPage() {
   // Get random pastel color based on assistant name
   const getAvatarColor = (name: string) => {
     const colors = [
-      'bg-blue-200', 'bg-green-200', 'bg-yellow-200', 
-      'bg-purple-200', 'bg-pink-200', 'bg-indigo-200',
-      'bg-red-200', 'bg-orange-200', 'bg-teal-200'
+      "bg-blue-200",
+      "bg-green-200",
+      "bg-yellow-200",
+      "bg-purple-200",
+      "bg-pink-200",
+      "bg-indigo-200",
+      "bg-red-200",
+      "bg-orange-200",
+      "bg-teal-200",
     ];
-    
-    const index = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % colors.length;
+
+    const index =
+      name.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+      colors.length;
     return colors[index];
   };
-  
+
   const handleToggleStar = async (assistantId: string, isStarred: boolean) => {
     try {
       // Update in Supabase
       const { error } = await supabase
-        .from('assistants')
+        .from("assistants")
         .update({ is_starred: isStarred })
-        .eq('id', assistantId);
-      
+        .eq("id", assistantId);
+
       if (error) {
         throw error;
       }
-      
+
       // Update local state
-      setAssistants(assistants.map(a => 
-        a.id === assistantId ? { ...a, is_starred: isStarred } : a
-      ));
-      
+      setAssistants(
+        assistants.map((a) =>
+          a.id === assistantId ? { ...a, is_starred: isStarred } : a,
+        ),
+      );
+
       toast(`Assistant ${isStarred ? "starred" : "unstarred"}`, {
-        description: `${assistants.find(a => a.id === assistantId)?.name} has been ${isStarred ? "starred" : "unstarred"}`,
+        description: `${assistants.find((a) => a.id === assistantId)?.name} has been ${isStarred ? "starred" : "unstarred"}`,
       });
     } catch (error: any) {
-      console.error('Error toggling star:', error);
+      console.error("Error toggling star:", error);
       toast("Error", {
-        description: error.message || "Something went wrong while updating the No-Show",
+        description:
+          error.message || "Something went wrong while updating the No-Show",
       });
     }
   };
@@ -510,7 +550,7 @@ export default function AssistantsPage() {
   if (isLoading) {
     return <Loading />;
   }
-  
+
   // Display login if not authenticated
   if (!user) {
     return <Login />;
@@ -518,11 +558,8 @@ export default function AssistantsPage() {
 
   return (
     <div className="container py-6 space-y-6">
-      <Header 
-        user={user} 
-        handleSignOut={handleSignOut}
-      />
-      
+      <Header user={user} handleSignOut={handleSignOut} />
+
       <div className="flex justify-between items-center">
         <TabsNavigation
           selectedTab={selectedTab}
@@ -534,7 +571,7 @@ export default function AssistantsPage() {
           </Button>
         </div> */}
       </div>
-      
+
       <SearchAndControls
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -543,9 +580,9 @@ export default function AssistantsPage() {
         createDialogOpen={createDialogOpen}
         setCreateDialogOpen={setCreateDialogOpen}
       />
-      
-      <CreateAssistantDialog 
-        open={createDialogOpen} 
+
+      <CreateAssistantDialog
+        open={createDialogOpen}
         setOpen={setCreateDialogOpen}
         newAssistantName={newAssistantName}
         setNewAssistantName={setNewAssistantName}
@@ -568,14 +605,15 @@ export default function AssistantsPage() {
       />
 
       {/* Show coming soon for shared tab */}
-      {selectedTab === 'shared' ? (
+      {selectedTab === "shared" ? (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <UserCircle className="h-8 w-8 text-primary" />
           </div>
           <h2 className="text-2xl font-semibold mb-2">Sharing Coming Soon</h2>
           <p className="text-muted-foreground text-center max-w-md">
-            The ability to share and collaborate on assistants with team members will be available soon.
+            The ability to share and collaborate on assistants with team members
+            will be available soon.
           </p>
         </div>
       ) : filteredAssistants.length === 0 ? (
@@ -587,7 +625,7 @@ export default function AssistantsPage() {
       ) : (
         <AnimatePresence mode="wait">
           {/* Rest of the rendering logic for assistants */}
-          {viewMode === 'grid' ? (
+          {viewMode === "grid" ? (
             <motion.div
               key="grid"
               initial={{ opacity: 0 }}

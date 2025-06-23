@@ -1,5 +1,12 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -12,9 +19,9 @@ interface SubscriptionPlanSelectorProps {
   onSelectPlan: (plan: string) => void;
 }
 
-export function SubscriptionPlanSelector({ 
-  selectedPlan, 
-  onSelectPlan 
+export function SubscriptionPlanSelector({
+  selectedPlan,
+  onSelectPlan,
 }: SubscriptionPlanSelectorProps) {
   return (
     <div className="w-full">
@@ -37,16 +44,13 @@ export function SubscriptionPlanSelector({
             id="personal"
             className="peer sr-only"
           />
-          <Label
-            htmlFor="personal"
-            className="flex flex-col h-full"
-          >
-            <Card className={cn(
-              "cursor-pointer border-2 h-full",
-              selectedPlan === "personal" 
-                ? "border-primary" 
-                : "border-muted"
-            )}>
+          <Label htmlFor="personal" className="flex flex-col h-full">
+            <Card
+              className={cn(
+                "cursor-pointer border-2 h-full",
+                selectedPlan === "personal" ? "border-primary" : "border-muted",
+              )}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {SUBSCRIPTION_PLANS.PERSONAL.name}
@@ -81,16 +85,13 @@ export function SubscriptionPlanSelector({
             id="business"
             className="peer sr-only"
           />
-          <Label
-            htmlFor="business"
-            className="flex flex-col h-full"
-          >
-            <Card className={cn(
-              "cursor-pointer border-2 h-full",
-              selectedPlan === "business" 
-                ? "border-primary" 
-                : "border-muted"
-            )}>
+          <Label htmlFor="business" className="flex flex-col h-full">
+            <Card
+              className={cn(
+                "cursor-pointer border-2 h-full",
+                selectedPlan === "business" ? "border-primary" : "border-muted",
+              )}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {SUBSCRIPTION_PLANS.BUSINESS.name}
@@ -129,7 +130,9 @@ export function SubscriptionPlanSelector({
           <div className="text-sm text-amber-800">
             <p className="font-medium">Subscription Notice</p>
             <p className="mt-1">
-              Each bot requires its own subscription. You will be charged immediately upon creating a bot and subscriptions are non-refundable.
+              Each bot requires its own subscription. You will be charged
+              immediately upon creating a bot and subscriptions are
+              non-refundable.
             </p>
           </div>
         </div>
