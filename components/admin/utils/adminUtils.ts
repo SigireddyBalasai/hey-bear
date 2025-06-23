@@ -1,24 +1,4 @@
-interface UserWithUsage {
-  id: string;
-  auth_user_id: string;
-  email?: string;
-  full_name?: string;
-  last_sign_in?: string;
-  created_at?: string;
-  updated_at?: string;
-  is_admin?: boolean;
-  stripe_customer_id?: string | null;
-  plan?: {
-    id: string;
-    name: string;
-  };
-  userusage?: {
-    interactions_used: number;
-    assistants_used: number;
-    token_usage: number;
-    cost_estimate: number;
-  };
-}
+import type { AdminUserWithUsage } from '@/types/admin.types';
 
 /**
  * Fetches usage data for the admin dashboard via API
@@ -127,7 +107,7 @@ export async function fetchUsageData(
 /**
  * Fetches all users with their usage data via API
  */
-export async function fetchAllUsers(): Promise<UserWithUsage[]> {
+export async function fetchAllUsers(): Promise<AdminUserWithUsage[]> {
   try {
     const response = await fetch('/api/admin/users');
 
@@ -135,7 +115,7 @@ export async function fetchAllUsers(): Promise<UserWithUsage[]> {
       throw new Error(`Failed to fetch users: ${response.statusText}`);
     }
 
-    return (await response.json()) as UserWithUsage[];
+    return (await response.json()) as AdminUserWithUsage[];
   } catch (error) {
     console.error('Error in fetchAllUsers:', error);
 

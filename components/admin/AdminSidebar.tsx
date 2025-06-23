@@ -13,16 +13,9 @@ import { useLoadingState } from '@/hooks/useLoadingState';
 import { cn } from '@/lib/utils';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
+import { SidebarLinkProps } from '@/types/admin.types';
 
-interface LinkType {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  badge?: number | string;
-}
-
-function SidebarLink({ href, icon, label, active, badge }: LinkType) {
+function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
   return (
     <Link href={href} passHref>
       <Button

@@ -2,17 +2,13 @@
 
 import { motion } from 'framer-motion';
 
-import type { AssistantWithNonNullableFields } from '@/types/concierge.types';
+import type {
+  AssistantWithNonNullableFields,
+  ConciergeAssistantGridProps,
+  ViewMode,
+} from '@/types/concierge.types';
 
 import { AssistantCard } from './conciergeCard';
-
-interface AssistantGridProps {
-  assistants: AssistantWithNonNullableFields[];
-  searchQuery: string;
-  selectedTab: string;
-  viewMode: 'grid' | 'list';
-  onDeleteAssistant: (assistantId: string) => void;
-}
 
 const filterAssistants = (
   assistants: AssistantWithNonNullableFields[],
@@ -42,7 +38,7 @@ export function AssistantGrid({
   selectedTab,
   viewMode,
   onDeleteAssistant,
-}: AssistantGridProps) {
+}: ConciergeAssistantGridProps) {
   const filteredAssistants = filterAssistants(assistants, selectedTab, searchQuery);
 
   if (filteredAssistants.length === 0) {

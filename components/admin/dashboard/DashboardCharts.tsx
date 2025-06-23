@@ -1,12 +1,13 @@
 import { Line } from 'react-chartjs-2';
 
-import type { ChartData, ChartOptions, TimeSeriesDataPoint } from '@/types/admin.types';
+import type {
+  AdminDashboardChartProps,
+  ChartData,
+  ChartOptions,
+  TimeSeriesDataPoint,
+} from '@/types/admin.types';
 
-interface DashboardChartsProps {
-  timeSeriesData: TimeSeriesDataPoint[];
-}
-
-export function DashboardCharts({ timeSeriesData }: DashboardChartsProps) {
+export function DashboardCharts({ timeSeriesData }: AdminDashboardChartProps) {
   const chartData: ChartData = {
     labels: timeSeriesData.map(data => data.date),
     datasets: [

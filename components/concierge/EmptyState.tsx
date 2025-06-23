@@ -1,20 +1,14 @@
 import { Bot, Plus, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-
-interface EmptyStateProps {
-  searchQuery: string;
-  onClearSearch: () => void;
-  onCreateNew: () => void;
-  noAssistantsYet?: boolean;
-}
+import type { ConciergeEmptyStateProps } from '@/types/concierge.types';
 
 export function EmptyState({
   searchQuery,
   onClearSearch,
   onCreateNew,
   noAssistantsYet = true,
-}: EmptyStateProps) {
+}: ConciergeEmptyStateProps) {
   const hasSearchQuery = Boolean(searchQuery);
 
   return (

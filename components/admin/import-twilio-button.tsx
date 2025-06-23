@@ -13,20 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-
-interface ImportResult {
-  success: boolean;
-  imported?: number;
-  skipped?: number;
-  errors?: string[];
-  total?: number;
-  error?: string;
-}
+import type { AdminImportTwilioResult } from '@/types/admin.types';
 
 export function ImportTwilioButton() {
   const [isImporting, setIsImporting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importResult, setImportResult] = useState<AdminImportTwilioResult | null>(null);
 
   const handleImport = async () => {
     setIsImporting(true);
@@ -39,7 +31,7 @@ export function ImportTwilioButton() {
         },
       });
 
-      const result: ImportResult = await response.json();
+      const result: AdminImportTwilioResult = await response.json();
 
       if (result.success) {
         setImportResult(result);

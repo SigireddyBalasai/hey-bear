@@ -8,20 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-interface UsersSearchAndFilterProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  statusFilter: string;
-  setStatusFilter: (status: string) => void;
-}
+import type { AdminUsersSearchAndFilterProps } from '@/types/admin.types';
 
 export function UsersSearchAndFilter({
   searchTerm,
   setSearchTerm,
   statusFilter,
   setStatusFilter,
-}: UsersSearchAndFilterProps) {
+}: AdminUsersSearchAndFilterProps) {
   return (
     <div className="mb-6 flex flex-col gap-4 md:flex-row">
       <div className="flex-1">

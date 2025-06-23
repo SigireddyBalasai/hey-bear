@@ -238,3 +238,218 @@ export interface UserDetailModalProps {
   userId?: string;
   userEmail?: string;
 }
+
+// Interface for admin phone number management
+export interface AdminPhoneNumber {
+  id: string;
+  phone_number: string;
+  friendly_name: string | null;
+  capabilities: Record<string, unknown> | null;
+  created_at: string;
+  assigned_to: string | null;
+  assigned_at: string | null;
+  is_active: boolean;
+  twilio_sid: string;
+  is_assigned: boolean;
+  assistant_id: string | null;
+  status: string;
+  country: string;
+}
+
+// Props for Admin Dashboard Charts
+export interface AdminDashboardChartProps {
+  timeSeriesData: TimeSeriesDataPoint[];
+}
+
+// Props for Admin Dashboard Stats Cards
+export interface AdminDashboardStatsCardsProps {
+  dashboardData: import('@/types/interaction.types').DashboardData | null;
+}
+
+// Props for Admin TimeRangeSelector
+export interface AdminTimeRangeSelectorProps {
+  selectedTimeRange: string;
+  onTimeRangeChange: (timeframe: string) => void;
+}
+
+// Props for Admin Usage Charts
+export interface AdminUsageChartsProps {
+  dashboardData: import('@/types/interaction.types').DashboardData | null;
+  generateChartData: () => ChartData;
+}
+
+// Interface for Twilio Import Result
+export interface AdminImportTwilioResult {
+  success: boolean;
+  imported?: number;
+  skipped?: number;
+  errors?: string[];
+  total?: number;
+  error?: string;
+}
+
+// Props for Admin Phone Numbers Table
+export interface AdminPhoneNumbersTableProps {
+  phoneNumbers: AdminPhoneNumber[];
+}
+
+// Interfaces for Admin Token Distribution Chart
+export interface AdminTokenDistribution {
+  type: string;
+  tokens: number;
+  percentage: number;
+}
+
+export interface AdminTotalStats {
+  interactions: number;
+  tokens: number;
+  costs: number;
+  errors: number;
+  activeUsers: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface AdminTokenDistributionChartProps {
+  tokenDistribution: AdminTokenDistribution[];
+  totalStats: AdminTotalStats;
+}
+
+// Props for Admin Usage Cost Chart
+export interface AdminUsageCostChartProps {
+  timeSeriesData: TimeSeriesDataPoint[];
+}
+
+// Props for Admin Usage Filter Controls
+export interface AdminUsageFilterControlsProps {
+  selectedTimeframe: string;
+  selectedAssistant: string;
+  selectedPlan: string;
+  selectedModel: string;
+  assistants: { id: string; name: string }[];
+  onTimeframeChange: (timeframe: string) => void;
+  onAssistantChange: (assistant: string) => void;
+  onPlanChange: (plan: string) => void;
+  onModelChange: (model: string) => void;
+}
+
+// Props for Admin Usage Filters
+export interface AdminUsageFiltersProps {
+  selectedAssistant: string;
+  selectedPlan: string;
+  selectedModel: string;
+  selectedTimeframe: string;
+  assistants: { id: string; name: string }[];
+  onAssistantChange: (assistant: string) => void;
+  onPlanChange: (plan: string) => void;
+  onModelChange: (model: string) => void;
+  onTimeframeChange: (timeframe: string) => void;
+}
+
+// Props for Admin Usage Stats Cards
+export interface AdminUsageStatsCardsProps {
+  totalStats: {
+    interactions: number;
+    tokens: number;
+    costs: number;
+    errors: number;
+    activeUsers: number;
+    inputTokens: number;
+    outputTokens: number;
+  };
+  costTrend: {
+    current: number;
+    previous: number;
+    change: number;
+    isIncrease: boolean;
+  };
+}
+
+// Interfaces for Admin Usage Table
+export type InteractionType = 'chat' | 'sms' | 'call';
+
+export interface AdminUsageRecordUser {
+  email: string;
+}
+
+export interface AdminUsageRecordAssistant {
+  name: string;
+}
+
+export interface AdminUsageRecord {
+  id: string;
+  user_id: string;
+  assistant_id: string;
+  interaction_type: InteractionType;
+  tokens_used: number;
+  cost: number;
+  created_at: string;
+  users: AdminUsageRecordUser;
+  assistants: AdminUsageRecordAssistant;
+}
+
+export interface AdminUsageTableProps {
+  filteredRecords: AdminUsageRecord[];
+  totalRecords: number;
+}
+
+// Props for Admin Delete User Dialog
+export interface AdminDeleteUserDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: import('@/types/auth.types').UserData | null;
+  onConfirm: () => void;
+}
+
+// Props for Admin User Row
+export interface AdminUserRowProps {
+  user: import('@/types/auth.types').UserData;
+  onDelete: (user: import('@/types/auth.types').UserData) => void;
+}
+
+// Props for Admin User Table
+export interface AdminUserTableProps {
+  users: import('@/types/auth.types').UserData[];
+  onDelete: (user: import('@/types/auth.types').UserData) => void;
+}
+
+// Props for Admin Users Header
+export interface AdminUsersHeaderProps {
+  isRefreshing: boolean;
+  onRefresh: () => void;
+}
+
+// Props for Admin Users Search and Filter
+export interface AdminUsersSearchAndFilterProps {
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  statusFilter: string;
+  setStatusFilter: (status: string) => void;
+}
+
+// Interface for Admin User with Usage (from adminUtils.ts)
+export interface AdminUserWithUsagePlan {
+  id: string;
+  name: string;
+}
+
+export interface AdminUserWithUsageUserUsage {
+  interactions_used: number;
+  assistants_used: number;
+  token_usage: number;
+  cost_estimate: number;
+}
+
+export interface AdminUserWithUsage {
+  id: string;
+  auth_user_id: string;
+  email?: string;
+  full_name?: string;
+  last_sign_in?: string;
+  created_at?: string;
+  updated_at?: string;
+  is_admin?: boolean;
+  stripe_customer_id?: string | null;
+  plan?: AdminUserWithUsagePlan;
+  userusage?: AdminUserWithUsageUserUsage;
+}

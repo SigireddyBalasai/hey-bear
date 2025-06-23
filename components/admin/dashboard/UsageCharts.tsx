@@ -1,16 +1,13 @@
 import { Bar, Line } from 'react-chartjs-2';
 
+import { Bar, Line } from 'react-chartjs-2';
+
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { ChartData } from '@/types/admin.types';
+import type { AdminUsageChartsProps, ChartData } from '@/types/admin.types';
 import type { DashboardData, UsageChartItem } from '@/types/interaction.types';
 
-interface UsageChartsProps {
-  dashboardData: DashboardData | null;
-  generateChartData: () => ChartData;
-}
-
-export function UsageCharts({ dashboardData, generateChartData }: UsageChartsProps) {
+export function UsageCharts({ dashboardData, generateChartData }: AdminUsageChartsProps) {
   return (
     <div className="mb-8">
       <Tabs defaultValue="usage" className="w-full">

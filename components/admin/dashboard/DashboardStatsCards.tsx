@@ -1,13 +1,12 @@
 import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
 
+import { Activity, DollarSign, MessageSquare, Users } from 'lucide-react';
+
 import { Card } from '@/components/ui/card';
+import type { AdminDashboardStatsCardsProps } from '@/types/admin.types';
 import type { DashboardData } from '@/types/interaction.types';
 
-interface DashboardStatsCardsProps {
-  dashboardData: DashboardData | null;
-}
-
-export function DashboardStatsCards({ dashboardData }: DashboardStatsCardsProps) {
+export function DashboardStatsCards({ dashboardData }: AdminDashboardStatsCardsProps) {
   return (
     <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card className="p-4 transition-all hover:shadow-md">

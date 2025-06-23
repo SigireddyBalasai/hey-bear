@@ -7,23 +7,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { AdminPhoneNumber, AdminPhoneNumbersTableProps } from '@/types/admin.types';
 
-interface PhoneNumber {
-  id: string;
-  phone_number: string;
-  twilio_sid: string | null;
-  is_assigned: boolean | null;
-  assistant_id: string | null;
-  status: string | null;
-  country: string | null;
-  created_at: string;
-}
-
-interface PhoneNumbersTableProps {
-  phoneNumbers: PhoneNumber[];
-}
-
-export function PhoneNumbersTable({ phoneNumbers }: PhoneNumbersTableProps) {
+export function PhoneNumbersTable({ phoneNumbers }: AdminPhoneNumbersTableProps) {
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',

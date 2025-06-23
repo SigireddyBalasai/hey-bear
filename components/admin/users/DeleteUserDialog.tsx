@@ -10,18 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import type { AdminDeleteUserDialogProps } from '@/types/admin.types';
 import type { UserData } from '@/types/auth.types';
 
 import { getInitials } from './utils';
 
-interface DeleteUserDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: UserData | null;
-  onConfirm: () => void;
-}
-
-export function DeleteUserDialog({ open, onOpenChange, user, onConfirm }: DeleteUserDialogProps) {
+export function DeleteUserDialog({
+  open,
+  onOpenChange,
+  user,
+  onConfirm,
+}: AdminDeleteUserDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>

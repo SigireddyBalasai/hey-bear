@@ -16,18 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-interface UsageFiltersProps {
-  selectedAssistant: string;
-  selectedPlan: string;
-  selectedModel: string;
-  selectedTimeframe: string;
-  assistants: { id: string; name: string }[];
-  onAssistantChange: (assistant: string) => void;
-  onPlanChange: (plan: string) => void;
-  onModelChange: (model: string) => void;
-  onTimeframeChange: (timeframe: string) => void;
-}
+import type { AdminUsageFiltersProps } from '@/types/admin.types';
 
 export function UsageFilters({
   selectedAssistant,
@@ -39,7 +28,7 @@ export function UsageFilters({
   onPlanChange,
   onModelChange,
   onTimeframeChange,
-}: UsageFiltersProps) {
+}: AdminUsageFiltersProps) {
   return (
     <>
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">

@@ -2,31 +2,15 @@
 
 import { format, parseISO } from 'date-fns';
 
+'use client';
+
+import { format, parseISO } from 'date-fns';
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { AdminUsageRecord, AdminUsageTableProps } from '@/types/admin.types';
 
-interface UsageRecord {
-  id: string;
-  user_id: string;
-  assistant_id: string;
-  interaction_type: 'chat' | 'sms' | 'call';
-  tokens_used: number;
-  cost: number;
-  created_at: string;
-  users: {
-    email: string;
-  };
-  assistants: {
-    name: string;
-  };
-}
-
-interface UsageTableProps {
-  filteredRecords: UsageRecord[];
-  totalRecords: number;
-}
-
-export function UsageTable({ filteredRecords, totalRecords }: UsageTableProps) {
+export function UsageTable({ filteredRecords, totalRecords }: AdminUsageTableProps) {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',

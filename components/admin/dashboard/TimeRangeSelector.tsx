@@ -1,14 +1,10 @@
 import { Button } from '@/components/ui/button';
-
-interface TimeRangeSelectorProps {
-  selectedTimeRange: string;
-  onTimeRangeChange: (timeframe: string) => void;
-}
+import type { AdminTimeRangeSelectorProps } from '@/types/admin.types';
 
 export function TimeRangeSelector({
   selectedTimeRange,
   onTimeRangeChange,
-}: TimeRangeSelectorProps) {
+}: AdminTimeRangeSelectorProps) {
   return (
     <div className="flex gap-2">
       <Button

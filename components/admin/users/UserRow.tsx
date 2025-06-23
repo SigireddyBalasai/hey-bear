@@ -11,16 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type { AdminUserRowProps } from '@/types/admin.types';
 import type { UserData } from '@/types/auth.types';
 
 import { getInitials, getStatusBadgeContent, getStatusBadgeVariant } from './utils';
 
-interface UserRowProps {
-  user: UserData;
-  onDelete: (user: UserData) => void;
-}
-
-export function UserRow({ user, onDelete }: UserRowProps) {
+export function UserRow({ user, onDelete }: AdminUserRowProps) {
   return (
     <tr>
       <td>

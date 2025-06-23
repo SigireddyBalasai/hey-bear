@@ -3,24 +3,10 @@
 import { useEffect, useState } from 'react';
 
 import { ImportTwilioButton } from '@/components/admin/import-twilio-button';
+import { ImportTwilioButton } from '@/components/admin/import-twilio-button';
 import { PhoneNumbersTable } from '@/components/admin/phone-numbers-table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-interface PhoneNumber {
-  id: string;
-  phone_number: string;
-  friendly_name: string | null;
-  capabilities: Record<string, unknown> | null;
-  created_at: string;
-  assigned_to: string | null;
-  assigned_at: string | null;
-  is_active: boolean;
-  twilio_sid: string;
-  is_assigned: boolean;
-  assistant_id: string | null;
-  status: string;
-  country: string;
-}
+import type { AdminPhoneNumber } from '@/types/admin.types';
 
 function PhoneNumbersLoading() {
   return (
@@ -41,7 +27,7 @@ function PhoneNumbersLoading() {
 }
 
 export function AdminPhoneNumbersSection() {
-  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
+  const [phoneNumbers, setPhoneNumbers] = useState<AdminPhoneNumber[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,7 +44,7 @@ export function AdminPhoneNumbersSection() {
       };
 
       if (result.success) {
-        setPhoneNumbers((result.data as PhoneNumber[]) ?? []);
+        setPhoneNumbers((result.data as AdminPhoneNumber[]) ?? []);
       } else {
         setError(result.error ?? 'Failed to load phone numbers');
       }

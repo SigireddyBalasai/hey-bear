@@ -2,16 +2,12 @@
 
 import { motion } from 'framer-motion';
 
-import type { AssistantWithNonNullableFields } from '@/types/concierge.types';
+import type {
+  AssistantWithNonNullableFields,
+  ConciergeAssistantListWrapperProps,
+} from '@/types/concierge.types';
 
 import { AssistantList } from './AssistantList';
-
-interface AssistantListWrapperProps {
-  assistants: AssistantWithNonNullableFields[];
-  searchQuery: string;
-  selectedTab: string;
-  onDeleteAssistant: (assistantId: string) => void;
-}
 
 const filterAssistants = (
   assistants: AssistantWithNonNullableFields[],
@@ -40,7 +36,7 @@ export function AssistantListWrapper({
   searchQuery,
   selectedTab,
   onDeleteAssistant,
-}: AssistantListWrapperProps) {
+}: ConciergeAssistantListWrapperProps) {
   const filteredAssistants = filterAssistants(assistants, selectedTab, searchQuery);
 
   return (

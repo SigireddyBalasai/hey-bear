@@ -1,13 +1,11 @@
 import { Line } from 'react-chartjs-2';
 
+import { Line } from 'react-chartjs-2';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { TimeSeriesDataPoint } from '@/types/admin.types';
+import type { AdminUsageCostChartProps, TimeSeriesDataPoint } from '@/types/admin.types';
 
-interface UsageCostChartProps {
-  timeSeriesData: TimeSeriesDataPoint[];
-}
-
-export function UsageCostChart({ timeSeriesData }: UsageCostChartProps) {
+export function UsageCostChart({ timeSeriesData }: AdminUsageCostChartProps) {
   const generateTimeSeriesData = () => ({
     labels: timeSeriesData.map(entry => {
       const date = new Date(entry.date);

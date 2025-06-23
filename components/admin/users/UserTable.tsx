@@ -1,14 +1,11 @@
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { AdminUserTableProps } from '@/types/admin.types';
 import type { UserData } from '@/types/auth.types';
 
 import { UserRow } from './UserRow';
 
-interface UserTableProps {
-  users: UserData[];
-  onDelete: (user: UserData) => void;
-}
-
-export function UserTable({ users, onDelete }: UserTableProps) {
+export function UserTable({ users, onDelete }: AdminUserTableProps) {
   return (
     <Table>
       <TableHeader>

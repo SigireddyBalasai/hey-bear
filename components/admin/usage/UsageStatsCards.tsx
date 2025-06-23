@@ -1,26 +1,9 @@
 import { ArrowDown, ArrowUp, BarChart3, CircleDollarSign, TrendingUp } from 'lucide-react';
 
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { AdminUsageStatsCardsProps } from '@/types/admin.types';
 
-interface UsageStatsCardsProps {
-  totalStats: {
-    interactions: number;
-    tokens: number;
-    costs: number;
-    errors: number;
-    activeUsers: number;
-    inputTokens: number;
-    outputTokens: number;
-  };
-  costTrend: {
-    current: number;
-    previous: number;
-    change: number;
-    isIncrease: boolean;
-  };
-}
-
-export function UsageStatsCards({ totalStats, costTrend }: UsageStatsCardsProps) {
+export function UsageStatsCards({ totalStats, costTrend }: AdminUsageStatsCardsProps) {
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
       <Card>

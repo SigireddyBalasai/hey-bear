@@ -1,14 +1,12 @@
 import { RefreshCw, UserPlus } from 'lucide-react';
 
+import { RefreshCw, UserPlus } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { AdminUsersHeaderProps } from '@/types/admin.types';
 
-interface UsersHeaderProps {
-  isRefreshing: boolean;
-  onRefresh: () => void;
-}
-
-export function UsersHeader({ isRefreshing, onRefresh }: UsersHeaderProps) {
+export function UsersHeader({ isRefreshing, onRefresh }: AdminUsersHeaderProps) {
   return (
     <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
       <div>

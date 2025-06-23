@@ -29,3 +29,31 @@ export type ConciergeFormData = Pick<AssistantRow, 'name'> &
     | 'business_phone'
     | 'concierge_name'
   >;
+
+// View mode for assistant list
+export type ViewMode = 'grid' | 'list';
+
+// Props for Concierge Assistant Grid
+export interface ConciergeAssistantGridProps {
+  assistants: AssistantWithNonNullableFields[];
+  searchQuery: string;
+  selectedTab: string;
+  viewMode: ViewMode;
+  onDeleteAssistant: (assistantId: string) => void;
+}
+
+// Props for Concierge Assistant List Wrapper
+export interface ConciergeAssistantListWrapperProps {
+  assistants: AssistantWithNonNullableFields[];
+  searchQuery: string;
+  selectedTab: string;
+  onDeleteAssistant: (assistantId: string) => void;
+}
+
+// Props for Concierge Empty State
+export interface ConciergeEmptyStateProps {
+  searchQuery: string;
+  onClearSearch: () => void;
+  onCreateNew: () => void;
+  noAssistantsYet?: boolean;
+}

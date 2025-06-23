@@ -1,33 +1,19 @@
 import { Pie } from 'react-chartjs-2';
 
+import { Pie } from 'react-chartjs-2';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-
-interface TokenDistribution {
-  type: string;
-  tokens: number;
-  percentage: number;
-}
-
-interface TotalStats {
-  interactions: number;
-  tokens: number;
-  costs: number;
-  errors: number;
-  activeUsers: number;
-  inputTokens: number;
-  outputTokens: number;
-}
-
-interface TokenDistributionChartProps {
-  tokenDistribution: TokenDistribution[];
-  totalStats: TotalStats;
-}
+import type {
+  AdminTokenDistribution,
+  AdminTokenDistributionChartProps,
+  AdminTotalStats,
+} from '@/types/admin.types';
 
 export function TokenDistributionChart({
   tokenDistribution,
   totalStats,
-}: TokenDistributionChartProps) {
+}: AdminTokenDistributionChartProps) {
   const generateTokenDistributionData = () => ({
     labels: tokenDistribution.map(item => item.type),
     datasets: [
