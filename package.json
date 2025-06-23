@@ -8,7 +8,7 @@
     "prepare": "husky install",
     "lint": "next lint",
     "typegen": "pnpm dlx supabase gen types typescript --linked --schema public > ./lib/db.types.ts",
-    "knip": "knip"
+    "report": "knip"
   },
   "dependencies": {
     "@pinecone-database/pinecone": "^6.1.1",
