@@ -1,8 +1,8 @@
 // Utility functions and helpers for admin users UI
-import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import * as React from 'react';
 import type { ReactNode } from 'react';
 
+import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 export const getInitials = (name = ''): string =>
   name

@@ -1,7 +1,7 @@
 // UI component interfaces and types
-import type { VariantProps } from 'class-variance-authority';
 import type { DateRange } from 'react-day-picker';
 
+import type { VariantProps } from 'class-variance-authority';
 
 import type { badgeVariants } from '@/components/ui/badge';
 import type { buttonVariants } from '@/components/ui/button';

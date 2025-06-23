@@ -1,3 +1,5 @@
+import type { DashboardData } from '@/types/interaction.types';
+
 import type { Assistant, UsageData, UsageMetric } from './usage.types';
 
 export interface AssistantSelectorProps {

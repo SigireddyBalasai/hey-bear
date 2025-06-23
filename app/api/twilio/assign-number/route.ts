@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+
 import twilio from 'twilio';
 
 import type { AssignPhoneNumberRequest } from '@/types/api.types';

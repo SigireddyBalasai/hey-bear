@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import {
   AlertCircle,
   ArrowUpDown,
@@ -10,10 +12,6 @@ import {
   Search,
   UserRoundCog,
 } from 'lucide-react';
-import { useState } from 'react';
-
-
-import { UserDetailModal } from './UserDetailModal';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +42,7 @@ import {
 } from '@/components/ui/table';
 import type { UserUsageStats, UserUsageTableProps } from '@/types/admin.types';
 
+import { UserDetailModal } from './UserDetailModal';
 
 // Get initials (moved to outer scope)
 const getInitials = (name?: string | null) => {

@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+
 import twilio from 'twilio';
 
 import type { DirectSMSRequest } from '@/types/api.types';

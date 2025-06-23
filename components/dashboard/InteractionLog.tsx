@@ -2,12 +2,6 @@
 
 import React, { memo } from 'react';
 
-import { useData } from './DataContext';
-import { InteractionEmptyState } from './InteractionEmptyState';
-import { InteractionRow } from './InteractionRow';
-import { PaginationControls } from './PaginationControls';
-import { SortableHeader } from './SortableHeader';
-
 import {
   Card,
   CardContent,
@@ -22,6 +16,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInteractionData } from '@/hooks/useInteractionData';
 import type { InteractionLogProps } from '@/types/interaction.types';
 
+import { useData } from './DataContext';
+import { InteractionEmptyState } from './InteractionEmptyState';
+import { InteractionRow } from './InteractionRow';
+import { PaginationControls } from './PaginationControls';
+import { SortableHeader } from './SortableHeader';
 
 // Loading component
 const LoadingRow = memo(() => (

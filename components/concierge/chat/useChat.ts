@@ -2,10 +2,9 @@
 
 import { useCallback, useState } from 'react';
 
-import type { ChatMessage } from './types';
-
 import { handleError } from '@/utils/error-handling';
 
+import type { ChatMessage } from './types';
 
 interface UseChatProps {
   assistantId: string;

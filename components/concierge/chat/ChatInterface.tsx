@@ -1,9 +1,9 @@
 'use client';
 
+import React from 'react';
 
 import { motion } from 'framer-motion';
 import { Bot, Loader2, Paperclip, SendIcon, User } from 'lucide-react';
-import React from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';

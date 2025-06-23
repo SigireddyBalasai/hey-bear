@@ -1,7 +1,5 @@
 import { Trash2 } from 'lucide-react';
 
-import { getInitials } from './utils';
-
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import type { UserData } from '@/types/auth.types';
 
+import { getInitials } from './utils';
 
 interface DeleteUserDialogProps {
   open: boolean;

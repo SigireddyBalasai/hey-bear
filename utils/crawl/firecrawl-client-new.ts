@@ -5,7 +5,7 @@ import type {
   FirecrawlTaskResponse,
 } from './firecrawl-types';
 
-const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY!;
+const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const FIRECRAWL_BASE_URL = 'http://34.30.131.11:11235';
 
 /**

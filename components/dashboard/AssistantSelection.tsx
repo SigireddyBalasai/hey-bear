@@ -1,10 +1,11 @@
 'use client';
 
-import { BarChart3, Bot, MessageSquare } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+import { BarChart3, Bot, MessageSquare } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

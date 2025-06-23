@@ -1,10 +1,9 @@
 'use client';
 
-import { Download, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
+import { Download, Loader2 } from 'lucide-react';
 
-import { importTwilioNumbers } from '@/app/admin/actions/import-twilio-numbers';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,11 +31,18 @@ export function ImportTwilioButton() {
   const handleImport = async () => {
     setIsImporting(true);
     try {
-      const result = await importTwilioNumbers();
+      // Call the API route via fetch and parse the result
+      const response = await fetch('/admin/actions/import-twilio-numbers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      setImportResult(result);
+      const result: ImportResult = await response.json();
 
       if (result.success) {
+        setImportResult(result);
         setShowDialog(true);
       }
     } catch {

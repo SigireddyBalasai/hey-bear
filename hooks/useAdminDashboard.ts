@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 
-
-import type { AdminDashboardState, ChartData, ChartDataset } from '@/types/dashboard.types';
+import { TimeSeriesResponse } from '@/types';
 import type { DashboardData, UsageChartItem } from '@/types/interaction.types';
 import { withErrorHandling } from '@/utils/error-handling';
 
 export function useAdminDashboard(user: any, isAdmin: boolean, isLoading: boolean) {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   const fetchDashboardData = useCallback(async (): Promise<void> => {
     if (!user || !isAdmin) return;
 
-    setState(prev => ({ ...prev, isLoadingData: true }));
+    setIsLoadingData(true);
 
     await withErrorHandling(
       async () => {
@@ -28,7 +28,8 @@ export function useAdminDashboard(user: any, isAdmin: boolean, isLoading: boolea
         fallbackMessage: 'Failed to load dashboard data',
       }
     );
-  }, [user]);
+    setIsLoadingData(false);
+  }, [user, isAdmin]);
 
   const fetchTimeframeData = async (timeframe: string) => {
     setSelectedTimeRange(timeframe);
@@ -104,6 +105,7 @@ export function useAdminDashboard(user: any, isAdmin: boolean, isLoading: boolea
   return {
     dashboardData,
     selectedTimeRange,
+    isLoadingData,
     fetchTimeframeData,
     generateChartData,
   };

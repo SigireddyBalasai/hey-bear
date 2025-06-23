@@ -1,12 +1,14 @@
 'use server';
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+import { NextResponse } from 'next/server';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 import twilio from 'twilio';
 
 import type { TwilioPhoneNumber } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
-import { requireAdmin } from '@/utils/admin';
+import { requireAdmin } from '@/utils/auth-utils';
 import { createClient } from '@/utils/supabase/server';
 
 async function processPhoneNumber(
@@ -52,12 +54,9 @@ async function processPhoneNumber(
   }
 }
 
-export async function importTwilioNumbers() {
+export const importTwilioNumbers = requireAdmin(async () => {
   try {
     const supabase = await createClient();
-
-    // Ensure user is admin
-    await requireAdmin(supabase);
 
     // Initialize Twilio client
     const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -84,17 +83,20 @@ export async function importTwilioNumbers() {
     // Revalidate the admin page to show updated data
     revalidatePath('/admin');
 
-    return {
+    return NextResponse.json({
       success: true,
       imported: importedCount,
       skipped: skippedCount,
       errors: errors.length > 0 ? errors : undefined,
       total: phoneNumbers.length,
-    };
+    });
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to import phone numbers',
-    };
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to import phone numbers',
+      },
+      { status: 500 }
+    );
   }
-}
+});

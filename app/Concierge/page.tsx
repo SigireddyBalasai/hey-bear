@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { AnimatePresence } from 'framer-motion';
 
 import { AssistantGrid } from '@/components/concierge/AssistantGrid';
 import { AssistantListWrapper } from '@/components/concierge/AssistantListWrapper';

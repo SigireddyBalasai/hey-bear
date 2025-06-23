@@ -1,4 +1,3 @@
-import { requireAdmin } from '@/utils/admin';
 import { createClient } from '@/utils/supabase/server';
 
 export async function getPhoneNumbers() {
@@ -6,7 +5,10 @@ export async function getPhoneNumbers() {
     const supabase = await createClient();
 
     // Ensure user is admin
-    await requireAdmin(supabase);
+    const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
+    if (adminError || !isAdmin) {
+      return { success: false, error: 'Unauthorized: Admin access required' };
+    }
 
     const { data: phoneNumbers, error } = await supabase
       .from('phone_numbers')

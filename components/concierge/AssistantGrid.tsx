@@ -2,10 +2,9 @@
 
 import { motion } from 'framer-motion';
 
-import { AssistantCard } from './conciergeCard';
-
 import type { AssistantWithNonNullableFields } from '@/types/concierge.types';
 
+import { AssistantCard } from './conciergeCard';
 
 interface AssistantGridProps {
   assistants: AssistantWithNonNullableFields[];

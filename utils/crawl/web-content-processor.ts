@@ -1,7 +1,6 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import path from 'node:path';
-
 import { v4 as uuidv4 } from 'uuid';
 
 import type { FirecrawlResult } from './firecrawl-types';

@@ -55,6 +55,10 @@ export async function createStripeSessionWithData(
 // Get session data from Stripe session metadata
 export async function getSessionData(sessionId: string): Promise<SessionData | null> {
   try {
+    const stripe = await getStripeInstance();
+    if (!stripe) {
+      throw new Error('Stripe instance could not be initialized');
+    }
     const session: Stripe.Checkout.Session = await stripe.checkout.sessions.retrieve(sessionId);
     const metadata: Stripe.Metadata = session.metadata ?? {};
 

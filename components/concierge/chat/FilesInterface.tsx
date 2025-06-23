@@ -1,8 +1,8 @@
 'use client';
 
-import { Bot, FileText, Loader2, Phone, Upload, X } from 'lucide-react';
 import React from 'react';
 
+import { Bot, FileText, Loader2, Phone, Upload, X } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

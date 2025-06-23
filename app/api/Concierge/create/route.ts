@@ -1,6 +1,7 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSubscriptionPlanDetails } from '@/lib/subscription-plans';

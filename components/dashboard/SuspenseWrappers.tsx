@@ -1,10 +1,10 @@
 'use client';
 
-import { AlertTriangle, RefreshCw } from 'lucide-react';
 import React, { Suspense } from 'react';
 import type { JSX } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

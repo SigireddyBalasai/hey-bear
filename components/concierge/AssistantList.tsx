@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 
 import { format } from 'date-fns';
 import {
@@ -12,7 +13,6 @@ import {
   Star,
   Trash,
 } from 'lucide-react';
-import Link from 'next/link';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';

@@ -1,7 +1,5 @@
 import { Edit, Mail, MessageSquare, MoreHorizontal, Shield, Trash2, User } from 'lucide-react';
 
-import { getInitials, getStatusBadgeContent, getStatusBadgeVariant } from './utils';
-
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { UserData } from '@/types/auth.types';
 
+import { getInitials, getStatusBadgeContent, getStatusBadgeVariant } from './utils';
 
 interface UserRowProps {
   user: UserData;

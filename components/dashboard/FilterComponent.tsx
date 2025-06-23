@@ -1,11 +1,9 @@
 'use client';
 
-import { format } from 'date-fns';
-import { CalendarIcon, FilterIcon, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
-
-import { useData } from './DataContext';
+import { format } from 'date-fns';
+import { CalendarIcon, FilterIcon, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -22,6 +20,7 @@ import type { FilterComponentProps, FilterValues } from '@/types/interaction.typ
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
+import { useData } from './DataContext';
 
 type Assistant = Database['public']['Tables']['assistants']['Row'];
 

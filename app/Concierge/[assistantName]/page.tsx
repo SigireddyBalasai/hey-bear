@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import { useRouter } from 'next/navigation';
@@ -25,7 +25,7 @@ import type {
 import { handleError } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
-const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> }) => {
+const AssistantPage = ({ params }: { params: { assistantName: string } }) => {
   // Consolidated loading states using useMultipleLoadingStates
   const { loadingStates, setLoadingState } = useMultipleLoadingStates([
     'pageLoading',
@@ -67,6 +67,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     isChatDisabled,
   });
 
+  // Define handleFilesUpdated before useFileManagement
   const handleFilesUpdated = useCallback(async () => {
     if (assistantId) {
       const updatedFiles = await fileManagement.fetchFiles(assistantId);
@@ -121,18 +122,23 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
 
         // Provide default objects if null to satisfy type requirements
         const defaultConfig: AssistantConfig = {
+          business_hours: null,
           business_name: null,
           business_phone: null,
           concierge_name: null,
           created_at: '',
           description: null,
           display_name: null,
+          features_enabled: null,
           id: '',
           personality: null,
           pinecone_name: null,
           share_phone_number: null,
           system_prompt: null,
+          timezone: null,
           updated_at: '',
+          webhook_enabled: null,
+          webhook_url: null,
         };
         const defaultUsageLimits: AssistantUsageLimits = {
           assistant_id: '',
@@ -187,7 +193,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
   useEffect(() => {
     async function loadParams() {
       try {
-        const { assistantName } = await params;
+        const { assistantName } = params;
         setAssistantId(assistantName); // This is actually the assistant ID from the URL
 
         // Fetch real assistant data from database
@@ -217,7 +223,7 @@ const AssistantPage = ({ params }: { params: Promise<{ assistantName: string }> 
     }
 
     void loadParams();
-  }, [params, router, fetchAssistantData, processAssistantData]);
+  }, [params, router, fetchAssistantData, processAssistantData, setLoadingState]);
 
   // Fetch user data
   useEffect(() => {

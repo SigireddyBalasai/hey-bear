@@ -2,10 +2,9 @@
 
 import { useCallback, useState } from 'react';
 
-import type { FileWithStatus } from './types';
-
 import { handleError, showSuccess } from '@/utils/error-handling';
 
+import type { FileWithStatus } from './types';
 
 interface UseFileManagementProps {
   assistantId: string;

@@ -1,8 +1,7 @@
-import { UserRow } from './UserRow';
-
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { UserData } from '@/types/auth.types';
 
+import { UserRow } from './UserRow';
 
 interface UserTableProps {
   users: UserData[];

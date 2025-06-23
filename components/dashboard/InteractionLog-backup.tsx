@@ -1,5 +1,7 @@
 'use client';
 
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+
 import {
   AlertTriangle,
   ArrowDownNarrowWide,
@@ -9,10 +11,6 @@ import {
   ExternalLink,
   MessageSquare,
 } from 'lucide-react';
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-
-
-import { useData } from './DataContext';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +38,7 @@ import type { InteractionLogProps } from '@/types/interaction.types';
 import { withErrorHandling } from '@/utils/error-handling';
 import { createClient } from '@/utils/supabase/client';
 
+import { useData } from './DataContext';
 
 // Database types
 type InteractionRow = Database['public']['Tables']['interactions']['Row'];

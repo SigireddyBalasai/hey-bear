@@ -1,7 +1,7 @@
-import type { User } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import type { User } from '@supabase/supabase-js';
 
 import type { AuthContext, AuthResult } from '@/types/auth.types';
 import { createClient } from '@/utils/supabase/server';

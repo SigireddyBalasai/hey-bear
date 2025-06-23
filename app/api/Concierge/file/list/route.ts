@@ -1,7 +1,7 @@
-import type { AssistantFilesList } from '@pinecone-database/pinecone';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import type { AssistantFilesList } from '@pinecone-database/pinecone';
 
 import { getPineconeClient } from '@/lib/pinecone';
 import type { ListFilesRequest } from '@/types/api.types';

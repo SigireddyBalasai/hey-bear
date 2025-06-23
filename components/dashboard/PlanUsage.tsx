@@ -1,13 +1,8 @@
 'use client';
 
-import { MessageSquare, Phone, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-
-import { AssistantSelector } from './AssistantSelector';
-import { useData } from './DataContext';
-import { PlanInfoHeader } from './PlanInfoHeader';
-import { UsageDisplay } from './UsageDisplay';
+import { MessageSquare, Phone, Zap } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLoadingState } from '@/hooks/useLoadingState';
@@ -17,6 +12,10 @@ import { withErrorHandling } from '@/utils/error-handling';
 import { capitalizeFirstLetter, getPlanLimits } from '@/utils/plan-utils';
 import { createClient } from '@/utils/supabase/client';
 
+import { AssistantSelector } from './AssistantSelector';
+import { useData } from './DataContext';
+import { PlanInfoHeader } from './PlanInfoHeader';
+import { UsageDisplay } from './UsageDisplay';
 
 const PlanUsage = ({
   planType: propPlanType,

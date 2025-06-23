@@ -1,7 +1,7 @@
 // Authentication-related interfaces and types
-import type { User } from '@supabase/supabase-js';
 import type { NextResponse } from 'next/server';
 
+import type { User } from '@supabase/supabase-js';
 
 // Auth context interface
 export interface AuthContext {

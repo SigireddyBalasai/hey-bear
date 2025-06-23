@@ -31,7 +31,7 @@ export type AssistantUsageLimitsUpdate =
 // Use database types directly instead of custom interfaces
 export type AssistantData = AssistantRow;
 export type DashboardAssistant = Pick<AssistantRow, 'id' | 'name' | 'created_at'>;
-export type Assistant = Pick<AssistantRow, 'id' | 'name'>;
+export type AssistantBasic = Pick<AssistantRow, 'id' | 'name'>;
 
 // Assistant list props - using AssistantCardData which is based on db.types
 export interface AssistantListProps {

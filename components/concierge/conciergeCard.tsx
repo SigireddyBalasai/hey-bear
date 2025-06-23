@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 
 import { format } from 'date-fns';
 import {
@@ -13,7 +14,6 @@ import {
   Star,
   Trash,
 } from 'lucide-react';
-import Link from 'next/link';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -110,7 +110,7 @@ export function AssistantCard({
         if (!response.ok) {
           const errorData = (await response.json().catch(() => ({}))) as { error?: string };
 
-          throw new Error((errorData.error) ?? 'Failed to delete assistant');
+          throw new Error(errorData.error ?? 'Failed to delete assistant');
         }
 
         showSuccess('Assistant deleted', `${assistant.name} has been removed`);

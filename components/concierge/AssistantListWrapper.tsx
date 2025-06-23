@@ -2,10 +2,9 @@
 
 import { motion } from 'framer-motion';
 
-import { AssistantList } from './AssistantList';
-
 import type { AssistantWithNonNullableFields } from '@/types/concierge.types';
 
+import { AssistantList } from './AssistantList';
 
 interface AssistantListWrapperProps {
   assistants: AssistantWithNonNullableFields[];

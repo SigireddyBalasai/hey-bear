@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 
-import { requireAdmin } from '@/utils/admin';
 import { createClient } from '@/utils/supabase/server';
 
 export async function GET() {
   try {
     const supabase = await createClient();
 
-    await requireAdmin(supabase);
+    // Use Supabase RPC to check for admin
+    const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
+    if (adminError || !isAdmin) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
 
     const { data: phoneNumbers, error } = await supabase
       .from('phone_numbers')

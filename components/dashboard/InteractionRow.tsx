@@ -1,6 +1,6 @@
-import { AlertTriangle, ExternalLink, MessageSquare, Phone } from 'lucide-react';
 import React, { memo } from 'react';
 
+import { AlertTriangle, ExternalLink, MessageSquare, Phone } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

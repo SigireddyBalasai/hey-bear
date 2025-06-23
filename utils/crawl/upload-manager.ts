@@ -1,12 +1,11 @@
-import type { Assistant } from '@pinecone-database/pinecone';
 import { NextResponse } from 'next/server';
 
-
-import type { RequestBody } from './firecrawl-types';
+import type { Assistant } from '@pinecone-database/pinecone';
 
 import type { Json } from '@/lib/db.types';
 import { getPineconeClient } from '@/lib/pinecone';
 
+import type { RequestBody } from './firecrawl-types';
 
 // Define custom error classes for Pinecone operations
 export class PineconeConnectionError extends Error {

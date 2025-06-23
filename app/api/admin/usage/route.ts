@@ -1,8 +1,8 @@
 'use cache';
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/types/db.types';
 import type { UsageAnalytics, UsageOverview, UserUsageStats } from '@/types/usage.types';

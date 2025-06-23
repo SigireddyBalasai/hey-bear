@@ -1,10 +1,9 @@
 import type Stripe from 'stripe';
 
-import { createDefaultAssistant } from './assistant-creation';
-
 import type { CreateAssistantResult } from '@/types/api.types';
 import type { Database } from '@/types/db.types';
 
+import { createDefaultAssistant } from './assistant-creation';
 
 // Database types for assistant metadata
 type AssistantRow = Database['public']['Tables']['assistants']['Row'];

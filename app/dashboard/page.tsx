@@ -1,8 +1,8 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
+import { useSearchParams } from 'next/navigation';
 
 import { AssistantSelection } from '@/components/dashboard/AssistantSelection';
 import { DashboardControls } from '@/components/dashboard/DashboardControls';

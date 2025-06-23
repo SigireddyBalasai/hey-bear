@@ -1,8 +1,9 @@
-import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
