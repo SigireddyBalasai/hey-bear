@@ -17,7 +17,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Line, Doughnut } from "react-chartjs-2";
 import {
   MessageSquare,
   Clock,
@@ -27,9 +26,6 @@ import {
   Calendar,
   FileSpreadsheet,
   Shield,
-  Trash2,
-  MoveRight,
-  ListFilter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

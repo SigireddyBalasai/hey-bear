@@ -14,8 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ActivitySquare,
-  PlayCircle,
-  PauseCircle,
   RefreshCw,
   AlertTriangle,
 } from "lucide-react";

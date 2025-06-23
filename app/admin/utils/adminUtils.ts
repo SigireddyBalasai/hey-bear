@@ -1,6 +1,5 @@
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { Tables } from "@/lib/db.types";
 
 // Replace custom interfaces with types from the schema
 interface TimeSeriesItem {

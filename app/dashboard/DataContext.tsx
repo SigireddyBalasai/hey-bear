@@ -6,7 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { Interaction, DashboardStats, DashboardResponse } from "./models";
+import { Interaction, DashboardStats } from "./models";
 
 interface DataContextProps {
   allInteractions: Interaction[];

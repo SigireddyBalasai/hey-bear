@@ -16,7 +16,6 @@ import {
   Phone,
   CreditCard,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,

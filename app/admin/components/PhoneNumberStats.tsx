@@ -13,19 +13,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  BarChart,
   BarChart3,
   Calendar,
   Clock,
   Download,
-  Filter,
   MessageSquare,
   Phone,
   RefreshCw,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Tables } from "@/lib/db.types";
 import {
   Select,
   SelectContent,
@@ -46,7 +43,7 @@ import {
   ArcElement,
   Filler,
 } from "chart.js";
-import { Bar, Line, Doughnut } from "react-chartjs-2";
+import { Bar, Doughnut } from "react-chartjs-2";
 import { TwilioMessageDetails } from "./TwilioMessageDetails";
 
 // Register Chart.js components

@@ -18,7 +18,6 @@ import {
   Clock,
   User,
   Bot,
-  Calendar,
   ChevronRight,
   ChevronLeft,
   Coins,

@@ -1,5 +1,4 @@
 import { createClient } from "@/utils/supabase/server";
-import { isSubscriptionActive } from "@/lib/stripe";
 
 // Define the plan limits for personal and business subscriptions
 export const PLAN_LIMITS = {

@@ -1,9 +1,7 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import {
   logTwilio,
   logTwilioError,
-  formatTwilioWebhook,
   logTwimlResponse,
 } from "@/utils/twilio-logger";
 import { sanitizeForSms, logIncomingSms } from "@/utils/sms-monitoring";

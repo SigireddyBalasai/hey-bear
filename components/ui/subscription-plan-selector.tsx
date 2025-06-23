@@ -3,7 +3,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -12,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatPrice, SUBSCRIPTION_PLANS } from "@/lib/stripe";
-import { CreditCard, Check, AlertCircle } from "lucide-react";
+import { Check, AlertCircle } from "lucide-react";
 
 interface SubscriptionPlanSelectorProps {
   selectedPlan: string;
