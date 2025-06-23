@@ -16,11 +16,17 @@ export const GET = async (req: NextRequest) => {
     user = await supabase.auth.getUser();
     if (user.error) {
       console.error('[GET /api/Concierge/session] Authentication error:', user.error);
-      return NextResponse.json({ error: 'Unauthorized', details: user.error.message || user.error }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized', details: user.error.message || user.error },
+        { status: 401 }
+      );
     }
     if (!user) {
       console.warn('[GET /api/Concierge/session] No authenticated user found');
-      return NextResponse.json({ error: 'Unauthorized', details: 'No authenticated user found' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized', details: 'No authenticated user found' },
+        { status: 401 }
+      );
     }
 
     const { searchParams } = new URL(req.url);
@@ -29,7 +35,10 @@ export const GET = async (req: NextRequest) => {
 
     if (!sessionId) {
       console.warn('[GET /api/Concierge/session] Missing sessionId in query params');
-      return NextResponse.json({ error: 'Session ID is required', details: 'Missing sessionId in query params' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Session ID is required', details: 'Missing sessionId in query params' },
+        { status: 400 }
+      );
     }
 
     const { data: paymentSession, error: fetchError } = await supabase
@@ -41,16 +50,29 @@ export const GET = async (req: NextRequest) => {
 
     if (fetchError || !paymentSession) {
       console.error('[GET /api/Concierge/session] Error fetching payment session:', fetchError);
-      return NextResponse.json({ error: 'Session not found', details: fetchError?.message || fetchError || 'No session found for this user and sessionId' }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: 'Session not found',
+          details:
+            fetchError?.message || fetchError || 'No session found for this user and sessionId',
+        },
+        { status: 404 }
+      );
     }
 
     if (paymentSession.expires_at && new Date(paymentSession.expires_at) < new Date()) {
       console.info('[GET /api/Concierge/session] Session expired:', paymentSession.session_id);
-      return NextResponse.json({ error: 'Session expired', details: 'The payment session has expired.' }, { status: 410 });
+      return NextResponse.json(
+        { error: 'Session expired', details: 'The payment session has expired.' },
+        { status: 410 }
+      );
     }
 
     const customerId = `customer_${user.data.user.id.replace(/-/g, '')}`;
-    console.info('[GET /api/Concierge/session] Returning session info for user:', user.data.user.id);
+    console.info(
+      '[GET /api/Concierge/session] Returning session info for user:',
+      user.data.user.id
+    );
 
     return NextResponse.json({
       sessionId: paymentSession.session_id,
@@ -60,8 +82,19 @@ export const GET = async (req: NextRequest) => {
       assistantConfig: paymentSession.assistant_config_data,
     });
   } catch (error) {
-    console.error('[GET /api/Concierge/session] Unexpected error:', error, 'User:', user?.data?.user?.id);
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    console.error(
+      '[GET /api/Concierge/session] Unexpected error:',
+      error,
+      'User:',
+      user?.data?.user?.id
+    );
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 };
 
@@ -71,7 +104,13 @@ export const POST = async (req: NextRequest) => {
   const userClient = await createClient();
   const { data: authUser, error: authError } = await userClient.auth.getUser();
   if (authError || !authUser.user) {
-    return NextResponse.json({ error: 'Unauthorized', details: authError?.message || authError || 'No authenticated user' }, { status: 401 });
+    return NextResponse.json(
+      {
+        error: 'Unauthorized',
+        details: authError?.message || authError || 'No authenticated user',
+      },
+      { status: 401 }
+    );
   }
   const user = authUser.user;
 
@@ -93,17 +132,20 @@ export const POST = async (req: NextRequest) => {
     } = body;
 
     // Log the received body for debugging, but be mindful of sensitive data in production logs
-    console.info('[POST /api/Concierge/session] Received body (excluding potentially sensitive fields for brevity in logs if needed):', {
-      business_name: !!business_name, // log presence instead of value
-      business_phone: !!business_phone,
-      concierge_name: !!concierge_name,
-      description: !!description,
-      display_name: !!display_name,
-      pinecone_name: !!pinecone_name,
-      share_phone_number,
-      system_prompt: !!system_prompt,
-      customer_email: !!customer_email,
-    });
+    console.info(
+      '[POST /api/Concierge/session] Received body (excluding potentially sensitive fields for brevity in logs if needed):',
+      {
+        business_name: !!business_name, // log presence instead of value
+        business_phone: !!business_phone,
+        concierge_name: !!concierge_name,
+        description: !!description,
+        display_name: !!display_name,
+        pinecone_name: !!pinecone_name,
+        share_phone_number,
+        system_prompt: !!system_prompt,
+        customer_email: !!customer_email,
+      }
+    );
 
     // --- Input Validation ---
     const validationErrors: Record<string, string> = {};
@@ -112,14 +154,18 @@ export const POST = async (req: NextRequest) => {
       validationErrors.business_name = 'Business name is required and must be a non-empty string.';
     }
     if (!concierge_name || typeof concierge_name !== 'string' || concierge_name.trim() === '') {
-      validationErrors.concierge_name = 'Concierge name is required and must be a non-empty string.';
+      validationErrors.concierge_name =
+        'Concierge name is required and must be a non-empty string.';
     }
     if (!display_name || typeof display_name !== 'string' || display_name.trim() === '') {
       validationErrors.display_name = 'Display name is required and must be a non-empty string.';
     }
 
     if (customer_email !== undefined && customer_email !== null) {
-      if (typeof customer_email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
+      if (
+        typeof customer_email !== 'string' ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)
+      ) {
         validationErrors.customer_email = 'Customer email must be a valid email address.';
       }
     }
@@ -175,9 +221,13 @@ export const POST = async (req: NextRequest) => {
       console.error(
         '[POST /api/Concierge/session] Error creating payment session (insert using user-context client):',
         insertError,
-        'User:', user.id
+        'User:',
+        user.id
       );
-      return NextResponse.json({ error: 'Failed to create payment session', details: insertError?.message || insertError }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to create payment session', details: insertError?.message || insertError },
+        { status: 500 }
+      );
     }
 
     console.info('[POST /api/Concierge/session] Payment session created:', {
@@ -194,6 +244,12 @@ export const POST = async (req: NextRequest) => {
     });
   } catch (error) {
     console.error('[POST /api/Concierge/session] Unexpected error:', error, 'User:', user?.id);
-    return NextResponse.json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 };
