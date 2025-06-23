@@ -92,29 +92,53 @@ export const POST = async (req: NextRequest) => {
       customer_email,
     } = body;
 
-    console.info('[POST /api/Concierge/session] Received body:', {
-      business_name,
-      business_phone,
-      concierge_name,
-      description,
-      display_name,
-      pinecone_name,
+    // Log the received body for debugging, but be mindful of sensitive data in production logs
+    console.info('[POST /api/Concierge/session] Received body (excluding potentially sensitive fields for brevity in logs if needed):', {
+      business_name: !!business_name, // log presence instead of value
+      business_phone: !!business_phone,
+      concierge_name: !!concierge_name,
+      description: !!description,
+      display_name: !!display_name,
+      pinecone_name: !!pinecone_name,
       share_phone_number,
-      system_prompt,
-      customer_email,
+      system_prompt: !!system_prompt,
+      customer_email: !!customer_email,
     });
 
-    if (!business_name || !concierge_name || !display_name) {
-      console.warn('[POST /api/Concierge/session] Missing required fields', {
-        business_name,
-        concierge_name,
-        display_name,
-      });
+    // --- Input Validation ---
+    const validationErrors: Record<string, string> = {};
+
+    if (!business_name || typeof business_name !== 'string' || business_name.trim() === '') {
+      validationErrors.business_name = 'Business name is required and must be a non-empty string.';
+    }
+    if (!concierge_name || typeof concierge_name !== 'string' || concierge_name.trim() === '') {
+      validationErrors.concierge_name = 'Concierge name is required and must be a non-empty string.';
+    }
+    if (!display_name || typeof display_name !== 'string' || display_name.trim() === '') {
+      validationErrors.display_name = 'Display name is required and must be a non-empty string.';
+    }
+
+    if (customer_email !== undefined && customer_email !== null) {
+      if (typeof customer_email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
+        validationErrors.customer_email = 'Customer email must be a valid email address.';
+      }
+    }
+
+    if (business_phone !== undefined && business_phone !== null) {
+      if (typeof business_phone !== 'string') {
+        validationErrors.business_phone = 'Business phone must be a string.';
+      }
+      // Add more specific phone validation here if needed, e.g., using a library
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      console.warn('[POST /api/Concierge/session] Input validation failed:', validationErrors);
       return NextResponse.json(
-        { error: 'Missing required fields: business_name, concierge_name, display_name', details: { business_name, concierge_name, display_name } },
+        { error: 'Input validation failed', details: validationErrors },
         { status: 400 }
       );
     }
+    // --- End Input Validation ---
 
     const sessionId = uuidv4();
     console.info('[POST /api/Concierge/session] Generated sessionId:', sessionId);
@@ -125,9 +149,9 @@ export const POST = async (req: NextRequest) => {
       concierge_name,
       description,
       display_name,
-      pinecone_name,
+      pinecone_name: pinecone_name ?? null, // Ensure null if undefined
       share_phone_number,
-      system_prompt,
+      system_prompt: system_prompt ?? null, // Ensure null if undefined
     };
 
     const paymentSessionData: Database['public']['Tables']['payment_sessions']['Insert'] = {
