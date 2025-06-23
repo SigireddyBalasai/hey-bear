@@ -82,9 +82,9 @@ export function CreateAssistantDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New No-show</DialogTitle>
+          <DialogTitle>Create new no-show</DialogTitle>
           <DialogDescription>
-            Create a new No-show to help with your tasks.
+            Create a new no-show to help with your tasks.
           </DialogDescription>
         </DialogHeader>
 

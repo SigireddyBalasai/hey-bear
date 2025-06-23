@@ -1122,7 +1122,7 @@ const AssistantPage = ({
               {/* File List */}
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">Current links</h3>
+                  <h3 className="font-medium">Current Files</h3>
                   {(fileList?.files?.length ?? 0) > 0 && (
                     <Badge variant="outline">
                       {fileList?.files?.length} file
