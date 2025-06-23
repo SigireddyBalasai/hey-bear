@@ -6,12 +6,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loading } from "../Concierge/Loading";
 import { fetchUsageData } from "./utils/adminUtils";
-import {
-  DollarSign,
-  Users,
-  MessageSquare,
-  Activity,
-} from "lucide-react";
+import { DollarSign, Users, MessageSquare, Activity } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

@@ -7,10 +7,10 @@
     "format": "prettier --write .",
     "prepare": "husky install",
     "lint": "next lint",
-    "typegen": "pnpm dlx supabase gen types typescript --linked --schema public > ./lib/db.types.ts"
+    "typegen": "pnpm dlx supabase gen types typescript --linked --schema public > ./lib/db.types.ts",
+    "knip": "knip"
   },
   "dependencies": {
-    "@mendable/firecrawl-js": "^1.26.0",
     "@pinecone-database/pinecone": "^6.1.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -39,6 +39,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.19.1",
+    "knip": "^5.61.2",
     "lucide-react": "^0.522.0",
     "next": "latest",
     "next-themes": "^0.4.6",
