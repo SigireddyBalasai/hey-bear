@@ -28,7 +28,7 @@ export async function GET() {
 
     // Get phone numbers
     const { data: numbers, error: numbersError } = await supabase
-      .from("phonenumbers")
+      .from("phone_numbers")
       .select("*")
       .order("assigned_at", { ascending: false });
 
@@ -83,7 +83,7 @@ export async function DELETE(request: Request) {
     }
 
     // Delete from database first
-    const query = supabase.from("phonenumbers").delete();
+    const query = supabase.from("phone_numbers").delete();
 
     if (phoneNumber) {
       query.eq("phone_number", phoneNumber);

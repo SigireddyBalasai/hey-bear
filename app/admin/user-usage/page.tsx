@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -26,17 +26,24 @@ import { AdminSidebar } from "../AdminSidebar";
 import { AdminHeader } from "../AdminHeader";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { UserUsageTable } from "../UserUsageTable";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
+import { useUserUsageStore } from "@/store/userUsageStore";
 
 export default function UserUsagePage() {
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [usageData, setUsageData] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-    to: new Date(Date.now() + 24 * 60 * 60 * 1000),
-  });
+  const {
+    user,
+    setUser,
+    isAdmin,
+    setIsAdmin,
+    isLoading,
+    setIsLoading,
+    usageData,
+    setUsageData,
+    searchTerm,
+    setSearchTerm,
+    dateRange,
+    setDateRange,
+  } = useUserUsageStore();
 
   const router = useRouter();
   const supabase = createClient();
@@ -62,13 +69,9 @@ export default function UserUsagePage() {
         setUser(user);
 
         // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("auth_user_id", user.id)
-          .single();
+        const isAdmin = isAdminRpc();
 
-        if (userDataError || !userData?.is_admin) {
+        if (!isAdmin) {
           setIsAdmin(false);
           router.push("/");
           return;
@@ -98,15 +101,18 @@ export default function UserUsagePage() {
 
       // Fetch detailed usage data per user
       const { data: detailedUsage, error: usageError } = await supabase.from(
-        "userusage",
+        "usage_overview",
       ).select(`
-          id,
-          user_id,
-          users (email, full_name, created_at),
-          message_count,
-          token_usage,
-          cost_estimate,
-          date
+          assistant_id,
+          assistant_name,
+          current_month_messages as message_count,
+          current_month_tokens as token_usage,
+          plan_name,
+          message_limit,
+          token_used,
+          document_limit,
+          documents_used,
+          documents_remaining
         `);
       // .gte('date', fromDate) // Removing date filters for now
       // .lte('date', toDate)

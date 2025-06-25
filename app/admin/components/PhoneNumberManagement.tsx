@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,6 +34,7 @@ import {
   unassignPhoneNumber,
   fetchAssistantsWithoutPhoneNumbers,
 } from "../utils/twilioUtils";
+import { usePhoneNumberManagementStore } from "@/store/phoneNumberManagementStore";
 
 interface PhoneNumberManagementProps {
   initialTab?: string;
@@ -42,15 +43,24 @@ interface PhoneNumberManagementProps {
 export function PhoneNumberManagement({
   initialTab = "assigned",
 }: PhoneNumberManagementProps) {
-  const [assignedNumbers, setAssignedNumbers] = useState<any[]>([]);
-  const [assistants, setAssistants] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [newPhoneNumber, setNewPhoneNumber] = useState("");
-  const [areaCode, setAreaCode] = useState("");
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState("US");
-  const [selectedAssistantForCountry, setSelectedAssistantForCountry] =
-    useState("");
+  const {
+    assignedNumbers,
+    setAssignedNumbers,
+    assistants,
+    setAssistants,
+    isLoading,
+    setIsLoading,
+    newPhoneNumber,
+    setNewPhoneNumber,
+    areaCode,
+    setAreaCode,
+    isAssigning,
+    setIsAssigning,
+    selectedCountry,
+    setSelectedCountry,
+    selectedAssistantForCountry,
+    setSelectedAssistantForCountry,
+  } = usePhoneNumberManagementStore();
 
   // Fetch all data
   const loadData = async () => {

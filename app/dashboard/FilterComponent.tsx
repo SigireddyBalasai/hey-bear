@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
 import { useData } from "./DataContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/utils/supabase/client";
 import { Tables } from "@/lib/db.types";
+import { useFilterStore } from "@/store/filterStore";
 
 interface FilterProps {
   setShowFilters: (show: boolean) => void;
@@ -18,18 +18,25 @@ type Assistant = Tables<"assistants">;
 const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
   const { allInteractions, filterInteractions, assistantId, setAssistantId } =
     useData();
-  const [assistants, setAssistants] = useState<Assistant[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    assistants,
+    setAssistants,
+    isLoading,
+    setIsLoading,
+    fromDate,
+    setFromDate,
+    toDate,
+    setToDate,
+  } = useFilterStore();
 
   // Calculate default dates (1 month ago to today)
-  const today = new Date();
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-  const [fromDate, setFromDate] = useState(
-    oneMonthAgo.toISOString().split("T")[0],
-  );
-  const [toDate, setToDate] = useState(today.toISOString().split("T")[0]);
+  useEffect(() => {
+    const today = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    setFromDate(oneMonthAgo.toISOString().split("T")[0]);
+    setToDate(today.toISOString().split("T")[0]);
+  }, [setFromDate, setToDate]);
 
   // Fetch user's assistants
   useEffect(() => {
@@ -48,23 +55,11 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
           return;
         }
 
-        // Get user ID from users table
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("id")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (userDataError || !userData) {
-          console.error("Error fetching user data:", userDataError);
-          return;
-        }
-
         // Fetch assistants belonging to this user
         const { data: assistantsData, error: assistantsError } = await supabase
           .from("assistants")
           .select("*") // Select all fields to match the Assistant type
-          .eq("user_id", userData.id);
+          .eq("user_id", user.id);
 
         if (assistantsError) {
           console.error("Error fetching No-Show :", assistantsError);
@@ -82,7 +77,7 @@ const FilterComponent: React.FC<FilterProps> = ({ setShowFilters }) => {
     }
 
     fetchAssistants();
-  }, []);
+  }, [setIsLoading, setAssistants]);
 
   const handleApplyFilters = () => {
     filterInteractions({

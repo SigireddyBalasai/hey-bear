@@ -38,4 +38,14 @@ export default defineConfig([
     extends: ["js/recommended"],
   },
   ...tseslint.configs.recommended,
+  {
+    ignores: [],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+    settings: {},
+    linterOptions: {
+      reportUnusedDisableDirectives: "off",
+    },
+  },
 ]);

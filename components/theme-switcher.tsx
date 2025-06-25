@@ -10,16 +10,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Laptop, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useThemeSwitcherStore } from "@/store/themeSwitcherStore";
 
 const ThemeSwitcher = () => {
-  const [mounted, setMounted] = useState(false);
+  const { mounted, setMounted } = useThemeSwitcherStore();
   const { theme, setTheme } = useTheme();
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
     setMounted(true);
-  }, []);
+  }, [setMounted]);
 
   if (!mounted) {
     return null;

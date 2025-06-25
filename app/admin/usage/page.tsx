@@ -57,6 +57,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 // Register Chart.js components
 ChartJS.register(
@@ -124,15 +125,12 @@ export default function UsageAnalyticsPage() {
         setUser(user);
 
         // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (userDataError || !userData?.is_admin) {
-          setIsAdmin(false);
-          router.push("/");
+        const isAdmin = isAdminRpc();
+        if (!isAdmin) {
+          toast("Access Denied", {
+            description: "You do not have admin access.",
+          });
+          router.push("/sign-in");
           return;
         }
 

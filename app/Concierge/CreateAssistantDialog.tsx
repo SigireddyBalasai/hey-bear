@@ -1,4 +1,8 @@
-import React from "react";
+import { useEffect, useState } from "react";
+
+import { ChevronLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,60 +20,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { StripePricingTable } from "./stripe-pricing-table";
 import { Switch } from "@/components/ui/switch";
-import { RefreshCw } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import PlanSelectionCard from "@/app/components/PlanSelectionCard";
-
-interface CreateAssistantDialogProps {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  newAssistantName: string;
-  setNewAssistantName: (name: string) => void;
-  newAssistantDescription: string;
-  setNewAssistantDescription: (description: string) => void;
-  conciergeName: string;
-  setConciergeName: (name: string) => void;
-  conciergePersonality: string;
-  setConciergePersonality: (personality: string) => void;
-  businessName: string;
-  setBusinessName: (name: string) => void;
-  sharePhoneNumber: boolean;
-  setSharePhoneNumber: (share: boolean) => void;
-  phoneNumber: string;
-  setPhoneNumber: (number: string) => void;
-  selectedPlan: string | null;
-  setSelectedPlan: (plan: string) => void;
-  handleCreateAssistant: () => void;
-  isCreating: boolean;
-}
+import { Textarea } from "@/components/ui/textarea";
+import { CreateAssistantDialogProps } from "@/types/CreateAssistantDialogProps";
+import { createClient } from "@/utils/supabase/client";
+import { useLoadingState } from "./useLoadingState";
 
 export function CreateAssistantDialog({
   open,
-  setOpen,
-  newAssistantName,
-  setNewAssistantName,
-  newAssistantDescription,
-  setNewAssistantDescription,
-  conciergeName,
-  setConciergeName,
-  conciergePersonality,
-  setConciergePersonality,
-  businessName,
-  setBusinessName,
-  sharePhoneNumber,
-  setSharePhoneNumber,
-  phoneNumber,
-  setPhoneNumber,
-  selectedPlan,
-  setSelectedPlan,
-  handleCreateAssistant,
-  isCreating,
+  onOpenChange,
+  formData,
+  onInputChange,
 }: CreateAssistantDialogProps) {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<"details" | "payment">(
+    "details",
+  );
+  const { isLoading: isSavingSession, setIsLoading: setIsSavingSession } =
+    useLoadingState(false);
+
+  // Get user ID when dialog opens
+  useEffect(() => {
+    const getUserId = async () => {
+      if (!open) return;
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+      } catch (error) {
+        // Optionally handle error here
+      }
+    };
+    void getUserId();
+  }, [open]);
+
   const personalityOptions = [
     "Business Casual",
     "Formal",
@@ -78,167 +64,359 @@ export function CreateAssistantDialog({
     "Technical",
   ];
 
+  const _validateForm = () => {
+    if (!formData.name.trim()) {
+      alert("Please enter an assistant display name");
+      return false;
+    }
+    if (!formData.concierge_name?.trim()) {
+      alert("Please enter an assistant name");
+      return false;
+    }
+    if (!formData.personality) {
+      alert("Please select a personality");
+      return false;
+    }
+    if (!formData.business_name?.trim()) {
+      alert("Please enter your name or business name");
+      return false;
+    }
+    return true;
+  };
+
+  const _handleSaveSessionAndShowPayment = async () => {
+    if (!_validateForm()) {
+      return;
+    }
+
+    setIsSavingSession(true);
+
+    try {
+      // Transform form data to match API interface
+      const assistantData = {
+        name: formData.name,
+        description: formData.description,
+        concierge_name: formData.concierge_name,
+        personality: formData.personality,
+        business_name: formData.business_name,
+        business_phone: formData.business_phone,
+        share_phone_number: formData.share_phone_number,
+        display_name: formData.name,
+      };
+
+      const url = "/api/Concierge/session";
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(assistantData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        alert(`Failed to save assistant data: ${errorText}`);
+        return;
+      }
+
+      const result = (await response.json()) as {
+        session_id: string;
+        checkoutUrl?: string;
+      };
+      const { session_id: newSessionId } = result;
+
+      setSessionId(newSessionId);
+      setCurrentStep("payment");
+    } catch (e) {
+      alert("Failed to save assistant data");
+    } finally {
+      setIsSavingSession(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setSessionId(null);
+    setCurrentStep("details");
+    onOpenChange(false);
+    alert(
+      "Payment successful! Your assistant has been activated and is ready to use.",
+    );
+    // Reset form data after successful payment
+    onInputChange("name", "");
+    onInputChange("description", "");
+    onInputChange("conciergeName", "");
+    onInputChange("personality", "");
+    onInputChange("businessName", "");
+    onInputChange("sharePhoneNumber", false);
+    onInputChange("phoneNumber", "");
+    onInputChange("selectedPlan", "");
+  };
+
+  const handlePaymentCancel = () => {
+    alert(
+      "Payment cancelled. You can continue with payment or go back to edit details.",
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create new no-show</DialogTitle>
-          <DialogDescription>
-            Create a new no-show to help with your tasks.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="assistantName" className="font-medium">
-              No-show Display Name *
-            </Label>
-            <Input
-              id="assistantName"
-              placeholder="E.g., Sales Assistant, Support Bot"
-              value={newAssistantName}
-              onChange={(e) => setNewAssistantName(e.target.value)}
-              className="w-full"
-              autoFocus
-            />
-            <p className="text-xs text-muted-foreground">
-              This is what you'll see in your dashboard.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="conciergeName" className="font-medium">
-              No-show Name
-            </Label>
-            <Input
-              id="conciergeName"
-              placeholder="E.g., Alex, Sales Team"
-              value={conciergeName}
-              onChange={(e) => setConciergeName(e.target.value)}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Give it a name for others to address it by.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="conciergePersonality" className="font-medium">
-              No-show Personality
-            </Label>
-            <Select
-              value={conciergePersonality}
-              onValueChange={setConciergePersonality}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a personality style" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[100px] overflow-y-auto">
-                {personalityOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              This is the style and tone in which it would engage in dialogue
-              with others.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="businessName" className="font-medium">
-              Your Name or Business Name
-            </Label>
-            <Input
-              id="businessName"
-              placeholder="E.g., Acme Inc., John Smith"
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              How others know you by.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description" className="font-medium">
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              placeholder="Describe what this No-show does..."
-              value={newAssistantDescription}
-              onChange={(e) => setNewAssistantDescription(e.target.value)}
-              className="min-h-[80px] w-full"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="sharePhoneNumber" className="font-medium">
-                  Share Your Phone Number
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Enabling this lets your No-show share the inputted number.
-                </p>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className={`max-h-[85vh] overflow-y-auto ${currentStep === "payment" ? "sm:max-w-[900px]" : "sm:max-w-[600px]"}`}
+        >
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (currentStep === "payment") {
+                    setCurrentStep("details");
+                  } else {
+                    onOpenChange(false);
+                  }
+                }}
+                className="hover:bg-muted"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex-1">
+                <DialogTitle>
+                  {currentStep === "details"
+                    ? "Create new no-show"
+                    : "Complete payment"}
+                </DialogTitle>
+                <DialogDescription>
+                  {currentStep === "details"
+                    ? "Create a new no-show to help with your tasks."
+                    : "Choose a plan and complete payment to activate your assistant."}
+                </DialogDescription>
               </div>
-              <Switch
-                id="sharePhoneNumber"
-                checked={sharePhoneNumber}
-                onCheckedChange={setSharePhoneNumber}
-              />
             </div>
+          </DialogHeader>
 
-            {sharePhoneNumber && (
-              <div className="mt-2">
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  placeholder="E.g., +1 (555) 123-4567"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  This is useful if you want your No-show to redirect others to
-                  another number if they request it.
-                </p>
+          {currentStep === "details" ? (
+            // Details step content
+            <>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="assistantName" className="font-medium">
+                    No-show Display Name *
+                  </Label>
+                  <Input
+                    id="assistantName"
+                    placeholder="E.g., Sales Assistant, Support Bot"
+                    value={formData.name}
+                    onChange={(e) => {
+                      onInputChange("name", e.target.value);
+                    }}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This is what you&apos;ll see in your dashboard.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="conciergeName" className="font-medium">
+                    No-show Name *
+                  </Label>
+                  <Input
+                    id="concierge_name"
+                    placeholder="E.g., Alex, Sales Team"
+                    value={formData.concierge_name ?? ""}
+                    onChange={(e) => {
+                      onInputChange("concierge_name", e.target.value);
+                    }}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Give it a name for others to address it by.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="conciergePersonality" className="font-medium">
+                    No-show Personality *
+                  </Label>
+                  <Select
+                    value={formData.personality ?? ""}
+                    onValueChange={(value) => {
+                      onInputChange("personality", value);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a personality style" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[100px] overflow-y-auto">
+                      {personalityOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    This is the style and tone in which it would engage in
+                    dialogue with others.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="businessName" className="font-medium">
+                    Your Name or Business Name *
+                  </Label>
+                  <Input
+                    id="business_name"
+                    placeholder="E.g., Acme Inc., John Smith"
+                    value={formData.business_name ?? ""}
+                    onChange={(e) => {
+                      onInputChange("business_name", e.target.value);
+                    }}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    How others know you by.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="font-medium">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe what this No-show does..."
+                    value={formData.description ?? ""}
+                    onChange={(e) => {
+                      onInputChange("description", e.target.value);
+                    }}
+                    className="min-h-[80px] w-full"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="sharePhoneNumber" className="font-medium">
+                        Share Your Phone Number
+                      </Label>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Enabling this lets your No-show share the inputted
+                        number.
+                      </p>
+                    </div>
+                    <Switch
+                      id="share_phone_number"
+                      checked={formData.share_phone_number ?? false}
+                      onCheckedChange={(checked) => {
+                        onInputChange("share_phone_number", checked);
+                      }}
+                    />
+                  </div>
+
+                  {formData.share_phone_number && (
+                    <div className="mt-2">
+                      <Input
+                        id="business_phone"
+                        type="tel"
+                        placeholder="E.g., +1 (555) 123-4567"
+                        value={formData.business_phone ?? ""}
+                        onChange={(e) => {
+                          onInputChange("business_phone", e.target.value);
+                        }}
+                        className="w-full"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        This is useful if you want your No-show to redirect
+                        others to another number if they request it.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
 
-          <Separator className="my-4" />
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    onOpenChange(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!formData.name.trim()) {
+                      alert("Please enter an assistant display name");
+                      return;
+                    }
+                    if (!formData.concierge_name?.trim()) {
+                      alert("Please enter an assistant name");
+                      return;
+                    }
+                    if (!formData.personality) {
+                      alert("Please select a personality");
+                      return;
+                    }
+                    if (!formData.business_name?.trim()) {
+                      alert("Please enter your name or business name");
+                      return;
+                    }
+                    void _handleSaveSessionAndShowPayment();
+                  }}
+                  disabled={!formData.name.trim() || isSavingSession}
+                >
+                  {isSavingSession ? "Saving..." : "Continue to Payment"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            // Payment step content
+            <>
+              <div className="py-4">
+                {sessionId ? (
+                  <StripePricingTable
+                    sessionId={sessionId}
+                    onPaymentSuccess={handlePaymentSuccess}
+                    onPaymentCancel={handlePaymentCancel}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">
+                      Loading payment options...
+                    </p>
+                  </div>
+                )}
+              </div>
 
-          {/* Subscription Plan Selection */}
-          <PlanSelectionCard
-            selectedPlan={selectedPlan}
-            onSelectPlan={setSelectedPlan}
-          />
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCreateAssistant}
-            disabled={isCreating || !newAssistantName.trim() || !selectedPlan}
-          >
-            {isCreating ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              "Create No-show"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCurrentStep("details");
+                  }}
+                  disabled={isSavingSession}
+                >
+                  Back to Details
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    onOpenChange(false);
+                    setCurrentStep("details");
+                    setSessionId(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,8 +22,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDashboardUiStore } from "@/store/dashboardUiStore";
 
 const ConciergeInteractionDashboard = () => {
+  const {
+    activeTab,
+    setActiveTab,
+    showFilters,
+    setShowFilters,
+    userName,
+    setUserName,
+    assistantName,
+    setAssistantName,
+  } = useDashboardUiStore();
+
   const {
     allInteractions,
     stats,
@@ -42,11 +54,6 @@ const ConciergeInteractionDashboard = () => {
     setPageSize,
     assistantId,
   } = useData();
-
-  const [activeTab, setActiveTab] = useState("table");
-  const [showFilters, setShowFilters] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [assistantName, setAssistantName] = useState("");
 
   const supabase = createClient();
 
@@ -93,7 +100,7 @@ const ConciergeInteractionDashboard = () => {
     };
 
     fetchUserData();
-  }, [supabase, assistantId]);
+  }, [supabase, assistantId, setUserName, setAssistantName]);
 
   // Using API pagination instead of client-side pagination
   useEffect(() => {
@@ -155,10 +162,6 @@ const ConciergeInteractionDashboard = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
-  };
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
   };
 
   return (
@@ -310,14 +313,14 @@ const ConciergeInteractionDashboard = () => {
             <Button
               variant={activeTab === "table" ? "default" : "outline"}
               size="sm"
-              onClick={() => handleTabChange("table")}
+              onClick={() => setActiveTab("table")}
             >
               Table View
             </Button>
             <Button
               variant={activeTab === "conversation" ? "default" : "outline"}
               size="sm"
-              onClick={() => handleTabChange("conversation")}
+              onClick={() => setActiveTab("conversation")}
             >
               Conversation View
             </Button>
@@ -347,7 +350,7 @@ const ConciergeInteractionDashboard = () => {
           isLoading={isLoading}
           interactions={allInteractions}
           activeTab={activeTab}
-          setActiveTab={handleTabChange}
+          setActiveTab={setActiveTab}
           startIndex={0} // Not needed with API pagination
           endIndex={allInteractions.length} // Not needed with API pagination
           allInteractions={allInteractions}

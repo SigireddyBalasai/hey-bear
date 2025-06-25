@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPineconeClient } from "@/lib/pinecone";
-import { createServiceClient } from "@/utils/supabase/server-admin";
+import { createClient as createServiceClient } from "@/utils/supabase/server-admin";
 import { Tables } from "@/lib/db.types";
 
 // Define table types
@@ -55,16 +55,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Use non-auth client
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Fetch the assistant from the database to get its Pinecone name
     const { data: assistantData, error: assistantError } = await supabase
-      .from("assistants")
-      .select("pinecone_name, name")
+      .from("assistant_detail_view")
+      .select("*")
       .eq("id", assistantId)
-      .single();
+      .maybeSingle();
 
-    if (assistantError || !assistantData) {
+    if (
+      assistantError ||
+      !assistantData ||
+      typeof assistantData !== "object" ||
+      !("pinecone_name" in assistantData)
+    ) {
       console.error("Error fetching assistant:", assistantError);
       return NextResponse.json(
         { error: "Assistant not found" },
@@ -72,7 +77,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { pinecone_name, name: assistantName } = assistantData;
+    const { pinecone_name, assistant_name: assistantName } = assistantData;
 
     if (!pinecone_name) {
       return NextResponse.json(
@@ -144,19 +149,28 @@ export async function POST(req: NextRequest) {
         : message;
 
       // Save interaction to Supabase with proper typing
-      const interactionData: Omit<Interactions, "id"> = {
-        request: message,
+      const interactionData: Interactions = {
         assistant_id: assistantId,
-        chat: chatMetadata,
-        response: response.message?.content || "",
-        duration: responseDuration,
-        interaction_time: requestTimestamp.toISOString(),
         user_id: userId,
-        cost_estimate: costEstimate > 0 ? costEstimate : null,
-        is_error: false,
-        token_usage: tokenCount > 0 ? tokenCount : null,
+        request: message,
+        response: response.message?.content || "",
+        chat: chatMetadata,
+        created_at: null,
+        interaction_time: requestTimestamp.toISOString(),
+        duration: responseDuration,
         input_tokens: response.usage?.promptTokens || null,
         output_tokens: response.usage?.completionTokens || null,
+        token_usage: tokenCount > 0 ? tokenCount : null,
+        cost_estimate: costEstimate > 0 ? costEstimate : null,
+        is_error: false,
+        error_message: null,
+        metadata: null,
+        id: "",
+        model: null,
+        session_id: null,
+        source: null,
+        status: null,
+        updated_at: null,
       };
 
       const { error: interactionError } = await supabase
@@ -174,9 +188,7 @@ export async function POST(req: NextRequest) {
       const { error: usageError } = await supabase
         .from("assistants")
         .update({
-          params: {
-            last_used_at: requestTimestamp.toISOString(),
-          },
+          updated_at: requestTimestamp.toISOString(),
         })
         .eq("id", assistantId);
 

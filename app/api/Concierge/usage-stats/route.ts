@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     // Verify the user has access to this assistant
     const { data: assistantData, error: assistantError } = await supabase
-      .from("assistants")
+      .from("assistant_detail_view")
       .select("user_id")
       .eq("id", assistantId)
       .single();
@@ -43,23 +43,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get the user ID from the database
-    const { data: userData, error: userDataError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userDataError || !userData) {
-      console.error("Error fetching user data:", userDataError);
-      return NextResponse.json(
-        { error: "User record not found" },
-        { status: 404 },
-      );
-    }
-
     // Check if the user owns this assistant
-    if (assistantData.user_id !== userData.id) {
+    if (assistantData.user_id !== user.id) {
       return NextResponse.json(
         { error: "You do not have access to this assistant" },
         { status: 403 },

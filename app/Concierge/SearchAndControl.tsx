@@ -1,54 +1,58 @@
-import React from "react";
+import { LayoutGrid, LayoutList, Plus, Search } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, LayoutGrid, LayoutList } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 
-type SearchAndControlsProps = {
+type ViewMode = "grid" | "list";
+
+interface SearchAndControlsProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  viewMode: "grid" | "list";
-  setViewMode: (mode: "grid" | "list") => void;
-  createDialogOpen: boolean;
-  setCreateDialogOpen: (open: boolean) => void;
-};
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  onCreateNew: () => void;
+}
 
 export function SearchAndControls({
   searchQuery,
   setSearchQuery,
   viewMode,
   setViewMode,
-  createDialogOpen,
-  setCreateDialogOpen,
+  onCreateNew,
 }: SearchAndControlsProps) {
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6">
+    <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
       <div className="relative flex-grow">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search no-shows..."
           className="pl-10"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+          }}
         />
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="border rounded-md p-1 flex">
+              <div className="flex rounded-md border p-1">
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
                   size="icon"
                   className="h-9 w-9"
-                  onClick={() => setViewMode("grid")}
+                  onClick={() => {
+                    setViewMode("grid");
+                  }}
+                  aria-label="Grid view"
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </Button>
@@ -56,7 +60,10 @@ export function SearchAndControls({
                   variant={viewMode === "list" ? "default" : "ghost"}
                   size="icon"
                   className="h-9 w-9"
-                  onClick={() => setViewMode("list")}
+                  onClick={() => {
+                    setViewMode("list");
+                  }}
+                  aria-label="List view"
                 >
                   <LayoutList className="h-4 w-4" />
                 </Button>
@@ -66,14 +73,10 @@ export function SearchAndControls({
           </Tooltip>
         </TooltipProvider>
 
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              <span>New no-show</span>
-            </Button>
-          </DialogTrigger>
-        </Dialog>
+        <Button className="gap-2" onClick={onCreateNew}>
+          <Plus className="h-4 w-4" />
+          <span>New no-show</span>
+        </Button>
       </div>
     </div>
   );

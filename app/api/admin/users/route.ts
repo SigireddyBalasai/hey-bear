@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 // Get all users with their profile info
 export async function GET(request: Request) {
@@ -16,30 +17,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userError || !userData?.is_admin) {
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get all users with their profile info from auth.users
     const { data: users, error: usersError } = await supabase
+      .schema("auth")
       .from("users")
       .select(
         `
-        id,
-        created_at,
-        auth_user_id,
-        is_admin,
-        plan_id,
-        last_active,
-        plans (name, description),
-        userusage (assistants_used, interactions_used)
+        *
       `,
       )
       .order("created_at", { ascending: false });
@@ -49,12 +39,10 @@ export async function GET(request: Request) {
     // For each user, fetch their email and other auth data
     const usersWithProfiles = await Promise.all(
       (users || []).map(async (user) => {
-        if (!user.auth_user_id) return user;
+        if (!user.id) return user;
 
         // Fetch user profile from auth.users
-        const { data, error } = await supabase.auth.admin.getUserById(
-          user.auth_user_id,
-        );
+        const { data, error } = await supabase.auth.admin.getUserById(user.id);
 
         if (error || !data.user) return user;
 
@@ -92,14 +80,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userError || !userData?.is_admin) {
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -116,6 +99,7 @@ export async function PATCH(request: Request) {
 
     // Update user in database
     const { data: updatedUser, error: updateError } = await supabase
+      .schema("auth")
       .from("users")
       .update(updateData)
       .eq("id", id)
@@ -158,41 +142,37 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userError || !userData?.is_admin) {
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get user auth_user_id
-    const { data: targetUser, error: targetUserError } = await supabase
-      .from("users")
-      .select("auth_user_id")
-      .eq("id", userId)
-      .single();
+    // const { data: targetUser, error: targetUserError } = await supabase
+    //   .from("users")
+    //   .select("auth_user_id")
+    //   .eq("id", userId)
+    //   .single();
 
-    if (targetUserError || !targetUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    // if (targetUserError || !targetUser) {
+    //   return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // }
 
     // Delete user's auth record
-    if (targetUser.auth_user_id) {
-      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
-        targetUser.auth_user_id,
-      );
+    // if (targetUser.auth_user_id) {
+    //   const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
+    //     targetUser.auth_user_id
+    //   );
 
-      if (authDeleteError) {
-        console.error("Error deleting user auth record:", authDeleteError);
-      }
-    }
+    //   if (authDeleteError) {
+    //     console.error("Error deleting user auth record:", authDeleteError);
+    //   }
+    // }
 
     // Delete user from database (should cascade to related records)
     const { error: deleteError } = await supabase
+      .schema("auth")
       .from("users")
       .delete()
       .eq("id", userId);

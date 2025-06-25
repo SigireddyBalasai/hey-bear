@@ -69,11 +69,17 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tables } from "@/lib/db.types";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
-interface UserData extends Partial<Tables<"users">> {
+// Use the correct type for a user row from the users table
+interface UserData {
+  id: string;
   email?: string;
   full_name?: string;
   last_sign_in?: string;
+  created_at?: string;
+  last_active?: string;
+  is_admin?: boolean;
   plans?: {
     name: string;
     description: string;
@@ -123,13 +129,9 @@ export default function UsersPage() {
         setUser(user);
 
         // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (userDataError || !userData?.is_admin) {
+        const isAdmin = isAdminRpc();
+        if (!isAdmin) {
+          console.warn("User is not an admin");
           toast("Access Denied", {
             description:
               "You don't have permission to access the admin dashboard",
@@ -138,10 +140,8 @@ export default function UsersPage() {
           router.push("/");
           return;
         }
-
         setIsAdmin(true);
 
-        // Fetch users
         await fetchUsers();
       } catch (error) {
         console.error("Error in checking admin status:", error);

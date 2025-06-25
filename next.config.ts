@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  reactStrictMode: false,
   eslint: {
     dirs: ["app", "components", "utils", "lib"],
   },
@@ -21,7 +22,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  output: "standalone",
 };
 
 export default nextConfig;

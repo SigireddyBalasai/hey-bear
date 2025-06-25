@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -26,8 +26,9 @@ import { Line, Bar } from "react-chartjs-2";
 import { UserUsageTable } from "./UserUsageTable";
 import { AdminHeader } from "./AdminHeader";
 import { AdminSidebar } from "./AdminSidebar";
+import { isAdminRpc } from "../utils/isAdminRpc";
+import { useAdminDashboardStore } from "@/store/adminDashboardStore";
 
-// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -41,108 +42,126 @@ ChartJS.register(
 );
 
 export default function AdminDashboard() {
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedTimeRange, setSelectedTimeRange] = useState("30d");
-  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
-  const [totalStats, setTotalStats] = useState({
-    interactions: 0,
-    tokens: 0,
-    costs: 0,
-    errors: 0,
-    activeUsers: 0,
-  });
-  const [userStats, setUserStats] = useState<any[]>([]);
-  const [dashboardData, setDashboardData] = useState<any>({
-    users: { total: 0, activeToday: 0, activeThisWeek: 0 },
-    usage: { totalMessages: 0, tokensUsed: 0, costEstimate: 0 },
-  });
+  const {
+    user,
+    setUser,
+    isAdmin,
+    setIsAdmin,
+    isLoading,
+    setIsLoading,
+    selectedTimeRange,
+    setSelectedTimeRange,
+    timeSeriesData,
+    setTimeSeriesData,
+    totalStats,
+    setTotalStats,
+    userStats,
+    setUserStats,
+    dashboardData,
+    setDashboardData,
+  } = useAdminDashboardStore();
 
   const router = useRouter();
   const supabase = createClient();
 
-  // Check if the current user is an admin
-  const checkAdminStatus = async () => {
-    try {
+  useEffect(() => {
+    const checkAdmin = async () => {
       setIsLoading(true);
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+        if (error || !user) {
+          setUser(null);
+          router.push("/sign-in");
+          return;
+        }
+        setUser(user);
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.error("Error fetching user:", userError);
-        setUser(null);
-        router.push("/sign-in");
-        return;
-      }
-
-      setUser(user);
-
-      // Fetch user record to check admin status
-      const { data: userData, error: userDataError } = await supabase
-        .from("users")
-        .select("is_admin")
-        .eq("auth_user_id", user.id)
-        .single();
-
-      if (userDataError) {
-        console.error("Error fetching user data:", userDataError);
-        setIsAdmin(false);
+        const admin = isAdminRpc();
+        if (!admin) {
+          toast("Access Denied", {
+            description: "You do not have admin access.",
+          });
+          setIsAdmin(false);
+          router.push("/sign-up");
+          return;
+        }
+        setIsAdmin(true);
+        await loadDashboard();
+      } catch (e) {
         router.push("/");
-        return;
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      if (!userData || !userData.is_admin) {
-        toast("Access Denied", {
-          description:
-            "You don't have permission to access the admin dashboard",
+    const loadDashboard = async () => {
+      try {
+        const { totalStats, timeSeriesData, userStats } =
+          await fetchUsageData(selectedTimeRange);
+        setTotalStats(totalStats);
+        setTimeSeriesData(timeSeriesData);
+        setUserStats(userStats);
+
+        const { count: userCount, error: userCountError } = await supabase
+          .from("assistants")
+          .select("id", { count: "exact", head: true });
+        if (userCountError) throw userCountError;
+
+        const today = new Date().toISOString().split("T")[0];
+        const activeToday = timeSeriesData
+          .filter((entry: any) => entry.date === today)
+          .reduce((sum: number, entry: any) => sum + entry.activeUsers, 0);
+
+        setDashboardData({
+          users: {
+            total: userCount,
+            activeToday,
+            activeThisWeek: totalStats.activeUsers,
+          },
+          usage: {
+            totalMessages: totalStats.interactions,
+            tokensUsed: totalStats.tokens,
+            costEstimate: totalStats.costs,
+          },
         });
-        setIsAdmin(false);
-        router.push("/");
-        return;
+      } catch {
+        toast.error("Failed to load dashboard data");
       }
+    };
 
-      setIsAdmin(true);
+    checkAdmin();
+  }, []);
 
-      // Fetch usage metrics
-      await loadDashboardData();
-    } catch (error) {
-      console.error("Error in checking admin status:", error);
-      router.push("/");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleTimeRangeChange = (range: string) => {
+    setSelectedTimeRange(range);
+    loadDashboardData();
   };
 
-  // Load dashboard data using the fetchUsageData utility
   const loadDashboardData = async () => {
     try {
-      // Get usage data from adminUtils
       const { totalStats, timeSeriesData, userStats } =
         await fetchUsageData(selectedTimeRange);
-
       setTotalStats(totalStats);
       setTimeSeriesData(timeSeriesData);
       setUserStats(userStats);
 
-      // Get user count
-      const { data: users } = await supabase.from("users").select("count");
-      const userCount = users?.[0]?.count || 0;
+      const { count: userCount, error: userCountError } = await supabase
+        .from("assistants")
+        .select("id", { count: "exact", head: true });
+      if (userCountError) throw userCountError;
 
-      // Calculate active users today
       const today = new Date().toISOString().split("T")[0];
       const activeToday = timeSeriesData
-        .filter((entry) => entry.date === today)
-        .reduce((sum, entry) => sum + entry.activeUsers, 0);
+        .filter((entry: any) => entry.date === today)
+        .reduce((sum: number, entry: any) => sum + entry.activeUsers, 0);
 
-      // Set dashboard data
       setDashboardData({
         users: {
           total: userCount,
-          activeToday: activeToday,
+          activeToday,
           activeThisWeek: totalStats.activeUsers,
         },
         usage: {
@@ -151,97 +170,73 @@ export default function AdminDashboard() {
           costEstimate: totalStats.costs,
         },
       });
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
+    } catch {
       toast.error("Failed to load dashboard data");
     }
   };
 
-  // Generate chart data based on the real data
-  const generateChartData = (dataType: "interactions" | "tokens" | "costs") => {
-    const labels = timeSeriesData.map((entry) => {
-      const date = new Date(entry.date);
-      return date.toLocaleDateString("en-US", {
+  const generateChartData = (type: "interactions" | "tokens" | "costs") => ({
+    labels: timeSeriesData.map((entry: any) =>
+      new Date(entry.date).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
-      });
-    });
+      }),
+    ),
+    datasets: [
+      {
+        label:
+          type === "interactions"
+            ? "Message Count"
+            : type === "tokens"
+              ? "Token Usage"
+              : "Daily Cost ($)",
+        data: timeSeriesData.map((entry: any) => entry[type]),
+        borderColor:
+          type === "interactions"
+            ? "rgb(53, 162, 235)"
+            : type === "tokens"
+              ? "rgb(255, 99, 132)"
+              : "rgb(255, 159, 64)",
+        backgroundColor:
+          type === "interactions"
+            ? "rgba(53, 162, 235, 0.5)"
+            : type === "tokens"
+              ? "rgba(255, 99, 132, 0.5)"
+              : "rgba(255, 159, 64, 0.2)",
+        tension: 0.3,
+        fill: type === "costs",
+      },
+    ],
+  });
 
-    // Prepare data structure for charts
-    return {
-      labels,
-      datasets: [
-        {
-          label:
-            dataType === "interactions"
-              ? "Message Count"
-              : dataType === "tokens"
-                ? "Token Usage"
-                : "Daily Cost ($)",
-          data: timeSeriesData.map((entry) => entry[dataType]),
-          borderColor:
-            dataType === "interactions"
-              ? "rgb(53, 162, 235)"
-              : dataType === "tokens"
-                ? "rgb(255, 99, 132)"
-                : "rgb(255, 159, 64)",
-          backgroundColor:
-            dataType === "interactions"
-              ? "rgba(53, 162, 235, 0.5)"
-              : dataType === "tokens"
-                ? "rgba(255, 99, 132, 0.5)"
-                : "rgba(255, 159, 64, 0.2)",
-          tension: 0.3,
-          fill: dataType === "costs",
-        },
-      ],
-    };
-  };
-
-  // Generate data for token breakdown chart
-  const generateTokenBreakdownData = () => {
-    const labels = timeSeriesData.map((entry) => {
-      const date = new Date(entry.date);
-      return date.toLocaleDateString("en-US", {
+  const generateTokenBreakdownData = () => ({
+    labels: timeSeriesData.map((entry: any) =>
+      new Date(entry.date).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
-      });
-    });
+      }),
+    ),
+    datasets: [
+      {
+        label: "Input Tokens",
+        data: timeSeriesData.map((entry: any) =>
+          Math.round(entry.tokens * 0.4),
+        ),
+        backgroundColor: "rgba(53, 162, 235, 0.7)",
+        borderRadius: 4,
+      },
+      {
+        label: "Output Tokens",
+        data: timeSeriesData.map((entry: any) =>
+          Math.round(entry.tokens * 0.6),
+        ),
+        backgroundColor: "rgba(255, 99, 132, 0.7)",
+        borderRadius: 4,
+      },
+    ],
+  });
 
-    // For this example we'll estimate that input tokens are ~40% and output tokens are ~60% of total
-    return {
-      labels,
-      datasets: [
-        {
-          label: "Input Tokens",
-          data: timeSeriesData.map((entry) => Math.round(entry.tokens * 0.4)),
-          backgroundColor: "rgba(53, 162, 235, 0.7)",
-          borderRadius: 4,
-        },
-        {
-          label: "Output Tokens",
-          data: timeSeriesData.map((entry) => Math.round(entry.tokens * 0.6)),
-          backgroundColor: "rgba(255, 99, 132, 0.7)",
-          borderRadius: 4,
-        },
-      ],
-    };
-  };
-
-  useEffect(() => {
-    checkAdminStatus();
-  }, []);
-
-  // Handle time range changes
-  const handleTimeRangeChange = (range: string) => {
-    setSelectedTimeRange(range);
-    // Refresh data with new time range
-    loadDashboardData();
-  };
-
-  if (isLoading) {
-    return <Loading />;
-  }
+  if (isLoading) return <Loading />;
 
   if (!user || !isAdmin) {
     return (
@@ -280,7 +275,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           </Card>
-
           <Card className="p-4 transition-all hover:shadow-md">
             <div className="flex items-center justify-between">
               <div>
@@ -299,7 +293,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           </Card>
-
           <Card className="p-4 transition-all hover:shadow-md">
             <div className="flex items-center justify-between">
               <div>
@@ -318,7 +311,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           </Card>
-
           <Card className="p-4 transition-all hover:shadow-md">
             <div className="flex items-center justify-between">
               <div>
@@ -401,25 +393,16 @@ export default function AdminDashboard() {
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                        },
-                      },
+                      scales: { y: { beginAtZero: true } },
                       plugins: {
-                        legend: {
-                          position: "top",
-                        },
+                        legend: { position: "top" },
                         tooltip: {
                           backgroundColor: "rgba(0, 0, 0, 0.7)",
                           padding: 10,
                           cornerRadius: 6,
                         },
                       },
-                      interaction: {
-                        mode: "index",
-                        intersect: false,
-                      },
+                      interaction: { mode: "index", intersect: false },
                     }}
                   />
                 </div>
@@ -440,15 +423,9 @@ export default function AdminDashboard() {
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                        },
-                      },
+                      scales: { y: { beginAtZero: true } },
                       plugins: {
-                        legend: {
-                          position: "top",
-                        },
+                        legend: { position: "top" },
                         tooltip: {
                           backgroundColor: "rgba(0, 0, 0, 0.7)",
                           padding: 10,
@@ -477,31 +454,23 @@ export default function AdminDashboard() {
                         y: {
                           beginAtZero: true,
                           ticks: {
-                            callback: function (value) {
-                              return "$" + value;
-                            },
+                            callback: (value) => "$" + value,
                           },
                         },
                       },
                       plugins: {
-                        legend: {
-                          position: "top",
-                        },
+                        legend: { position: "top" },
                         tooltip: {
                           backgroundColor: "rgba(0, 0, 0, 0.7)",
                           padding: 10,
                           cornerRadius: 6,
                           callbacks: {
-                            label: function (context) {
-                              return `Cost: $${context.parsed.y.toFixed(2)}`;
-                            },
+                            label: (context) =>
+                              `Cost: $${context.parsed.y.toFixed(2)}`,
                           },
                         },
                       },
-                      interaction: {
-                        mode: "index",
-                        intersect: false,
-                      },
+                      interaction: { mode: "index", intersect: false },
                     }}
                   />
                 </div>

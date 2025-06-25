@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import twilio from "twilio";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 export async function POST(req: Request) {
   try {
@@ -15,15 +16,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status directly without using the utility
-    const { data: userData, error: userDataError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userDataError || !userData?.is_admin) {
-      console.log("Admin check failed:", userDataError, userData);
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 },

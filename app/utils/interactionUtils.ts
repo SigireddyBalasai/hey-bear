@@ -1,32 +1,11 @@
 import { createClient } from "@/utils/supabase/client";
+import { isAdminRpc } from "./isAdminRpc";
+import { Interaction } from "@/types/basics";
 
 /**
  * Gets the internal user ID from the auth user ID
  * This is necessary because our database schema uses user_id but the auth system uses auth_user_id
  */
-export async function getUserIdFromAuthId(
-  authUserId: string,
-): Promise<string | null> {
-  const supabase = await createClient();
-
-  try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("id")
-      .eq("auth_user_id", authUserId)
-      .single();
-
-    if (error || !data) {
-      console.error("Error getting user ID from auth ID:", error);
-      return null;
-    }
-
-    return data.id;
-  } catch (error) {
-    console.error("Exception getting user ID from auth ID:", error);
-    return null;
-  }
-}
 
 /**
  * Record an interaction in the database using the correct user ID mapping
@@ -45,25 +24,38 @@ export async function recordInteraction(
   const supabase = await createClient();
 
   try {
-    // First get the internal user ID from the auth user ID
-    const userId = await getUserIdFromAuthId(authUserId);
-
-    if (!userId) {
+    if (!authUserId) {
       throw new Error(`Could not find user with auth_user_id: ${authUserId}`);
     }
 
     // Now insert the interaction with the correct user_id
-    const { error } = await supabase.from("interactions").insert({
-      user_id: userId,
-      assistant_id: assistantId,
-      chat,
+    const interactionData: Interaction = {
+      id: "", // or generate a UUID if required
+      user_id: authUserId,
+      assistant_id: assistantId ?? "",
+      chat: chat as any, // cast to Json if needed
       request,
       response,
       token_usage: tokenUsage,
+      input_tokens: null,
+      output_tokens: null,
       cost_estimate: costEstimate,
       duration,
       is_error: isError,
-    });
+      error_message: null,
+      created_at: null,
+      updated_at: null,
+      model: null,
+      metadata: null,
+      interaction_time: null,
+      session_id: null,
+      source: null,
+      status: null,
+    };
+
+    const { error } = await supabase
+      .from("interactions")
+      .insert(interactionData);
 
     if (error) {
       throw error;

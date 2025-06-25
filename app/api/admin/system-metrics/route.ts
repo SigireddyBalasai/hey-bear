@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -15,14 +16,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userError || !userData?.is_admin) {
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -186,14 +182,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userError || !userData?.is_admin) {
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -113,8 +113,8 @@ const AssistantPage = ({
         // Fetch assistant details from Supabase
         const supabase = createClient();
         const { data, error } = await supabase
-          .from("assistants")
-          .select("id, name, pinecone_name, params, assigned_phone_number")
+          .from("assistant_detail_view")
+          .select("*")
           .eq("id", assistantName)
           .single();
 
@@ -137,12 +137,7 @@ const AssistantPage = ({
         }
 
         // Check if the assistant is pending (payment not completed)
-        const isPending =
-          typeof data.params === "object" &&
-          data.params !== null &&
-          "pending" in data.params &&
-          data.params.pending === true;
-
+        const isPending = data.is_active === false;
         if (isPending) {
           toast.error("Payment required", {
             description:
@@ -153,13 +148,13 @@ const AssistantPage = ({
         }
 
         if (data) {
-          setDisplayName(data.name);
-          setAssistantName(data.name);
+          setDisplayName(data.display_name || data.assistant_name || "No-Show");
+          setAssistantName(data.assistant_name || "");
           setPineconeName(data.pinecone_name || "");
           setAssignedPhoneNumber(data.assigned_phone_number || null);
 
           // Update document title
-          document.title = `Chat with ${data.name}`;
+          document.title = `Chat with ${data.assistant_name || "No-Show"}`;
         } else {
           toast.error("No-Show not found", {
             description: "This No-Show no longer exists or has been disabled.",
@@ -186,7 +181,7 @@ const AssistantPage = ({
         const { assistantName } = await params;
 
         const { data, error } = await supabase
-          .from("assistants")
+          .from("assistant_detail_view")
           .select("*")
           .eq("name", assistantName)
           .single();
@@ -197,8 +192,8 @@ const AssistantPage = ({
         }
 
         if (data) {
-          setDisplayName(data.name);
-          setAssistantName(data.name);
+          setDisplayName(data.display_name || data.assistant_name || "No-Show");
+          setAssistantName(data.assistant_name || "");
           setPineconeName(data.pinecone_name || "");
           setAssignedPhoneNumber(data.assigned_phone_number || null);
         }

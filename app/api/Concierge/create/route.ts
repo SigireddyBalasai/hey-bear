@@ -1,168 +1,351 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
-import crypto from "crypto";
 
-// Generate a valid name for Pinecone assistant
-// Pinecone requires names to be lowercase alphanumeric with hyphens only
+import { getSubscriptionPlanDetails } from "@/lib/subscription-plans";
+import { CreateAssistantRequest } from "@/types/CreateAssistantRequest";
+import { Database } from "@/lib/db.types";
+import { createClient } from "@/utils/supabase/server";
+import { createClient as createAdminClient } from "@/utils/supabase/server-admin";
+import {
+  AssistantActivityInsert,
+  AssistantUsageLimitsInsert,
+} from "@/types/basics";
+
 function generatePineconeName(base: string): string {
-  // Generate a random string of 8 characters
-  const randomSuffix = crypto.randomBytes(4).toString("hex");
+  let prefix = base.toLowerCase().replaceAll(/[^a-z0-9]/g, "-");
 
-  // Create a valid formatted version of the assistant name
-  // Only lowercase alphanumeric characters and hyphens are allowed
-  const baseFormatted = base
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "-") // Replace non-alphanumeric with hyphens
-    .replace(/-{2,}/g, "-") // Replace multiple hyphens with a single one
-    .replace(/^-|-$/g, "") // Remove leading/trailing hyphens
-    .substring(0, 20); // Limit to 20 chars
+  prefix = prefix.slice(0, 40);
+  const timestamp = Date.now().toString().slice(-6); // Use timestamp for uniqueness
 
-  // Ensure the name starts with a letter
-  const prefix = /^[a-z]/.test(baseFormatted)
-    ? baseFormatted
-    : `a-${baseFormatted}`;
-
-  // Combine them to create a unique valid name
-  return `${prefix}-${randomSuffix}`;
+  return `${prefix}-${timestamp}`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // Validate request body
-    const body = await req.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid request format" },
-        { status: 400 },
-      );
-    }
+    const body = (await req.json()) as CreateAssistantRequest;
 
-    const { assistantName, description, params, plan } = body;
+    const {
+      name,
+      description,
+      concierge_name,
+      business_name,
+      business_phone,
+      plan = "personal", // Default plan
+      stripeCheckoutSessionId, // Added for payment verification
+      paymentSessionId, // Added for linking to payment session
+    } = body;
 
-    // Validate required fields
-    if (!assistantName) {
+    if (!name) {
       return NextResponse.json(
         { error: "Assistant name is required" },
         { status: 400 },
       );
     }
 
-    const supabase = await createClient();
+    let verifiedPlanId = plan;
+    let subscriptionStatus: Database["public"]["Tables"]["assistant_subscriptions"]["Insert"]["status"] =
+      "trialing"; // Default status for new subscriptions
 
-    // Check user authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.error("Auth error:", authError);
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // If a plan other than personal is selected, verify payment
+    if (plan !== "personal" && stripeCheckoutSessionId) {
+      try {
+        // Payment verification would be implemented here
+        // For now, proceeding with plan creation
+        verifiedPlanId = plan; // Assume plan from request is the one paid for after verification
+        subscriptionStatus = "active"; // Set status to active if payment is "verified"
+      } catch (verificationError: unknown) {
+        return NextResponse.json(
+          {
+            error: "Failed to verify payment",
+            details:
+              verificationError instanceof Error
+                ? verificationError.message
+                : String(verificationError),
+          },
+          { status: 500 },
+        );
+      }
+    } else if (plan !== "personal" && !stripeCheckoutSessionId) {
+      // If it's a paid plan, stripeCheckoutSessionId is required
+      return NextResponse.json(
+        { error: "Stripe Checkout Session ID is required for paid plans." },
+        { status: 400 },
+      );
     }
 
-    try {
-      // Check if user exists in the users table, and create if not
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .single();
+    // Check if this is a webhook call (has paymentSessionId and stripeCheckoutSessionId)
+    const isWebhookCall = Boolean(paymentSessionId && stripeCheckoutSessionId);
+    let userId: string;
+    let dbClient: SupabaseClient<Database>;
 
-      // If user doesn't exist in users table, create it
-      if (!existingUser) {
-        console.log("Creating new user record in users table");
-        const { error: createUserError } = await supabase.from("users").insert({
-          auth_user_id: user.id,
-          created_at: new Date().toISOString(),
-        });
+    if (isWebhookCall) {
+      // For webhook calls, use admin client and get user from payment session
+      dbClient = await createAdminClient();
 
-        if (createUserError) {
-          console.error("Error creating user record:", createUserError);
-          return NextResponse.json(
-            { error: "Failed to create user record" },
-            { status: 500 },
-          );
-        }
-      }
-
-      // Fetch the user entry again to get the actual user_id
-      const { data: userData, error: userFetchError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .single();
-
-      if (userFetchError || !userData) {
-        console.error("Error fetching user record:", userFetchError);
+      if (!paymentSessionId) {
         return NextResponse.json(
-          { error: "Failed to fetch user record" },
-          { status: 500 },
+          { error: "Payment session ID is required for webhook calls" },
+          { status: 400 },
         );
       }
 
-      const userId = userData.id;
-      const assistantId = uuidv4();
-      const pendingAssistantId = uuidv4();
+      const { data: paymentSessionData, error: paymentSessionError } =
+        await dbClient
+          .from("payment_sessions")
+          .select("*")
+          .eq("id", paymentSessionId)
+          .single();
 
-      // Generate unique Pinecone name with valid format
-      const pinecone_name = generatePineconeName(assistantName);
-      console.log(`Generated Pinecone name: ${pinecone_name}`);
-
-      // Create a pending assistant record that will be fulfilled after payment is confirmed
-      const pendingAssistantData = {
-        id: pendingAssistantId,
-        user_id: userId,
-        name: assistantName,
-        created_at: new Date().toISOString(),
-        params: {
-          ...params,
-          description: description || "No description provided",
-          systemPrompt: params?.systemPrompt,
-          plan: plan || "personal",
-          is_active: false,
-          createdAt: new Date().toISOString(),
-        },
-        plan_id:
-          plan === "business"
-            ? process.env.STRIPE_BUSINESS_PLAN_ID
-            : process.env.STRIPE_PERSONAL_PLAN_ID,
-      };
-
-      // Insert into pending_assistants table
-      const { error: pendingError } = await supabase
-        .from("pending_assistants")
-        .insert(pendingAssistantData);
-
-      if (pendingError) {
-        console.error(
-          "Error saving pending No-show to Supabase:",
-          pendingError,
-        );
+      if (paymentSessionError || !paymentSessionData?.user_id) {
         return NextResponse.json(
-          { error: "Failed to save pending No-show to database" },
-          { status: 500 },
+          { error: "Valid payment session with user_id not found" },
+          { status: 404 },
         );
       }
 
-      // No longer creating an entry in the assistants table until payment is confirmed
-
-      return NextResponse.json({
-        message: `Assistant ${assistantName} created as pending`,
-        assistantId: pendingAssistantId, // Use pendingAssistantId as the main ID now
-        pendingAssistantId: pendingAssistantId,
-      });
-    } catch (apiError: any) {
-      console.error("Error creating assistant:", apiError);
+      userId = paymentSessionData.user_id; // This is the correct application user ID (public.users.id)
+    } else {
+      // For regular calls, use the authenticated user from the request
+      // You must implement your own authentication extraction here
+      // For example, from cookies, headers, or session
+      // Example (pseudo-code):
+      // const user = await getUserFromRequest(req);
+      // if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      // userId = user.id;
       return NextResponse.json(
-        { error: `Failed to create assistant: ${apiError.message || ""}` },
+        { error: "Authentication required" },
+        { status: 401 },
+      );
+    }
+
+    // Validate verifiedPlanId using local configuration
+    const planDetails = getSubscriptionPlanDetails(verifiedPlanId);
+
+    if (!planDetails) {
+      return NextResponse.json(
+        {
+          error: `Invalid plan specified: ${verifiedPlanId}. Plan not found in configuration.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Use the ID from the local configuration (e.g., "personal", "business")
+    const actualPlanIdForDb = planDetails.id;
+
+    // Ensure planDetails is not null (already checked before, but good for safety here)
+    if (!planDetails) {
+      return NextResponse.json(
+        { error: "Internal server error: Plan details missing." },
         { status: 500 },
       );
     }
-  } catch (e: any) {
-    console.error("Unexpected error:", e);
+
+    const pendingAssistantId = uuidv4();
+
+    try {
+      const pinecone_name = generatePineconeName(name);
+
+      const pendingAssistantData: Database["public"]["Tables"]["assistants"]["Insert"] =
+        {
+          id: pendingAssistantId,
+          user_id: userId,
+          name,
+          created_at: new Date().toISOString(),
+          pending: true,
+        };
+
+      const { error: insertError } = await dbClient
+        .from("assistants")
+        .insert([pendingAssistantData]);
+
+      if (insertError) {
+        return NextResponse.json(
+          { error: "Failed to save pending assistant to database" },
+          { status: 500 },
+        );
+      }
+
+      // Insert consolidated config data into assistant_configs table
+      const configData: Database["public"]["Tables"]["assistant_configs"]["Insert"] =
+        {
+          id: pendingAssistantId,
+          description: description ?? null,
+          display_name: concierge_name ?? name,
+          business_name: business_name ?? null,
+          business_phone: business_phone ?? null,
+          pinecone_name,
+        };
+      const { error: configInsertError } = await dbClient
+        .from("assistant_configs")
+        .insert([configData]);
+
+      if (configInsertError) {
+        // Attempt to delete the pending assistant if config insertion fails
+        await dbClient.from("assistants").delete().eq("id", pendingAssistantId);
+
+        return NextResponse.json(
+          { error: "Failed to save assistant configuration" },
+          { status: 500 },
+        );
+      }
+
+      // Insert subscription data using the fetched actualPlanUUID
+      const subscriptionData: Database["public"]["Tables"]["assistant_subscriptions"]["Insert"] =
+        {
+          id: uuidv4(),
+          assistant_id: pendingAssistantId,
+          status: subscriptionStatus,
+          plan_id: actualPlanIdForDb,
+          payment_session_id: paymentSessionId ?? null,
+          stripe_subscription_id: null,
+          created_at: new Date().toISOString(),
+        };
+
+      const { error: subscriptionInsertError } = await dbClient
+        .from("assistant_subscriptions")
+        .insert([subscriptionData]);
+
+      if (subscriptionInsertError) {
+        await dbClient
+          .from("assistant_configs")
+          .delete()
+          .eq("id", pendingAssistantId);
+        await dbClient.from("assistants").delete().eq("id", pendingAssistantId);
+
+        return NextResponse.json(
+          { error: "Failed to save subscription data." },
+          { status: 500 },
+        );
+      }
+
+      // Insert into assistant_activity
+      const nowISO = new Date().toISOString();
+      const activityData: AssistantActivityInsert = {
+        assistant_id: pendingAssistantId,
+        total_documents: 0,
+        total_interactions: 0,
+        total_messages: 0,
+        total_tokens: 0,
+        total_webpages: 0,
+        last_activity_at: nowISO,
+        last_message_at: null,
+        last_used_at: null,
+        created_at: nowISO,
+        updated_at: nowISO,
+      };
+
+      const { error: activityInsertError } = await dbClient
+        .from("assistant_activity")
+        .insert([activityData]);
+
+      if (activityInsertError) {
+        await dbClient
+          .from("assistant_subscriptions")
+          .delete()
+          .eq("assistant_id", pendingAssistantId);
+        await dbClient
+          .from("assistant_configs")
+          .delete()
+          .eq("id", pendingAssistantId);
+        await dbClient.from("assistants").delete().eq("id", pendingAssistantId);
+
+        return NextResponse.json(
+          { error: "Failed to save assistant activity data." },
+          { status: 500 },
+        );
+      }
+
+      // Insert into assistant_usage_limits
+      const limitsData: AssistantUsageLimitsInsert = {
+        assistant_id: pendingAssistantId,
+        document_limit: planDetails.limits.maxDocuments,
+        message_limit: planDetails.limits.maxMessages,
+        token_limit: planDetails.limits.maxTokens,
+        webpage_limit: planDetails.limits.maxWebpages,
+        created_at: nowISO,
+        updated_at: nowISO,
+      };
+
+      const { error: limitsInsertError } = await dbClient
+        .from("assistant_usage_limits")
+        .insert([limitsData]);
+
+      if (limitsInsertError) {
+        await dbClient
+          .from("assistant_activity")
+          .delete()
+          .eq("assistant_id", pendingAssistantId);
+        await dbClient
+          .from("assistant_subscriptions")
+          .delete()
+          .eq("assistant_id", pendingAssistantId);
+        await dbClient
+          .from("assistant_configs")
+          .delete()
+          .eq("id", pendingAssistantId);
+        await dbClient.from("assistants").delete().eq("id", pendingAssistantId);
+
+        return NextResponse.json(
+          { error: "Failed to save assistant usage limits." },
+          { status: 500 },
+        );
+      }
+
+      return NextResponse.json({
+        message: `Assistant ${name} created successfully with activity and limits initialized`,
+        assistantId: pendingAssistantId,
+        pendingAssistantId,
+      });
+    } catch (apiError: unknown) {
+      const UNKNOWN_ERROR = "Unknown error";
+      if (pendingAssistantId) {
+        try {
+          await dbClient
+            .from("assistant_activity")
+            .delete()
+            .eq("assistant_id", pendingAssistantId);
+          await dbClient
+            .from("assistant_usage_limits")
+            .delete()
+            .eq("assistant_id", pendingAssistantId);
+          await dbClient
+            .from("assistant_subscriptions")
+            .delete()
+            .eq("assistant_id", pendingAssistantId);
+          await dbClient
+            .from("assistant_configs")
+            .delete()
+            .eq("id", pendingAssistantId);
+          await dbClient
+            .from("assistants")
+            .delete()
+            .eq("id", pendingAssistantId);
+        } catch {
+          // Cleanup failed, but we don't want to throw another error
+        }
+      }
+
+      return NextResponse.json(
+        {
+          error: "Failed to create assistant",
+          details: apiError instanceof Error ? apiError.message : UNKNOWN_ERROR,
+        },
+        { status: 500 },
+      );
+    }
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
     return NextResponse.json(
-      { error: `Internal server error: ${e.message || ""}` },
+      {
+        error: "Internal server error",
+        details: errorMessage,
+      },
       { status: 500 },
     );
   }

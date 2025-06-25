@@ -1,5 +1,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
+import { User } from "@supabase/supabase-js";
 
 // Replace custom interfaces with types from the schema
 interface TimeSeriesItem {
@@ -54,13 +56,8 @@ export async function checkAdminStatus() {
     }
 
     // Check admin status in database
-    const { data: userData, error: userDataError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userDataError || !userData?.is_admin) {
+    const isAdmin = isAdminRpc();
+    if (!isAdmin) {
       return { isAdmin: false, user };
     }
 
@@ -80,56 +77,29 @@ export async function fetchAllUsers() {
   try {
     // Get users with their plans and usage info
     const { data: users, error } = await supabase
-      .from("users")
+      .from("assistant_detail_view")
       .select(
         `
-        *,
+        id,
+        email,
+        full_name:display_name,
+        created_at:assistant_created_at,
+        last_active:last_activity_at,
+        is_admin,
         plan:plan_id (
           id,
           name,
           description,
           max_assistants,
           max_interactions
-        ),
-        userusage (
-          interactions_used,
-          assistants_used,
-          token_usage,
-          cost_estimate
         )
-      `,
+        `,
       )
-      .order("created_at", { ascending: false });
+      .order("assistant_created_at", { ascending: false });
 
     if (error) throw error;
 
-    // Get auth info for each user
-    const usersWithAuthData = [];
-
-    for (const userRecord of users || []) {
-      if (!userRecord.auth_user_id) {
-        usersWithAuthData.push(userRecord);
-        continue;
-      }
-
-      try {
-        const { data } = await supabase.auth.admin.getUserById(
-          userRecord.auth_user_id,
-        );
-
-        usersWithAuthData.push({
-          ...userRecord,
-          email: data?.user?.email,
-          full_name: data?.user?.user_metadata?.full_name,
-          last_sign_in: data?.user?.last_sign_in_at,
-        });
-      } catch (e) {
-        console.error("Error fetching auth data for user:", e);
-        usersWithAuthData.push(userRecord);
-      }
-    }
-
-    return usersWithAuthData;
+    return users;
   } catch (error) {
     console.error("Error fetching users:", error);
     toast.error("Failed to load users");
@@ -317,25 +287,21 @@ export async function fetchUsageData(timeframe: string = "30d") {
     const userEntries = Array.from(userMap.entries());
     for (const [userId, stats] of userEntries) {
       // Get user details
-      const { data: userData } = await supabase
-        .from("users")
-        .select("auth_user_id")
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) continue; // Skip if no user found
+      const { data: userData, error: userError } = await supabase
+        .from("assistant_detail_view")
+        .select(
+          "id, email, display_name, assistant_created_at, last_activity_at, is_admin",
+        )
         .eq("id", userId)
         .single();
 
-      if (userData?.auth_user_id) {
-        try {
-          const { data: authData } = await supabase.auth.admin.getUserById(
-            userData.auth_user_id,
-          );
-
-          if (authData?.user) {
-            stats.email = authData.user.email;
-            stats.fullName = authData.user.user_metadata?.full_name;
-          }
-        } catch (e) {
-          console.error("Error fetching auth data for user:", e);
-        }
+      if (!userError && userData) {
+        stats.email = user.email;
+        stats.fullName = user.user_metadata?.full_name || user.email;
       }
 
       // Format last active as ISO string
@@ -503,59 +469,10 @@ export async function fetchUserInteractions(
       .limit(limit);
 
     if (error) throw error;
-
-    return interactions || [];
+    return interactions;
   } catch (error) {
     console.error("Error fetching user interactions:", error);
-    toast.error("Failed to load user interactions");
+    toast.error("Failed to load interactions");
     return [];
   }
-}
-
-/**
- * Export dashboard data to CSV
- */
-// Used by the UI, needs to be exported
-export function exportToCSV(data: any[], filename: string) {
-  if (!data || data.length === 0) {
-    toast.error("No data to export");
-    return;
-  }
-
-  // Get headers from first object
-  const headers = Object.keys(data[0]);
-  // Convert data to CSV rows
-  const csvRows = [
-    headers.join(","), // Header row
-    ...data.map((row: any) =>
-      headers
-        .map((header) => {
-          const value = row[header];
-          // Handle special cases (objects, null values, etc.)
-          if (value === null || value === undefined) return "";
-          if (typeof value === "object") return JSON.stringify(value);
-          // Escape quotes and wrap in quotes if contains commas
-          if (
-            typeof value === "string" &&
-            (value.includes(",") || value.includes('"'))
-          ) {
-            return `"${value.replace(/"/g, '""')}"`;
-          }
-          return value;
-        })
-        .join(","),
-    ),
-  ];
-
-  // Create and download CSV file
-  const csvContent = csvRows.join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 }

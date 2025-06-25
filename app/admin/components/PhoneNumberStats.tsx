@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,26 +82,19 @@ export function PhoneNumberStats() {
     loadPhoneStats();
   }, [timeframe]);
 
-  const loadPhoneStats = async () => {
+  const loadPhoneStats = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
     try {
-      // First, get all phone numbers from the database
       const { data: phoneNumbers, error: phoneError } = await supabase
-        .from("phonenumbers")
+        .from("phone_numbers")
         .select("*, assistants(id, name, user_id)");
-
       if (phoneError) throw phoneError;
 
-      // Calculate basic stats
       const assigned = phoneNumbers?.filter((p) => p.is_assigned).length || 0;
       const total = phoneNumbers?.length || 0;
-
-      // Calculate timeframe based on selection
       const now = new Date();
       const startDate = new Date();
-
       switch (timeframe) {
         case "7d":
           startDate.setDate(now.getDate() - 7);
@@ -115,29 +108,35 @@ export function PhoneNumberStats() {
         default: // 30d
           startDate.setDate(now.getDate() - 30);
       }
-
       // Get message interactions for the phone numbers
       const { data: interactions, error: interactionError } = await supabase
         .from("interactions")
         .select("*")
         .gte("interaction_time", startDate.toISOString())
         .contains("chat", "to");
-
       if (interactionError) throw interactionError;
-
-      // Process phone usage data
       const phoneData = new Map();
       let totalMessages = 0;
-
-      // Initialize phone data
       phoneNumbers?.forEach((phone) => {
-        phoneData.set(phone.number, {
+        let assistantName = null;
+        let assistantId = null;
+        let userId = null;
+        if (Array.isArray(phone.assistants)) {
+          assistantName = phone.assistants[0]?.name || null;
+          assistantId = phone.assistants[0]?.id || null;
+          userId = phone.assistants[0]?.user_id || null;
+        } else if (phone.assistants) {
+          assistantName = phone.assistants.name || null;
+          assistantId = phone.assistants.id || null;
+          userId = phone.assistants.user_id || null;
+        }
+        phoneData.set(phone.phone_number, {
           id: phone.id,
-          number: phone.number,
+          number: phone.phone_number,
           is_assigned: phone.is_assigned,
-          assistant: phone.assistants?.[0]?.name || null,
-          assistant_id: phone.assistants?.[0]?.id || null,
-          user_id: phone.assistants?.[0]?.user_id || null,
+          assistant: assistantName,
+          assistant_id: assistantId,
+          user_id: userId,
           messages_sent: 0,
           messages_received: 0,
           active_days: new Set(),
@@ -150,43 +149,48 @@ export function PhoneNumberStats() {
       // Count interactions
       interactions?.forEach((interaction) => {
         try {
-          const chatData = JSON.parse(interaction.chat);
+          const chatData = interaction.chat;
+          if (!chatData) return;
           let phoneNumber = null;
-
-          // Determine phone number from interaction
-          if (typeof chatData === "object" && chatData !== null) {
-            phoneNumber = chatData.to || chatData.from;
+          if (
+            typeof chatData === "object" &&
+            chatData !== null &&
+            !Array.isArray(chatData) &&
+            ("to" in chatData || "from" in chatData)
+          ) {
+            phoneNumber =
+              (chatData as { [key: string]: any }).to ||
+              (chatData as { [key: string]: any }).from;
           }
-
           if (phoneNumber && phoneData.has(phoneNumber)) {
             const phoneStats = phoneData.get(phoneNumber);
             totalMessages++;
-
-            // Check if phone sent or received the message
-            if (chatData.from === phoneNumber) {
-              phoneStats.messages_sent++;
-            } else if (chatData.to === phoneNumber) {
-              phoneStats.messages_received++;
+            if (
+              typeof chatData === "object" &&
+              chatData !== null &&
+              "from" in chatData &&
+              "to" in chatData
+            ) {
+              if ((chatData as any).from === phoneNumber) {
+                phoneStats.messages_sent++;
+              } else if ((chatData as any).to === phoneNumber) {
+                phoneStats.messages_received++;
+              }
+              const user =
+                (chatData as any).from !== phoneNumber
+                  ? (chatData as any).from
+                  : (chatData as any).to;
+              if (user) phoneStats.unique_users.add(user);
             }
-
-            // Track unique users
-            const user =
-              chatData.from !== phoneNumber ? chatData.from : chatData.to;
-            if (user) phoneStats.unique_users.add(user);
-
-            // Track active days
             if (interaction.interaction_time) {
               const day = interaction.interaction_time.split("T")[0];
               phoneStats.active_days.add(day);
-
-              // Track first and last message
               if (
                 !phoneStats.first_message ||
                 interaction.interaction_time < phoneStats.first_message
               ) {
                 phoneStats.first_message = interaction.interaction_time;
               }
-
               if (
                 !phoneStats.last_message ||
                 interaction.interaction_time > phoneStats.last_message
@@ -236,7 +240,7 @@ export function PhoneNumberStats() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase, timeframe]);
 
   // Format phone number for display
   const formatPhoneNumber = (phoneNumber: string) => {

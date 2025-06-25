@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { useRealTimeMonitorStore } from "@/store/realTimeMonitorStore";
 
 interface RealTimeMonitorProps {
   refreshInterval?: number; // in milliseconds
@@ -39,14 +40,20 @@ export function RealTimeMonitor({
   refreshInterval = 5000,
   initialIsMonitoring = true,
 }: RealTimeMonitorProps) {
-  const [isMonitoring, setIsMonitoring] = useState(initialIsMonitoring);
-  const [stats, setStats] = useState<SystemStats[]>([]);
-  const [alertsCount, setAlertsCount] = useState(0);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [currentTab, setCurrentTab] = useState("overview");
-  const [healthStatus, setHealthStatus] = useState<
-    "healthy" | "warning" | "degraded"
-  >("healthy");
+  const {
+    isMonitoring,
+    setIsMonitoring,
+    stats,
+    setStats,
+    alertsCount,
+    setAlertsCount,
+    lastUpdated,
+    setLastUpdated,
+    currentTab,
+    setCurrentTab,
+    healthStatus,
+    setHealthStatus,
+  } = useRealTimeMonitorStore();
 
   // Generate some initial data
   useEffect(() => {
@@ -106,34 +113,35 @@ export function RealTimeMonitor({
         memoryUsage: Math.random() * 30 + 40,
       };
 
-      setStats((prev) => {
-        // Keep only the last 30 data points
-        const newStats = [...prev.slice(-29), newStat];
+      const newStats: SystemStats[] = [...stats.slice(-29), newStat];
 
-        // Update alerts count
-        const errors = newStat.apiErrors;
-        if (errors > 0) {
-          setAlertsCount((a) => a + errors);
-        }
+      // Update alerts count
+      const errors: number = newStat.apiErrors;
+      if (errors > 0) {
+        setAlertsCount(alertsCount + errors);
+      }
 
-        // Update health status
-        const avgLatency =
-          newStats.reduce((sum, item) => sum + item.apiLatency, 0) /
-          newStats.length;
-        const errorRate =
-          newStats.reduce((sum, item) => sum + item.apiErrors, 0) /
-          newStats.length;
+      // Update health status
+      const avgLatency: number =
+        newStats.reduce(
+          (sum: number, item: SystemStats) => sum + item.apiLatency,
+          0,
+        ) / newStats.length;
+      const errorRate: number =
+        newStats.reduce(
+          (sum: number, item: SystemStats) => sum + item.apiErrors,
+          0,
+        ) / newStats.length;
 
-        if (avgLatency > 300 || errorRate > 1) {
-          setHealthStatus("degraded");
-        } else if (avgLatency > 200 || errorRate > 0.5) {
-          setHealthStatus("warning");
-        } else {
-          setHealthStatus("healthy");
-        }
+      if (avgLatency > 300 || errorRate > 1) {
+        setHealthStatus("degraded");
+      } else if (avgLatency > 200 || errorRate > 0.5) {
+        setHealthStatus("warning");
+      } else {
+        setHealthStatus("healthy");
+      }
 
-        return newStats;
-      });
+      setStats(newStats);
 
       setLastUpdated(new Date());
     }, refreshInterval);
@@ -144,7 +152,7 @@ export function RealTimeMonitor({
   }, [isMonitoring, refreshInterval]);
 
   const handleToggleMonitoring = () => {
-    setIsMonitoring((prev) => !prev);
+    setIsMonitoring(!isMonitoring);
   };
 
   const handleRefreshData = () => {
@@ -160,7 +168,7 @@ export function RealTimeMonitor({
       memoryUsage: Math.random() * 30 + 40,
     };
 
-    setStats((prev) => [...prev.slice(-29), newStat]);
+    setStats([...stats.slice(-29), newStat]);
     setLastUpdated(new Date());
   };
 

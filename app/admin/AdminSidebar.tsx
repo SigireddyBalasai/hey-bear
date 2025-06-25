@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { fetchAllUsers } from "./utils/adminUtils";
 import {
   BarChart3,
@@ -14,6 +14,7 @@ import {
   Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAdminSidebarStore } from "@/store/adminSidebarStore";
 
 interface SidebarLinkProps {
   href: string;
@@ -59,12 +60,13 @@ function SidebarLink({ href, icon, label, active, badge }: SidebarLinkProps) {
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { userCount, setUserCount, isLoading, setIsLoading } =
+    useAdminSidebarStore();
 
   useEffect(() => {
     const getUserCount = async () => {
       try {
+        setIsLoading(true);
         const users = await fetchAllUsers();
         setUserCount(users.length);
       } catch (error) {
@@ -73,9 +75,8 @@ export function AdminSidebar() {
         setIsLoading(false);
       }
     };
-
     getUserCount();
-  }, []);
+  }, [setUserCount, setIsLoading]);
 
   const links = [
     { href: "/admin", icon: <Home size={18} />, label: "Overview" },

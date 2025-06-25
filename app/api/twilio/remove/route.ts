@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: phoneData, error: fetchError } = await supabase
-    .from("phonenumbers")
+    .from("phone_numbers")
     .select("id")
     .eq("number", phoneNumber)
     .single();
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     await twilioClient.incomingPhoneNumbers(phoneData.id).remove();
 
     const { error } = await supabase
-      .from("phonenumbers")
+      .from("phone_numbers")
       .delete()
       .eq("number", phoneNumber);
 

@@ -1,3 +1,4 @@
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -16,13 +17,9 @@ export async function GET(request: Request) {
     }
 
     // Check admin status
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
+    const isAdmin = isAdminRpc();
 
-    if (userError || !userData?.is_admin) {
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -39,6 +36,7 @@ export async function GET(request: Request) {
 
     // Get total user count
     const { count: totalUsers, error: userCountError } = await supabase
+      .schema("auth")
       .from("users")
       .select("id", { count: "exact", head: true });
 
@@ -46,6 +44,7 @@ export async function GET(request: Request) {
 
     // Get active users in the last 24 hours
     const { data: activeUsersDay, error: activeUserDayError } = await supabase
+      .schema("auth")
       .from("users")
       .select("id")
       .gte("last_active", oneDayAgo.toISOString());
@@ -54,6 +53,7 @@ export async function GET(request: Request) {
 
     // Get active users in the last 7 days
     const { data: activeUsersWeek, error: activeUserWeekError } = await supabase
+      .schema("auth")
       .from("users")
       .select("id")
       .gte("last_active", sevenDaysAgo.toISOString());

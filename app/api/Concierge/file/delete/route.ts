@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (!assistantPineconeName) {
       // Fetch the assistant from the database
       const { data: assistantData, error: assistantError } = await supabase
-        .from("assistants")
+        .from("assistant_detail_view")
         .select("pinecone_name")
         .eq("id", assistantId)
         .single();

@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
     // Verify assistant exists
     logger.info(`Verifying assistant exists: ${assistantId}`);
     const { data: assistant, error: assistantError } = await supabase
-      .from("assistants")
+      .from("assistant_detail_view")
       .select("*")
       .eq("id", assistantId)
       .single();
@@ -279,7 +279,7 @@ export async function POST(req: NextRequest) {
           error: "Failed to fetch assistant information",
           details: assistantError.message,
         },
-        { status: 500 },
+        { status: 404 },
       );
     }
 
@@ -293,7 +293,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    logger.info(`Assistant verified: ${assistant.name}`);
+    logger.info(`Assistant verified: ${assistant.assistant_name}`);
 
     // Crawl the URL content
     logger.info(`Starting to crawl URL: ${url}`);

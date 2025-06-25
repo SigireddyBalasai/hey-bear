@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import twilio from "twilio";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 export async function POST(req: Request) {
   try {
@@ -15,16 +16,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status
-    const { data: userData, error: userDataError } = await supabase
-      .from("users")
-      .select("is_admin, id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userDataError || !userData?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!isAdminRpc()) {
+      return NextResponse.json(
+        { error: "Forbidden - Admin access required" },
+        { status: 403 },
+      );
     }
+    // Use Supabase Auth user object for user identity
+    const userId = user.id;
 
     // Get the phone number to purchase
     const { phoneNumber } = await req.json();
@@ -64,9 +63,9 @@ export async function POST(req: Request) {
 
       // Add the phone number to the database
       const { data: number, error: insertError } = await supabase
-        .from("phonenumbers")
+        .from("phone_numbers")
         .insert({
-          number: purchasedNumber.phoneNumber,
+          phone_number: purchasedNumber.phoneNumber,
           is_assigned: false,
           created_at: new Date().toISOString(),
         })
@@ -91,23 +90,10 @@ export async function POST(req: Request) {
       }
 
       // Add to phone number pool
-      await supabase.from("phonenumberpool").insert({
-        phone_number_id: number.id,
-        added_by_admin: userData.id,
+      await supabase.from("phone_numbers").insert({
+        phone_number: number.phone_number, // Use the correct property as per your schema
+        added_by_admin: userId, // Use userId directly
         added_at: new Date().toISOString(),
-      });
-
-      // Log the purchase as an interaction for auditing
-      await supabase.from("interactions").insert({
-        user_id: userData.id,
-        chat: "system",
-        request: "Purchase phone number",
-        response: JSON.stringify({
-          action: "purchase_phone_number",
-          number: purchasedNumber.phoneNumber,
-          sid: purchasedNumber.sid,
-        }),
-        interaction_time: new Date().toISOString(),
       });
 
       return NextResponse.json({

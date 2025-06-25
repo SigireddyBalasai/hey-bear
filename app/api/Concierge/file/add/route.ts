@@ -59,32 +59,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get pinecone_name if not provided
-    let pinecone_name = providedPineconeName;
+    // Always fetch the assistant from assistant_detail_view
+    const { data: assistantData, error: assistantError } = await supabase
+      .from("assistant_detail_view")
+      .select("*")
+      .eq("id", assistantId)
+      .single();
 
+    if (assistantError || !assistantData) {
+      console.error("Error fetching assistant:", assistantError);
+      return NextResponse.json(
+        { error: "Assistant not found" },
+        { status: 404 },
+      );
+    }
+
+    // Use pinecone_name from assistant_detail_view, fallback to provided if present
+    let pinecone_name = assistantData.pinecone_name || providedPineconeName;
     if (!pinecone_name) {
-      // Fetch the assistant from the database
-      const { data: assistantData, error: assistantError } = await supabase
-        .from("assistants")
-        .select("pinecone_name")
-        .eq("id", assistantId)
-        .single();
-
-      if (assistantError || !assistantData) {
-        console.error("Error fetching No-Show:", assistantError);
-        return NextResponse.json(
-          { error: "No-Show not found" },
-          { status: 404 },
-        );
-      }
-
-      pinecone_name = assistantData.pinecone_name || "";
-      if (!pinecone_name) {
-        return NextResponse.json(
-          { error: "Invalid assistant configuration" },
-          { status: 500 },
-        );
-      }
+      return NextResponse.json(
+        { error: "Invalid assistant configuration" },
+        { status: 500 },
+      );
     }
 
     try {

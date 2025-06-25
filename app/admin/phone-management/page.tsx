@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Loading } from "../../Concierge/Loading";
@@ -14,14 +14,25 @@ import { Phone, ChevronLeft, Settings, Link2, HelpCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
+import { usePhoneManagementStore } from "@/store/phoneManagementStore";
 
 export default function PhoneManagementPage() {
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [twilioConfigured, setTwilioConfigured] = useState(true);
-  const [activeTab, setActiveTab] = useState("manage");
-  const [isSettingsLoading, setIsSettingsLoading] = useState(true);
+  const {
+    user,
+    setUser,
+    isAdmin,
+    setIsAdmin,
+    isLoading,
+    setIsLoading,
+    twilioConfigured,
+    setTwilioConfigured,
+    activeTab,
+    setActiveTab,
+    isSettingsLoading,
+    setIsSettingsLoading,
+  } = usePhoneManagementStore();
 
   const router = useRouter();
   const supabase = createClient();
@@ -47,15 +58,12 @@ export default function PhoneManagementPage() {
         setUser(user);
 
         // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (userDataError || !userData?.is_admin) {
-          setIsAdmin(false);
-          router.push("/");
+        const isAdmin = isAdminRpc();
+        if (!isAdmin) {
+          toast("Access Denied", {
+            description: "You do not have admin access.",
+          });
+          router.push("/sign-in");
           return;
         }
 
@@ -70,7 +78,7 @@ export default function PhoneManagementPage() {
     };
 
     checkAdminStatus();
-  }, []);
+  }, [setIsLoading, setUser, setIsAdmin]);
 
   // Check if Twilio is configured
   const checkTwilioConfig = async () => {

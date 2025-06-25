@@ -5,6 +5,7 @@ import {
   DashboardStats,
   DashboardResponse,
 } from "@/app/dashboard/models";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 // Helper function to get default start date (1 month ago)
 function getDefaultStartDate(): string {
@@ -69,22 +70,13 @@ export async function GET(req: NextRequest) {
     const startDateFormatted = new Date(startDate).toISOString();
     const endDateFormatted = new Date(endDate).toISOString();
 
-    // Get user ID from the users table
-    const { data: userData, error: userIdError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userIdError || !userData) {
-      console.error("Error fetching user ID:", userIdError);
-      return NextResponse.json(
-        { error: "Failed to fetch user ID" },
-        { status: 500 },
-      );
+    const isAdmin = isAdminRpc();
+    if (!isAdmin) {
+      console.error("User is not an admin");
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const userId = userData.id;
+    console.log("User is authenticated and is an admin");
+    const userId = user.id;
 
     // Prepare the query
     let query = supabase
@@ -200,7 +192,12 @@ export async function GET(req: NextRequest) {
         user_id: chat.user_id ?? undefined,
         duration: chat.duration ?? undefined,
         interaction_time: chat.interaction_time ?? undefined,
-        chat: chat.chat,
+        chat:
+          chat.chat === null || chat.chat === undefined
+            ? undefined
+            : typeof chat.chat === "string"
+              ? chat.chat
+              : JSON.stringify(chat.chat),
       };
     });
 

@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -17,14 +18,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userError || !userData?.is_admin) {
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -65,7 +61,7 @@ export async function GET(request: Request) {
         cost_estimate,
         is_error,
         assistant_id
-      `,
+      `
       )
       .gte("interaction_time", startDateStr)
       .lte("interaction_time", endDateStr);
@@ -170,29 +166,38 @@ export async function GET(request: Request) {
       }
     });
 
+    if (!isAdminRpc()) {
+      NextResponse.json(
+        { error: "Forbidden - Admin access required" },
+        { status: 403 }
+      );
+      return;
+    }
+
     // Get user details and format for response
     const userUsageData = await Promise.all(
       Array.from(userStats.entries()).map(async ([userId, stats]) => {
-        // Get user email
-        const { data: userData, error: userDataError } = await supabase
+        const { data: userRows, error: userError } = await supabase
+          .schema("auth")
           .from("users")
-          .select("auth_user_id")
+          .select("id, email, user_metadata")
           .eq("id", userId)
           .single();
-
-        let email = null;
-        let fullName = null;
-
-        if (userData?.auth_user_id && !userDataError) {
-          const { data } = await supabase.auth.admin.getUserById(
-            userData.auth_user_id,
-          );
-          if (data?.user) {
-            email = data.user.email;
-            fullName = data.user.user_metadata?.full_name;
-          }
+        if (userError || !userRows) {
+          console.error("Error fetching user data:", userError);
+          return null;
         }
-
+        const email = user.email || "Unknown";
+        const fullName = user.user_metadata?.full_name || "Unknown User";
+        if (!email || !fullName) {
+          console.warn(`User ${userId} has missing email or full name`);
+        }
+        if (!stats.firstActivity) {
+          stats.firstActivity = new Date().toISOString();
+        }
+        if (!stats.lastActivity) {
+          stats.lastActivity = new Date().toISOString();
+        }
         return {
           userId,
           email,
@@ -204,22 +209,25 @@ export async function GET(request: Request) {
           firstActivity: stats.firstActivity,
           lastActivity: stats.lastActivity,
         };
-      }),
+      })
     );
 
-    // Sort by token usage
-    userUsageData.sort((a, b) => b.tokens - a.tokens);
+    // Filter out nulls and sort by token usage
+    const filteredUserUsageData = userUsageData.filter(
+      (u): u is NonNullable<typeof u> => u !== null
+    );
+    filteredUserUsageData.sort((a, b) => b.tokens - a.tokens);
 
     return NextResponse.json({
       summary: totalStats,
       timeSeriesData,
-      userUsageData,
+      userUsageData: filteredUserUsageData,
     });
   } catch (error) {
     console.error("Error fetching usage stats:", error);
     return NextResponse.json(
       { error: "Failed to fetch usage statistics" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

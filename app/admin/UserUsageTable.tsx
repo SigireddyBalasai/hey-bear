@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -29,7 +29,6 @@ import {
   UserRoundCog,
   AlertCircle,
 } from "lucide-react";
-// import { UserDetailModal } from './UserDetailModal';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
@@ -40,132 +39,86 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tables } from "@/lib/db.types";
+import { Database } from "@/lib/db.types";
+import { useUserUsageTableStore } from "@/store/userUsageTableStore";
 
-interface UserUsageData extends Partial<Tables<"userusage">> {
-  users?: {
-    email: string;
-    full_name: string;
-    created_at: string;
-  };
-  date?: string;
-  message_count?: number;
-  token_usage?: number;
-  cost_estimate?: number;
-  [key: string]: any; // Add index signature to allow string indexing
-}
+type UserUsageData = Tables<"usage_overview"> & {
+  users?: { id: string; email: string | null };
+};
 
 interface UserUsageTableProps {
   usageData: UserUsageData[];
 }
 
 export function UserUsageTable({ usageData }: UserUsageTableProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState("date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [itemsPerPage, setItemsPerPage] = useState("10");
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortField,
+    setSortField,
+    sortDirection,
+    setSortDirection,
+    itemsPerPage,
+    setItemsPerPage,
+  } = useUserUsageTableStore();
 
-  // Handle sorting
+  // Memoized filtered and sorted data
+  const filteredData = useMemo(() => {
+    const filtered = usageData.filter((item) => {
+      const email = item.users?.email || "";
+      const name = item.assistant_name || "";
+      return (
+        email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
+    const sorted = [...filtered].sort((a, b) => {
+      let aValue: string | number = "";
+      let bValue: string | number = "";
+      switch (sortField) {
+        case "assistant_name":
+          aValue = a.assistant_name || "";
+          bValue = b.assistant_name || "";
+          break;
+        case "current_month_messages":
+          aValue = a.current_month_messages || 0;
+          bValue = b.current_month_messages || 0;
+          break;
+        case "current_month_tokens":
+          aValue = a.current_month_tokens || 0;
+          bValue = b.current_month_tokens || 0;
+          break;
+        default:
+          aValue = a.assistant_name || "";
+          bValue = b.assistant_name || "";
+      }
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortDirection === "asc"
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        return sortDirection === "asc"
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
+      }
+    });
+    return sorted.slice(0, parseInt(itemsPerPage, 10));
+  }, [usageData, searchTerm, sortField, sortDirection]);
+
+  // Sorting handler
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
-      setSortField(field);
       setSortDirection("asc");
     }
+    setSortField(field);
   };
 
-  // Filter and sort data with error handling for DB fields
-  const filteredData = usageData
-    .filter((item) => {
-      // Guard against missing data
-      if (!item.users) return false;
-
-      const email = item.users?.email || "";
-      const fullName = item.users?.full_name || "";
-
-      return (
-        email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        fullName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    })
-    .sort((a, b) => {
-      if (sortField === "date") {
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
-        return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
-      }
-
-      if (sortField === "user") {
-        const nameA = a.users?.full_name?.toLowerCase() || "";
-        const nameB = b.users?.full_name?.toLowerCase() || "";
-        return sortDirection === "asc"
-          ? nameA.localeCompare(nameB)
-          : nameB.localeCompare(nameA);
-      }
-
-      if (
-        sortField === "messages" ||
-        sortField === "tokens" ||
-        sortField === "cost"
-      ) {
-        const fieldMap: Record<string, string> = {
-          messages: "message_count",
-          tokens: "token_usage",
-          cost: "cost_estimate",
-        };
-
-        const valueA = a[fieldMap[sortField]] || 0;
-        const valueB = b[fieldMap[sortField]] || 0;
-
-        return sortDirection === "asc" ? valueA - valueB : valueB - valueA;
-      }
-
-      return 0;
-    })
-    .slice(0, parseInt(itemsPerPage, 10));
-
-  // View user details
-  const handleViewDetails = (user: any) => {
-    setSelectedUser(user);
-    setDetailModalOpen(true);
-  };
-
-  // Get initials with error handling
-  const getInitials = (name: string = "") => {
-    if (!name) return "UN";
-
-    return (
-      name
-        .split(" ")
-        .map((part) => part[0] || "")
-        .join("")
-        .toUpperCase()
-        .substring(0, 2) || "UN"
-    );
-  };
-
-  // Format date safely
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr)
-      return {
-        short: "N/A",
-        year: "",
-      };
-
-    try {
-      const date = new Date(dateStr);
-      return {
-        short: date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        }),
-        year: date.toLocaleDateString("en-US", { year: "numeric" }),
-      };
-    } catch (e) {
-      return { short: "Invalid date", year: "" };
-    }
+  // Get initials
+  const getInitials = (email: string = "") => {
+    if (!email) return "U";
+    return email[0].toUpperCase();
   };
 
   return (
@@ -174,7 +127,7 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
         <div className="relative w-full sm:w-auto sm:flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search users..."
+            placeholder="Search users or assistants..."
             className="pl-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -192,7 +145,6 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
               <SelectItem value="100">100 items</SelectItem>
             </SelectContent>
           </Select>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="ml-auto">
@@ -202,168 +154,106 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuLabel>Sort by</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleSort("date")}
-                className="flex justify-between"
-              >
-                Date
-                {sortField === "date" && (
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleSort("user")}
-                className="flex justify-between"
-              >
-                User Name
-                {sortField === "user" && (
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleSort("messages")}
-                className="flex justify-between"
-              >
-                Message Count
-                {sortField === "messages" && (
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleSort("tokens")}
-                className="flex justify-between"
-              >
-                Token Usage
-                {sortField === "tokens" && (
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleSort("cost")}
-                className="flex justify-between"
-              >
-                Cost
-                {sortField === "cost" && (
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                )}
-              </DropdownMenuItem>
+              {[
+                { label: "Assistant Name", value: "assistant_name" },
+                { label: "Message Count", value: "current_month_messages" },
+                { label: "Token Usage", value: "current_month_tokens" },
+              ].map((item) => (
+                <DropdownMenuItem
+                  key={item.value}
+                  onClick={() => handleSort(item.value)}
+                  className="flex justify-between"
+                >
+                  {item.label}
+                  {sortField === item.value && (
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                  )}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>User</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>User Email</TableHead>
+              <TableHead>Assistant Name</TableHead>
               <TableHead className="text-right">Message Count</TableHead>
               <TableHead className="text-right">Token Usage</TableHead>
-              <TableHead className="text-right">Cost Estimate</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredData.length > 0 ? (
-              filteredData.map((item) => {
-                const dateFormatted = formatDate(item.date);
-                return (
-                  <TableRow key={item.id} className="hover:bg-muted/30">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 border">
-                          <AvatarImage
-                            src=""
-                            alt={item.users?.full_name || "User"}
-                          />
-                          <AvatarFallback className="text-xs">
-                            {getInitials(item.users?.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">
-                            {item.users?.full_name || "Unknown"}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {item.users?.email || "No email"}
-                          </div>
+              filteredData.map((item, idx) => (
+                <TableRow
+                  key={item.assistant_id || idx}
+                  className="hover:bg-muted/30"
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8 border">
+                        <AvatarImage src="" alt={item.users?.email || "User"} />
+                        <AvatarFallback className="text-xs">
+                          {getInitials(item.users?.email || "")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">
+                          {item.users?.email || "Unknown"}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">
-                          {dateFormatted.short}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {dateFormatted.year}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge
-                        variant={
-                          (item.message_count || 0) > 50 ? "default" : "outline"
-                        }
-                        className="font-mono"
-                      >
-                        {item.message_count || 0}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {(item.token_usage || 0).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      <span
-                        className={
-                          (item.cost_estimate || 0) > 1
-                            ? "text-amber-600 font-semibold"
-                            : ""
-                        }
-                      >
-                        ${item.cost_estimate?.toFixed(2) || "0.00"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                          >
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => handleViewDetails(item)}
-                            className="gap-2"
-                          >
-                            <Eye className="h-4 w-4" /> View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <UserRoundCog className="h-4 w-4" /> Manage User
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="gap-2">
-                            <FileDown className="h-4 w-4" /> Export Data
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600 gap-2">
-                            <AlertCircle className="h-4 w-4" /> Report Issue
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+                    </div>
+                  </TableCell>
+                  <TableCell>{item.assistant_name || "-"}</TableCell>
+                  <TableCell className="text-right">
+                    <Badge
+                      variant={
+                        (item.current_month_messages || 0) > 50
+                          ? "default"
+                          : "outline"
+                      }
+                      className="font-mono"
+                    >
+                      {item.current_month_messages || 0}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {(item.current_month_tokens || 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem className="gap-2">
+                          <Eye className="h-4 w-4" /> View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2">
+                          <UserRoundCog className="h-4 w-4" /> Manage User
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="gap-2">
+                          <FileDown className="h-4 w-4" /> Export Data
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600 gap-2">
+                          <AlertCircle className="h-4 w-4" /> Report Issue
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={5} className="text-center py-8">
                   <div className="flex flex-col items-center justify-center text-muted-foreground">
                     <Search className="h-8 w-8 mb-2 opacity-50" />
                     <p>No results found</p>
@@ -377,7 +267,6 @@ export function UserUsageTable({ usageData }: UserUsageTableProps) {
           </TableBody>
         </Table>
       </div>
-
       {filteredData.length > 0 && (
         <div className="flex items-center justify-between px-4 py-4 border-t">
           <p className="text-sm text-muted-foreground">

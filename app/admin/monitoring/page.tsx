@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -45,6 +45,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
+import { useMonitoringStore } from "@/store/monitoringStore";
 
 interface ServiceStatus {
   name: string;
@@ -55,12 +57,22 @@ interface ServiceStatus {
 }
 
 export default function MonitoringPage() {
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(5000);
-  const [serviceStatuses, setServiceStatuses] = useState<ServiceStatus[]>([]);
-  const [systemLogs, setSystemLogs] = useState<string[]>([]);
+  const {
+    user,
+    setUser,
+    isAdmin,
+    setIsAdmin,
+    isLoading,
+    setIsLoading,
+    refreshInterval,
+    setRefreshInterval,
+    serviceStatuses,
+    setServiceStatuses,
+    updateServiceStatuses,
+    systemLogs,
+    setSystemLogs,
+    updateSystemLogs,
+  } = useMonitoringStore();
 
   const router = useRouter();
   const supabase = createClient();
@@ -85,51 +97,47 @@ export default function MonitoringPage() {
 
         setUser(user);
 
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (userDataError || !userData?.is_admin) {
-          setIsAdmin(false);
-          router.push("/");
+        const isAdmin = isAdminRpc();
+        if (!isAdmin) {
+          toast("Access Denied", {
+            description: "You do not have admin access.",
+          });
+          router.push("/sign-in");
           return;
         }
 
         setIsAdmin(true);
 
         // Generate dummy service statuses
-        const dummyStatuses: ServiceStatus[] = [
+        const dummyStatuses = [
           {
             name: "API Gateway",
-            status: "operational",
+            status: "operational" as const,
             uptime: 99.99,
             responseTime: 145,
           },
           {
             name: "Authentication Service",
-            status: "operational",
+            status: "operational" as const,
             uptime: 99.97,
             responseTime: 89,
           },
           {
             name: "Database Cluster",
-            status: "operational",
+            status: "operational" as const,
             uptime: 99.95,
             responseTime: 12,
           },
           {
             name: "AI Model Service",
-            status: "degraded",
+            status: "degraded" as const,
             lastIncident: "2 hours ago",
             uptime: 98.45,
             responseTime: 312,
           },
           {
             name: "File Storage",
-            status: "operational",
+            status: "operational" as const,
             uptime: 99.98,
             responseTime: 65,
           },
@@ -161,7 +169,15 @@ export default function MonitoringPage() {
     };
 
     checkAdminStatus();
-  }, []);
+  }, [
+    setIsLoading,
+    setUser,
+    setIsAdmin,
+    setServiceStatuses,
+    setSystemLogs,
+    router,
+    supabase,
+  ]);
 
   // Handle interval change
   const handleIntervalChange = (value: string) => {
@@ -176,7 +192,7 @@ export default function MonitoringPage() {
 
     // This would trigger an actual refresh in a real app
     // For now, just add some variation to the service statuses
-    setServiceStatuses((prev) => {
+    updateServiceStatuses((prev) => {
       return prev.map((service) => ({
         ...service,
         responseTime:
@@ -191,7 +207,7 @@ export default function MonitoringPage() {
     });
 
     // Add new log entry
-    setSystemLogs((prev) => {
+    updateSystemLogs((prev) => {
       const newLog = `[${new Date().toISOString()}] INFO: Manual refresh triggered by admin`;
       return [newLog, ...prev];
     });

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -39,18 +38,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useUserUsageTableStore } from "@/store/userUsageTableStore";
 
 interface UserUsageTableProps {
   usageData: any[];
 }
 
 export function UserUsageTable({ usageData }: UserUsageTableProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState("date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [itemsPerPage, setItemsPerPage] = useState("10");
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortField,
+    setSortField,
+    sortDirection,
+    setSortDirection,
+    selectedUser,
+    setSelectedUser,
+    detailModalOpen,
+    setDetailModalOpen,
+    itemsPerPage,
+    setItemsPerPage,
+  } = useUserUsageTableStore();
 
   // Handle sorting
   const handleSort = (field: string) => {

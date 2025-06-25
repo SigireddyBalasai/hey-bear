@@ -1,50 +1,65 @@
 import { createClient } from "@/utils/supabase/server";
-import { isSubscriptionActive } from "@/lib/stripe";
+import { getStripeInstance } from "@/lib/stripe";
+import { Tables } from "@/lib/db.types";
 
-interface Subscription {
+interface SubscriptionResult {
+  isActive: boolean;
   status?: string;
   plan?: string;
+  error?: string;
 }
+
+type AssistantDetailView = Tables<"assistant_detail_view">;
 
 /**
  * Check if the given assistant has an active subscription
  */
-export async function checkAssistantSubscription(assistantId: string) {
+export async function checkAssistantSubscription(
+  assistantId: string,
+): Promise<SubscriptionResult> {
   try {
     const supabase = await createClient();
 
-    // Fetch the assistant with subscription info
-    const { data: assistant, error } = await supabase
-      .from("assistants")
+    // Fetch assistant details
+    const { data, error } = await supabase
+      .from("assistant_detail_view")
       .select("*")
       .eq("id", assistantId)
-      .single();
+      .single<AssistantDetailView>();
 
-    if (error || !assistant) {
+    if (error || !data) {
       console.error("Error fetching assistant:", error);
       return { isActive: false, error: "Assistant not found" };
     }
 
-    // Use the helper to check if the subscription is active
-    const subscription =
-      typeof assistant.params === "object" && assistant.params
-        ? ((assistant.params as Record<string, any>)
-            .subscription as Subscription)
-        : undefined;
-    const active = isSubscriptionActive(subscription);
-
-    if (!active) {
+    if (!data.stripe_subscription_id) {
       return {
         isActive: false,
-        error: "Subscription inactive",
-        status: subscription?.status,
-        plan: subscription?.plan,
+        error: "No subscription found for this assistant",
       };
     }
 
-    return { isActive: true };
-  } catch (error) {
-    console.error("Error checking subscription:", error);
-    return { isActive: false, error: "Failed to check subscription" };
+    // Fetch subscription from Stripe
+    const stripe = await getStripeInstance();
+    const subscription = await stripe?.subscriptions.retrieve(
+      data.stripe_subscription_id,
+    );
+
+    if (!subscription) {
+      return { isActive: false, error: "Subscription not found" };
+    }
+
+    const isActive =
+      subscription.status === "active" || subscription.status === "trialing";
+    const plan = subscription.items.data[0]?.plan?.id;
+
+    return {
+      isActive,
+      status: subscription.status,
+      plan,
+    };
+  } catch (err) {
+    console.error("Error checking subscription:", err);
+    return { isActive: false, error: "Internal server error" };
   }
 }

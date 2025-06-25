@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPineconeClient } from "@/lib/pinecone";
-import { createServiceClient } from "@/utils/supabase/server-admin";
+import { createClient as createServiceClient } from "@/utils/supabase/server-admin";
 import { Tables } from "@/lib/db.types";
 
 // Define table types
@@ -40,13 +40,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use service client to bypass authentication
-    const supabase = createServiceClient();
+    // Use service clients to bypass authentication
+    const supabase = await createServiceClient();
 
-    // Fetch the assistant from the database to get its Pinecone name
+    //s Fetch the assistant from the database to get its Pinecone name
     const { data: assistantData, error: assistantError } = await supabase
-      .from("assistants")
-      .select("pinecone_name, name")
+      .from("assistant_detail_view")
+      .select("pinecone_name, assistant_name")
       .eq("id", assistantId)
       .single();
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { pinecone_name, name: assistantName } = assistantData;
+    const { pinecone_name, assistant_name: assistantName } = assistantData;
 
     if (!pinecone_name) {
       return NextResponse.json(
@@ -143,6 +143,14 @@ export async function POST(req: NextRequest) {
         token_usage: tokenCount > 0 ? tokenCount : null,
         input_tokens: response.usage?.promptTokens || null,
         output_tokens: response.usage?.completionTokens || null,
+        status: null,
+        created_at: null,
+        updated_at: null,
+        error_message: null,
+        metadata: null,
+        model: null,
+        session_id: null,
+        source: null,
       };
 
       const { error: interactionError } = await supabase
@@ -159,11 +167,7 @@ export async function POST(req: NextRequest) {
       // Update assistant usage statistics
       const { error: usageError } = await supabase
         .from("assistants")
-        .update({
-          params: {
-            last_used_at: requestTimestamp.toISOString(),
-          },
-        })
+        .update({ updated_at: new Date().toISOString() })
         .eq("id", assistantId);
 
       if (usageError) {

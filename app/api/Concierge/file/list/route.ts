@@ -40,17 +40,17 @@ export async function POST(req: NextRequest) {
     let assistantPineconeName = pinecone_name;
 
     if (!assistantPineconeName) {
-      // Fetch the assistant details from the database
+      // Fetch the assistant details from the assistant_detail_view
       const { data: assistantData, error: assistantError } = await supabase
-        .from("assistants")
+        .from("assistant_detail_view")
         .select("pinecone_name")
         .eq("id", assistantId)
         .single();
 
       if (assistantError || !assistantData) {
-        console.error("Error fetching No-Show:", assistantError);
+        console.error("Error fetching assistant:", assistantError);
         return NextResponse.json(
-          { error: "No-Show not found" },
+          { error: "Assistant not found" },
           { status: 404 },
         );
       }

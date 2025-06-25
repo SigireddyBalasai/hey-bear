@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { useEffect, useState } from "react";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { ChevronDown, LogOut, Settings, Shield } from "lucide-react";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,45 +15,48 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, LogOut, Settings, Shield } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { createClient } from "@/utils/supabase/client";
+import { isAdminRpc } from "../utils/isAdminRpc";
 
-interface HeaderProps {
-  user: any;
-  handleSignOut: () => void;
+export interface HeaderProps {
+  user: {
+    id: string;
+    email?: string;
+    user_metadata?: {
+      full_name?: string;
+      avatar_url?: string;
+    };
+  } | null;
+  onCreateNew?: () => void;
 }
 
-export function Header({ user, handleSignOut }: HeaderProps) {
+export function Header({ user }: HeaderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (user) {
-        // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (!userDataError && userData && userData.is_admin) {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-        }
+        // Use the isAdminRpc utility
+        const isAdmin = await isAdminRpc();
+        setIsAdmin(isAdmin);
       }
     };
 
-    checkAdminStatus();
-  }, [user, supabase]);
+    void checkAdminStatus();
+  }, [user]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/sign-in");
+  };
 
   // Get user initials for avatar
-  const userInitials = user.email ? user.email.slice(0, 2).toUpperCase() : "U";
+  const userInitials = user?.email ? user.email.slice(0, 2).toUpperCase() : "U";
 
   return (
-    <header className="flex justify-between items-center mb-8">
+    <header className="mb-8 flex items-center justify-between">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">No-Show</h1>
         <p className="text-muted-foreground">Manage your no-show</p>
@@ -60,10 +69,10 @@ export function Header({ user, handleSignOut }: HeaderProps) {
             className="flex items-center gap-2 hover:bg-accent hover:text-accent-foreground"
           >
             <Avatar className="h-8 w-8">
-              <AvatarImage src="" alt={user.email} />
+              <AvatarImage src="" alt={user?.email ?? "User"} />
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
-            <span>{user.email}</span>
+            <span>{user?.email ?? "User"}</span>
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
@@ -88,12 +97,14 @@ export function Header({ user, handleSignOut }: HeaderProps) {
           )}
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={handleSignOut}
-            className="text-red-600 focus:text-red-600"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log out</span>
+          <DropdownMenuItem asChild>
+            <button
+              onClick={() => void handleSignOut()}
+              className="flex w-full cursor-pointer items-center px-2 py-1.5 text-sm text-red-600 hover:bg-accent hover:text-red-600 focus:text-red-600"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </button>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

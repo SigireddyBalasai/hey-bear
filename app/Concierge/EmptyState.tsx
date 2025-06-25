@@ -1,37 +1,40 @@
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Bot, Plus } from "lucide-react";
+import { Bot, Plus, XCircle } from "lucide-react";
 
-type EmptyStateProps = {
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  setCreateDialogOpen: (open: boolean) => void;
-};
+import { Button } from "@/components/ui/button";
+import { ConciergeEmptyStateProps } from "@/types/ConciergeEmptyStateProps";
 
 export function EmptyState({
   searchQuery,
-  setSearchQuery,
-  setCreateDialogOpen,
-}: EmptyStateProps) {
+  onClearSearch,
+  onCreateNew,
+  noAssistantsYet = true,
+}: ConciergeEmptyStateProps) {
+  const hasSearchQuery = Boolean(searchQuery);
+
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="bg-muted rounded-full p-4 mb-4">
+      <div className="mb-4 rounded-full bg-muted p-4">
         <Bot className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="text-xl font-semibold mb-2">No No-show found</h3>
-      <p className="text-muted-foreground max-w-md mb-6">
-        {searchQuery
+      <h3 className="mb-2 text-xl font-semibold">
+        {hasSearchQuery ? "No No-show found" : "No assistants found"}
+      </h3>
+      <p className="mb-6 max-w-md text-muted-foreground">
+        {hasSearchQuery
           ? `No No-show match your search for "${searchQuery}"`
-          : "You don't have any No-show yet. Create your first one to get started."}
+          : noAssistantsYet
+            ? "You don't have any assistants yet. Create your first one to get started."
+            : "There are currently no assistants in your account."}
       </p>
-      {searchQuery ? (
-        <Button variant="outline" onClick={() => setSearchQuery("")}>
+      {hasSearchQuery ? (
+        <Button variant="outline" onClick={onClearSearch}>
+          <XCircle className="mr-2 h-4 w-4" />
           Clear search
         </Button>
       ) : (
-        <Button onClick={() => setCreateDialogOpen(true)}>
+        <Button onClick={onCreateNew}>
           <Plus className="mr-2 h-4 w-4" />
-          Create No-show
+          Create New Assistant
         </Button>
       )}
     </div>

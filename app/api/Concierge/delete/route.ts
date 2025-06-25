@@ -1,45 +1,212 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getPineconeClient } from "@/lib/pinecone";
-import { createClient } from "@/utils/supabase/server";
-import { stripe } from "@/lib/stripe";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-// Helper function for checking subscription params
-const hasSubscription = (
-  params: any,
-): params is { subscription: { stripeSubscriptionId?: string } } => {
-  return (
-    typeof params === "object" &&
-    params !== null &&
-    "subscription" in params &&
-    typeof params.subscription === "object" &&
-    params.subscription !== null
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { getPineconeClient } from "@/lib/pinecone";
+import { getStripeInstance } from "@/lib/stripe";
+import type { DeleteAssistantRequest } from "@/types/DeleteAssistantRequest";
+import type { Database } from "@/lib/db.types";
+import { createClient } from "@/utils/supabase/server";
+
+// Helper function to cancel Stripe subscription
+async function cancelStripeSubscription(
+  supabase: SupabaseClient<Database>,
+  assistantId: string,
+  assistantName: string, // For logging purposes
+): Promise<{ subscriptionsFound: number; subscriptionsCanceled: number }> {
+  // Query for ALL subscriptions for this assistant (not just one)
+  const { data: subscriptionData, error: subscriptionError } = await supabase
+    .from("assistant_subscriptions")
+    .select("*")
+    .eq("assistant_id", assistantId);
+
+  if (subscriptionError) {
+    console.error(
+      `Error fetching Stripe subscriptions for assistant ID ${assistantId} (${assistantName}):`,
+      subscriptionError,
+    );
+
+    return { subscriptionsFound: 0, subscriptionsCanceled: 0 };
+  }
+
+  if (!subscriptionData || subscriptionData.length === 0) {
+    console.log(
+      `No subscriptions found for assistant ID ${assistantId} (${assistantName}). Skipping cancellation.`,
+    );
+
+    return { subscriptionsFound: 0, subscriptionsCanceled: 0 };
+  }
+
+  console.log(
+    `Found ${subscriptionData.length} subscription(s) for assistant ${assistantName} (ID: ${assistantId})`,
   );
-};
+
+  const stripe = await getStripeInstance();
+  let subscriptionsCanceled = 0;
+
+  for (const subscription of subscriptionData) {
+    console.log(
+      `Processing subscription ${subscription.id} with status: ${subscription.status}, stripe_subscription_id: ${subscription.stripe_subscription_id ?? "null"}`,
+    );
+
+    // If there's no Stripe subscription ID, just mark it as canceled in our database
+    if (!subscription.stripe_subscription_id) {
+      console.log(
+        `No Stripe subscription ID for subscription ${subscription.id}. Marking as canceled in database.`,
+      );
+
+      await supabase
+        .from("assistant_subscriptions")
+        .update({
+          status: "canceled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", subscription.id);
+
+      subscriptionsCanceled++;
+      continue;
+    }
+
+    // If there is a Stripe subscription ID, cancel it in Stripe
+    if (stripe) {
+      try {
+        const stripeSubscriptionId = subscription.stripe_subscription_id;
+
+        console.log(
+          `Attempting to cancel Stripe subscription ${stripeSubscriptionId} for assistant ${assistantName}`,
+        );
+
+        // First check if the subscription exists and its status
+        const stripeSubscription =
+          await stripe.subscriptions.retrieve(stripeSubscriptionId);
+
+        if (stripeSubscription.status === "canceled") {
+          console.log(
+            `Stripe subscription ${stripeSubscriptionId} is already canceled.`,
+          );
+        } else {
+          // Cancel immediately in Stripe
+          await stripe.subscriptions.cancel(stripeSubscriptionId);
+          console.log(
+            `Successfully canceled Stripe subscription ${stripeSubscriptionId} for assistant ${assistantName}`,
+          );
+        }
+
+        // Update our database record
+        await supabase
+          .from("assistant_subscriptions")
+          .update({
+            status: "canceled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscription.id);
+
+        subscriptionsCanceled++;
+      } catch (stripeError: unknown) {
+        console.error(
+          `Error canceling Stripe subscription ${subscription.stripe_subscription_id} for assistant ${assistantName}:`,
+          stripeError,
+        );
+
+        // If subscription doesn't exist in Stripe, still update our database
+        if (
+          stripeError instanceof Error &&
+          stripeError.message.includes("No such subscription")
+        ) {
+          console.log(
+            `Stripe subscription ${subscription.stripe_subscription_id} not found in Stripe. Updating database.`,
+          );
+          await supabase
+            .from("assistant_subscriptions")
+            .update({
+              status: "canceled",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", subscription.id);
+
+          subscriptionsCanceled++;
+        }
+      }
+    } else {
+      console.error("Failed to get Stripe instance");
+    }
+  }
+
+  console.log(
+    `Processed ${subscriptionData.length} subscription(s) for assistant ${assistantName}. ${subscriptionsCanceled} were successfully canceled.`,
+  );
+
+  return {
+    subscriptionsFound: subscriptionData.length,
+    subscriptionsCanceled,
+  };
+}
+
+// Helper function to delete assistant from Pinecone
+async function deletePineconeAssistant(pineconeName: string): Promise<void> {
+  const pinecone = getPineconeClient();
+
+  try {
+    console.log(
+      `Attempting to delete assistant "${pineconeName}" from Pinecone.`,
+    );
+    await pinecone.deleteAssistant(pineconeName);
+    console.log(
+      `Assistant "${pineconeName}" successfully deleted from Pinecone.`,
+    );
+  } catch (pineconeError: unknown) {
+    // It's possible the assistant doesn't exist in Pinecone (e.g., if creation failed partially)
+    // Log the error but don't let it block other cleanup operations.
+    console.warn(
+      `Error deleting assistant "${pineconeName}" from Pinecone (it may not exist or another issue occurred):`,
+      pineconeError,
+    );
+  }
+}
+
+// Modified helper function to delete assistant data from Supabase by assistant ID
+async function deleteSupabaseAssistant(
+  supabase: SupabaseClient<Database>,
+  assistantId: string,
+): Promise<void> {
+  // Deletion will cascade via FOREIGN KEY constraints for related tables:
+  // assistant_configs, assistant_activity, assistant_usage_limits
+  console.log(
+    `Attempting to delete assistant ID "${assistantId}" from Supabase 'assistants' table and related data via cascade.`,
+  );
+  const { error: deleteError } = await supabase
+    .from("assistants")
+    .delete()
+    .eq("id", assistantId); // Use primary key for deletion
+
+  if (deleteError) {
+    console.error(
+      `Error deleting assistant ID "${assistantId}" from Supabase 'assistants' table:`,
+      deleteError,
+    );
+    // Depending on policy, you might want to throw an error here if Supabase deletion is critical
+    // For now, just logging, as other cleanup might have succeeded.
+  } else {
+    console.log(
+      `Assistant ID "${assistantId}" successfully deleted from Supabase 'assistants' table (and related data via cascade).`,
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // Validate request body
-    const body = await req.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid request format" },
-        { status: 400 },
-      );
-    }
-
+    const body = (await req.json()) as DeleteAssistantRequest;
     const { assistantName } = body;
 
-    // Validate required fields
-    if (!assistantName) {
+    if (!assistantName || typeof assistantName !== "string") {
       return NextResponse.json(
-        { error: "No-show name is required" },
+        { error: "Assistant name is required" },
         { status: 400 },
       );
     }
 
     const supabase = await createClient();
-
-    // Check user authentication
     const {
       data: { user },
       error: authError,
@@ -50,93 +217,110 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    try {
-      // Fetch the assistant to check for subscription
-      const { data: assistantData, error: assistantError } = await supabase
+    const appUserId = user.id;
+
+    const { data: assistantForDb, error: assistantDbFetchError } =
+      await supabase
         .from("assistants")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("assistant_id", assistantName)
+        .select(
+          `
+        *,
+        assistant_configs!inner(pinecone_name)
+      `,
+        )
+        .eq("user_id", appUserId)
+        .eq("name", assistantName)
         .single();
 
-      if (assistantError) {
-        console.error("Error fetching assistant:", assistantError);
-      } else if (assistantData) {
-        // Check if there is a subscription to cancel
-        let subscriptionId: string | undefined;
-        if (hasSubscription(assistantData.params)) {
-          subscriptionId =
-            assistantData.params.subscription.stripeSubscriptionId;
-        }
+    if (assistantDbFetchError || !assistantForDb) {
+      console.warn(
+        `Assistant "${assistantName}" not found in DB for user ${appUserId}. Error:`,
+        assistantDbFetchError?.message,
+      );
 
-        // If there's an active subscription, cancel it without a refund
-        if (subscriptionId && stripe) {
-          try {
-            console.log(
-              `Canceling subscription ${subscriptionId} for No-Show ${assistantName}`,
-            );
-
-            // Cancel subscription with no refund (prorate: false means no partial refunds)
-            await stripe.subscriptions.cancel(subscriptionId, {
-              prorate: false,
-            });
-
-            console.log(
-              `Successfully canceled subscription ${subscriptionId} for No-Show ${assistantName}`,
-            );
-          } catch (stripeError) {
-            console.error("Error canceling Stripe subscription:", stripeError);
-            // Continue with deletion even if subscription cancellation fails
-          }
-        }
-      }
-
-      // Delete from Pinecone
-      const pinecone = getPineconeClient();
-      if (!pinecone) {
-        return NextResponse.json(
-          { error: "Pinecone client initialization failed" },
-          { status: 500 },
-        );
-      }
-
-      await pinecone.deleteAssistant(assistantName);
-
-      // Delete from Supabase (adding record cleanup)
-      const { error: deleteError } = await supabase
-        .from("assistants")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("assistant_id", assistantName);
-
-      if (deleteError) {
-        console.error("Error deleting No-Show from database:", deleteError);
-        // We continue since the assistant was deleted from Pinecone already
-      }
-
-      // Clean up chat history
-      const { error: chatDeleteError } = await supabase
-        .from("interactions")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("assistant_id", assistantName);
-
-      if (chatDeleteError) {
-        console.error("Error cleaning up chat history:", chatDeleteError);
-      }
-
-      return NextResponse.json({ message: `No-Show ${assistantName} deleted` });
-    } catch (apiError) {
-      console.error("Error deleting No-Show:", apiError);
       return NextResponse.json(
-        { error: "Failed to delete No-Show" },
-        { status: 500 },
+        {
+          message: `Assistant "${assistantName}" not found in database for your account.`,
+        },
+        { status: 404 },
       );
     }
-  } catch (e) {
-    console.error("Unexpected error:", e);
+
+    const assistantId = assistantForDb.id;
+    const assignedPhoneNumber = assistantForDb.assigned_phone_number;
+    const pineconeName = assistantForDb.assistant_configs?.pinecone_name;
+
+    const subscriptionResult = await cancelStripeSubscription(
+      supabase,
+      assistantId,
+      assistantName,
+    );
+
+    if (pineconeName) {
+      await deletePineconeAssistant(pineconeName);
+    } else {
+      console.warn(
+        `No pinecone_name found for assistant "${assistantName}" (ID: ${assistantId}). Skipping Pinecone deletion.`,
+      );
+    }
+
+    if (assignedPhoneNumber) {
+      console.log(
+        `Attempting to unassign phone number "${assignedPhoneNumber}" for assistant ID "${assistantId}".`,
+      );
+      const { error: phoneUpdateError } = await supabase
+        .from("phone_numbers")
+        .update({ is_assigned: false, assistant_id: null })
+        .eq("phone_number", assignedPhoneNumber)
+        .eq("assistant_id", assistantId);
+
+      if (phoneUpdateError) {
+        console.error(
+          `Error updating phone number "${assignedPhoneNumber}" to unassigned for assistant ID "${assistantId}":`,
+          phoneUpdateError,
+        );
+      } else {
+        console.log(
+          `Phone number "${assignedPhoneNumber}" successfully unassigned from assistant ID "${assistantId}".`,
+        );
+      }
+    }
+
+    await deleteSupabaseAssistant(supabase, assistantId);
+
+    const summary = {
+      assistantName,
+      assistantId,
+      pineconeName,
+      assignedPhoneNumber,
+      timestamp: new Date().toISOString(),
+      deletionSteps: {
+        stripeSubscriptionsFound: subscriptionResult.subscriptionsFound,
+        stripeSubscriptionsCanceled: subscriptionResult.subscriptionsCanceled,
+        pineconeDeleted: Boolean(pineconeName),
+        phoneNumberUnassigned: Boolean(assignedPhoneNumber),
+        supabaseDataDeleted: true,
+      },
+    };
+
+    console.log("Deletion summary:", JSON.stringify(summary, null, 2));
+
+    return NextResponse.json({
+      message: `Assistant "${assistantName}" and its related data have been processed for deletion.`,
+      summary,
+    });
+  } catch (error: unknown) {
+    console.error("Unexpected error in POST /api/Concierge/delete:", error);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown internal server error occurred.";
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error during assistant deletion process.",
+        details: errorMessage,
+      },
       { status: 500 },
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import {
   Card,
@@ -13,10 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Phone, AlertTriangle, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUnassignedNumbersStore } from "@/store/unassignedNumbersStore";
 
 export function UnassignedNumbersWidget() {
-  const [numbers, setNumbers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { numbers, setNumbers, isLoading, setIsLoading } =
+    useUnassignedNumbersStore();
   const router = useRouter();
   const supabase = createClient();
 
@@ -28,7 +29,7 @@ export function UnassignedNumbersWidget() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from("phonenumbers")
+        .from("phone_numbers")
         .select("*")
         .eq("is_assigned", false)
         .order("created_at", { ascending: false });

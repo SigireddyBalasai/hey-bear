@@ -1,21 +1,27 @@
-import { createClient } from "@supabase/supabase-js";
-import { Database } from "@/lib/db.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/db.types";
 
-/**
- * Creates a Supabase client with public anon key but without requiring
- * authentication. Used for webhook endpoints where user session isn't available.
- */
-export const createServiceClient = () => {
+export const createClient = async (): Promise<SupabaseClient<Database>> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase credentials");
+  if (!supabaseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL environment variable");
   }
 
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: false,
-    },
-  });
+  if (!supabaseServiceRoleKey) {
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY environment variable");
+  }
+
+  const client = await Promise.resolve(
+    createSupabaseClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }),
+  );
+
+  return client;
 };

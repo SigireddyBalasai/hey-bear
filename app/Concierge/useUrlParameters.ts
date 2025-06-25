@@ -1,0 +1,118 @@
+"use client";
+
+import { useEffect } from "react";
+import { ConciergeFormData } from "@/types/ConciergeFormData";
+
+// Utility function to get URL parameters
+const getUrlParameter = (name: string): string | null => {
+  if (typeof globalThis === "undefined") return null;
+  return new URLSearchParams(globalThis.location.search).get(name);
+};
+
+interface UseUrlParametersProps {
+  setFormData: (data: ConciergeFormData) => void;
+  setCreateDialogOpen: (open: boolean) => void;
+  fetchAssistants: () => void;
+}
+
+export function useUrlParameters({
+  setFormData,
+  setCreateDialogOpen,
+  fetchAssistants,
+}: UseUrlParametersProps) {
+  // Check for Stripe redirect parameters on component mount
+  useEffect(() => {
+    const success = getUrlParameter("success");
+    const canceled = getUrlParameter("canceled");
+    const assistantId = getUrlParameter("assistant_id");
+
+    if (success === "true" && assistantId) {
+      console.log(
+        "Subscription successful",
+        "Your No-Show has been successfully activated!",
+      );
+      fetchAssistants();
+    } else if (canceled === "true" && assistantId) {
+      console.log(
+        "Checkout canceled",
+        "Your payment was not completed. The No-Show will remain inactive.",
+      );
+      fetchAssistants();
+    }
+  }, [fetchAssistants]);
+
+  // Effect to handle return from Stripe checkout
+  useEffect(() => {
+    const paymentStatus = getUrlParameter("payment");
+    const openDialog = getUrlParameter("openDialog");
+
+    // Handle new payment flow with bot data
+    if (
+      (paymentStatus === "success" || paymentStatus === "cancelled") &&
+      openDialog === "true"
+    ) {
+      // Extract bot data from URL parameters
+      const botData: ConciergeFormData = {
+        name: getUrlParameter("name") || "",
+        description: getUrlParameter("description") || "",
+        concierge_name: getUrlParameter("concierge_name") || "",
+        personality: getUrlParameter("personality") || "",
+        business_name: getUrlParameter("business_name") || "",
+        share_phone_number: getUrlParameter("share_phone_number") === "true",
+        business_phone: getUrlParameter("business_phone") || "",
+      };
+
+      // Populate form data with bot data
+      setFormData(botData);
+
+      if (paymentStatus === "success") {
+        console.log(
+          "Payment successful!",
+          "Your subscription is active. Complete creating your assistant.",
+        );
+      } else {
+        console.log(
+          "Payment cancelled",
+          "You can complete the payment later. Your assistant details have been preserved.",
+        );
+      }
+
+      // Open the create dialog with preserved data
+      setCreateDialogOpen(true);
+
+      // Clean up URL parameters
+      globalThis.history.replaceState(
+        {},
+        document.title,
+        globalThis.location.pathname,
+      );
+    }
+
+    // Handle legacy payment flow (keep for backward compatibility)
+    const success = getUrlParameter("success");
+    const canceled = getUrlParameter("canceled");
+    const assistantId = getUrlParameter("assistant_id");
+
+    if (success === "true" && assistantId) {
+      console.log(
+        "Payment successful",
+        "Your No-Show has been activated with your subscription plan",
+      );
+    } else if (canceled === "true" && assistantId) {
+      console.log(
+        "Payment canceled",
+        "You can complete the payment later to activate your No-Show",
+      );
+    }
+
+    // Clear URL parameters and refresh list in both legacy cases
+    if ((success === "true" || canceled === "true") && assistantId) {
+      globalThis.history.replaceState(
+        {},
+        document.title,
+        globalThis.location.pathname,
+      );
+      fetchAssistants();
+    }
+  }, [setFormData, setCreateDialogOpen, fetchAssistants]);
+}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 // Define the settings object type
 type TwilioSettings = {
@@ -28,23 +29,10 @@ export async function GET(req: Request) {
 
     console.log("User authenticated:", user.id);
 
-    // Check admin status - directly query the users table
-    const { data: userData, error: userDataError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userDataError) {
-      console.log("User data error:", userDataError);
-      return NextResponse.json(
-        { error: "Error checking admin status" },
-        { status: 500 },
-      );
-    }
-
-    if (!userData?.is_admin) {
-      console.log("Not an admin:", userData);
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
+      console.log("Not an admin");
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 },
@@ -96,15 +84,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status - directly using auth_user_id
-    const { data: userData, error: userDataError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (userDataError || !userData?.is_admin) {
-      console.log("Admin check failed:", userDataError, userData);
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
+      console.log("Not an admin");
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 },

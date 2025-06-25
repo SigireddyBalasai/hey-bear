@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import twilio from "twilio";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
 
 export async function GET(req: Request) {
   try {
@@ -15,15 +16,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin status - Fix the issue by checking auth_user_id not user.id
-    const { data: userData, error: userDataError } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("auth_user_id", user.id) // Use auth_user_id instead of user.id
-      .single();
-
-    if (userDataError || !userData?.is_admin) {
-      console.log("Admin check failed:", userDataError, userData);
+    // Check admin status - use isAdminRpc utility
+    const isAdmin = await isAdminRpc();
+    if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 },
@@ -47,7 +42,7 @@ export async function GET(req: Request) {
 
     // Get phone numbers from database
     const { data: dbNumbers, error: dbError } = await supabase
-      .from("phonenumbers")
+      .from("phone_numbers")
       .select("*");
 
     if (dbError) {
@@ -87,7 +82,9 @@ export async function GET(req: Request) {
       }));
 
       // Find which Twilio numbers aren't in the database yet
-      const dbPhoneNumbersSet = new Set((dbNumbers || []).map((n) => n.number));
+      const dbPhoneNumbersSet = new Set(
+        (dbNumbers || []).map((n) => n.phone_number),
+      );
       const unmanagedNumbers = formattedNumbers.filter(
         (n) => !dbPhoneNumbersSet.has(n.phoneNumber),
       );

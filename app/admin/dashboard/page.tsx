@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,8 @@ import { AdminHeader } from "../components/AdminHeader";
 import { AdminSidebar } from "../components/AdminSidebar";
 import { TwilioIntegrationStatus } from "../components/TwilioIntegrationStatus";
 import { UnassignedNumbersWidget } from "../UnassignedNumbersWidget";
+import { isAdminRpc } from "@/app/utils/isAdminRpc";
+import { useAdminDashboardStore } from "@/store/adminDashboardStore";
 
 // Register Chart.js components
 ChartJS.register(
@@ -39,11 +41,18 @@ ChartJS.register(
 );
 
 export default function AdminDashboardPage() {
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<any>(null);
-  const [selectedTimeRange, setSelectedTimeRange] = useState("30d");
+  const {
+    user,
+    setUser,
+    isAdmin,
+    setIsAdmin,
+    isLoading,
+    setIsLoading,
+    dashboardData,
+    setDashboardData,
+    selectedTimeRange,
+    setSelectedTimeRange,
+  } = useAdminDashboardStore();
 
   const router = useRouter();
   const supabase = createClient();
@@ -69,19 +78,13 @@ export default function AdminDashboardPage() {
         setUser(user);
 
         // Fetch user record to check admin status
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("is_admin")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (userDataError || !userData?.is_admin) {
+        const isAdmin = isAdminRpc();
+        if (!isAdmin) {
           toast("Access Denied", {
-            description:
-              "You don't have permission to access the admin dashboard",
+            description: "You do not have admin access.",
           });
           setIsAdmin(false);
-          router.push("/");
+          router.push("/sign-up");
           return;
         }
 
@@ -98,7 +101,7 @@ export default function AdminDashboardPage() {
     };
 
     checkAdminStatus();
-  }, []);
+  }, [setIsLoading, setUser, setIsAdmin]);
 
   const fetchDashboardData = async () => {
     try {

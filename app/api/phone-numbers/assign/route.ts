@@ -175,9 +175,9 @@ export async function POST(request: Request) {
             try {
               const supabase = await createClient();
               const { data: number, error: insertError } = await supabase
-                .from("phonenumbers")
+                .from("phone_numbers")
                 .insert({
-                  number: phoneNumberToAssign,
+                  phone_number: phoneNumberToAssign,
                   is_assigned: false,
                   created_at: new Date().toISOString(),
                 })
@@ -225,9 +225,9 @@ export async function POST(request: Request) {
           );
 
           const { data: existingNumber, error: checkError } = await supabase
-            .from("phonenumbers")
+            .from("phone_numbers")
             .select("*")
-            .eq("number", phoneNumberToAssign)
+            .eq("phone_number", phoneNumberToAssign)
             .single();
 
           // If the number doesn't exist in our database, add it
@@ -239,9 +239,9 @@ export async function POST(request: Request) {
             try {
               const { data: insertedNumber, error: insertError } =
                 await supabase
-                  .from("phonenumbers")
+                  .from("phone_numbers")
                   .insert({
-                    number: phoneNumberToAssign,
+                    phone_number: phoneNumberToAssign,
                     is_assigned: false,
                     created_at: new Date().toISOString(),
                   })
@@ -340,9 +340,9 @@ export async function POST(request: Request) {
 
     // Get the phone number record
     const { data: phoneNumberData, error: phoneNumberError } = await supabase
-      .from("phonenumbers")
+      .from("phone_numbers")
       .select("*")
-      .eq("number", phoneNumberToAssign)
+      .eq("phone_number", phoneNumberToAssign)
       .single();
 
     if (phoneNumberError || !phoneNumberData) {
@@ -403,7 +403,7 @@ export async function POST(request: Request) {
         // Remove the old number from our database
         try {
           await supabase
-            .from("phonenumbers")
+            .from("phone_numbers")
             .delete()
             .eq("number", phoneNumberToAssign);
 
@@ -421,9 +421,9 @@ export async function POST(request: Request) {
         // Add the new number to our database
         try {
           const { data: newNumber, error: insertError } = await supabase
-            .from("phonenumbers")
+            .from("phone_numbers")
             .insert({
-              number: twilioResult.actualPhoneNumber,
+              phone_number: twilioResult.actualPhoneNumber,
               is_assigned: false,
               created_at: new Date().toISOString(),
             })
@@ -510,7 +510,7 @@ export async function POST(request: Request) {
 
     // 2. Update phone number as assigned
     const { error: updatePhoneError } = await supabase
-      .from("phonenumbers")
+      .from("phone_numbers")
       .update({
         is_assigned: true,
       })
@@ -552,7 +552,7 @@ export async function POST(request: Request) {
       // Revert phone number assignment
       try {
         await supabase
-          .from("phonenumbers")
+          .from("phone_numbers")
           .update({
             is_assigned: false,
             twilio_app_sid: null,
